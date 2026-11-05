@@ -1,1 +1,3 @@
-# ai-advent-challenge-01
+# ai-advent-challenge
+
+## 01
