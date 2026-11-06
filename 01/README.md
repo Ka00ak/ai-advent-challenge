@@ -11,3 +11,7 @@ Run
 ```sh
 streamlit run 01/app.py
 ```
+
+Result
+
+https://github.com/user-attachments/assets/db03904b-0675-4358-b069-139fc6da6e67
