@@ -15,15 +15,23 @@ user_input = st.text_area("Введите ваш запрос:", height=150, pla
 
 # Параметры генерации
 with st.expander("⚙️ Параметры генерации", expanded=True):
-    # Максимальное количество токенов
-    max_tokens = st.number_input(
-        "Максимальное количество токенов",
-        min_value=1,
-        max_value=8192,
-        value=1024,
-        step=64,
-        help="Ограничивает длину ответа модели."
+    # Максимальное количество токенов (необязательно — оставь пустым, чтобы не передавать)
+    max_tokens_input = st.text_input(
+        "Максимальное количество токенов (необязательно)",
+        value="",
+        placeholder="Пусто = значение по умолчанию модели",
+        help="Оставь пустым, чтобы не передавать max_tokens. Допустимо от 1 до 8192."
     )
+    max_tokens = None
+    if max_tokens_input.strip():
+        try:
+            max_tokens = int(max_tokens_input.strip())
+            if not (1 <= max_tokens <= 8192):
+                st.warning("max_tokens должен быть в диапазоне 1–8192. Значение будет проигнорировано.")
+                max_tokens = None
+        except ValueError:
+            st.warning("max_tokens должен быть целым числом. Значение будет проигнорировано.")
+            max_tokens = None
 
     # Stop sequence (можно несколько через запятую)
     stop_input = st.text_input(
@@ -66,14 +74,26 @@ if st.button("Отправить", type="primary"):
                         {"role": "user", "content": user_input}
                     ],
                     "temperature": 1,
-                    "max_tokens": max_tokens,
                 }
+
+                if max_tokens is not None:
+                    request_params["max_tokens"] = max_tokens
 
                 if stop_sequences:
                     request_params["stop"] = stop_sequences
 
                 if json_output:
                     request_params["response_format"] = {"type": "json_object"}
+
+                # ===== Переданный контекст =====
+                st.subheader("📤 Переданный контекст")
+
+                # Полный запрос одним блоком (как уйдёт на сервер)
+                with st.expander("Полный запрос (JSON)", expanded=False):
+                    st.code(
+                        json.dumps(request_params, indent=4, ensure_ascii=False),
+                        language="json"
+                    )
 
                 # Отправка запроса через with_raw_response — даёт доступ к сырому HTTP-ответу
                 raw_response = client.chat.completions.with_raw_response.create(**request_params)
