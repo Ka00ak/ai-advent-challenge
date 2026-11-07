@@ -1,5 +1,7 @@
 import os
 import json
+import time
+import threading
 import streamlit as st
 from openai import OpenAI
 
@@ -95,10 +97,47 @@ if st.button("Отправить", type="primary"):
                         language="json"
                     )
 
-                # Отправка запроса через with_raw_response — даёт доступ к сырому HTTP-ответу
-                raw_response = client.chat.completions.with_raw_response.create(**request_params)
-                http_response = raw_response.http_response   # объект httpx.Response
-                completion = raw_response.parse()            # распарсенный объект для основного вывода
+                # ===== Живой счётчик времени + запрос в отдельном потоке =====
+                st.subheader("⏱️ Время ответа")
+                timer_placeholder = st.empty()
+
+                result_holder = {}
+                error_holder = {}
+                done_event = threading.Event()
+
+                def do_request():
+                    try:
+                        start = time.perf_counter()
+                        raw = client.chat.completions.with_raw_response.create(**request_params)
+                        result_holder["raw_response"] = raw
+                        result_holder["elapsed"] = time.perf_counter() - start
+                    except Exception as ex:
+                        error_holder["error"] = ex
+                    finally:
+                        done_event.set()
+
+                start_time = time.perf_counter()
+                thread = threading.Thread(target=do_request, daemon=True)
+                thread.start()
+
+                # Живое обновление счётчика, пока поток работает
+                while not done_event.is_set():
+                    elapsed_live = time.perf_counter() - start_time
+                    timer_placeholder.markdown(f"**⏳ Идёт запрос: {elapsed_live:.1f} с**")
+                    time.sleep(0.1)
+
+                # Финальное значение
+                total_elapsed = time.perf_counter() - start_time
+                timer_placeholder.markdown(f"**✅ Готово за {total_elapsed:.3f} с**")
+
+                # Проверяем ошибку из потока
+                if "error" in error_holder:
+                    raise error_holder["error"]
+
+                raw_response = result_holder["raw_response"]
+                elapsed = result_holder["elapsed"]
+                http_response = raw_response.http_response
+                completion = raw_response.parse()
 
                 # ===== Сырой HTTP-ответ =====
                 st.subheader("🌐 Сырой HTTP-ответ")
