@@ -1,0 +1,104 @@
+{
+  "model": "deepseek-flash",
+  "base_url": "https://api.deepseek.com",
+  "runs_per_combo": 5,
+  "temperatures": [
+    0.0,
+    0.7,
+    1.2
+  ],
+  "total_requests": 30,
+  "elapsed_sec": 231.2,
+  "combos": [
+    {
+      "task_label": "A",
+      "prompt": "Площадь прямоугольника равна 48 см², а одна сторона — 6 см. Чему равен периметр?",
+      "temperature": 0.0,
+      "metrics": {
+        "runs": 5,
+        "errors": 0,
+        "empty_answers": 0,
+        "truncated": 0,
+        "unique_answers": 5,
+        "most_common_share": 0.2,
+        "correct": null,
+        "avg_latency_sec": 1.413
+      }
+    },
+    {
+      "task_label": "A",
+      "prompt": "Площадь прямоугольника равна 48 см², а одна сторона — 6 см. Чему равен периметр?",
+      "temperature": 0.7,
+      "metrics": {
+        "runs": 5,
+        "errors": 0,
+        "empty_answers": 0,
+        "truncated": 0,
+        "unique_answers": 3,
+        "most_common_share": 0.4,
+        "correct": null,
+        "avg_latency_sec": 1.41
+      }
+    },
+    {
+      "task_label": "A",
+      "prompt": "Площадь прямоугольника равна 48 см², а одна сторона — 6 см. Чему равен периметр?",
+      "temperature": 1.2,
+      "metrics": {
+        "runs": 5,
+        "errors": 0,
+        "empty_answers": 0,
+        "truncated": 0,
+        "unique_answers": 2,
+        "most_common_share": 0.8,
+        "correct": null,
+        "avg_latency_sec": 1.452
+      }
+    },
+    {
+      "task_label": "B",
+      "prompt": "Придумай кричалку для команды по футболу от эльфов из Ривенделла",
+      "temperature": 0.0,
+      "metrics": {
+        "runs": 5,
+        "errors": 0,
+        "empty_answers": 0,
+        "truncated": 0,
+        "unique_answers": 5,
+        "most_common_share": 0.2,
+        "correct": null,
+        "avg_latency_sec": 13.534
+      }
+    },
+    {
+      "task_label": "B",
+      "prompt": "Придумай кричалку для команды по футболу от эльфов из Ривенделла",
+      "temperature": 0.7,
+      "metrics": {
+        "runs": 5,
+        "errors": 0,
+        "empty_answers": 0,
+        "truncated": 0,
+        "unique_answers": 5,
+        "most_common_share": 0.2,
+        "correct": null,
+        "avg_latency_sec": 19.455
+      }
+    },
+    {
+      "task_label": "B",
+      "prompt": "Придумай кричалку для команды по футболу от эльфов из Ривенделла",
+      "temperature": 1.2,
+      "metrics": {
+        "runs": 5,
+        "errors": 0,
+        "empty_answers": 0,
+        "truncated": 0,
+        "unique_answers": 5,
+        "most_common_share": 0.2,
+        "correct": null,
+        "avg_latency_sec": 8.971
+      }
+    }
+  ]
+}

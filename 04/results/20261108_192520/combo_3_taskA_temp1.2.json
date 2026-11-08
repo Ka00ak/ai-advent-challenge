@@ -1,0 +1,463 @@
+{
+  "task_label": "A",
+  "prompt": "Площадь прямоугольника равна 48 см², а одна сторона — 6 см. Чему равен периметр?",
+  "expected": "",
+  "temperature": 1.2,
+  "metrics": {
+    "runs": 5,
+    "errors": 0,
+    "empty_answers": 0,
+    "truncated": 0,
+    "unique_answers": 2,
+    "most_common_share": 0.8,
+    "correct": null,
+    "avg_latency_sec": 1.452
+  },
+  "records": [
+    {
+      "ok": true,
+      "http_status": "200 OK",
+      "request": {
+        "model": "deepseek-flash",
+        "temperature": 1.2,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Площадь прямоугольника равна 48 см², а одна сторона — 6 см. Чему равен периметр?"
+          }
+        ]
+      },
+      "answer": "Другая сторона прямоугольника:\n\n\\(48 : 6 = 8\\) см.\n\nПериметр:\n\n\\(2 \\cdot (6 + 8) = 2 \\cdot 14 = 28\\) см.\n\n**Ответ: 28 см.**",
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 97,
+        "prompt_tokens": 56,
+        "total_tokens": 153,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 42,
+          "rejected_prediction_tokens": null,
+          "text_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": null
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 56
+      },
+      "latency_sec": 1.42,
+      "raw_response": {
+        "id": "4d90d9d7-cc08-471f-99f6-266f0ff68791",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "Другая сторона прямоугольника:\n\n\\(48 : 6 = 8\\) см.\n\nПериметр:\n\n\\(2 \\cdot (6 + 8) = 2 \\cdot 14 = 28\\) см.\n\n**Ответ: 28 см.**",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": null,
+              "reasoning_content": "We need answer Russian likely. Need solve. Rectangle area 48, one side 6. Other = 48/6=8. Perimeter=2(6+8)=28 cm. Need concise."
+            }
+          }
+        ],
+        "created": 1794140734,
+        "model": "deepseek-flash",
+        "object": "chat.completion",
+        "metadata": null,
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+        "usage": {
+          "completion_tokens": 97,
+          "prompt_tokens": 56,
+          "total_tokens": 153,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 42,
+            "rejected_prediction_tokens": null,
+            "text_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 0,
+            "image_tokens": null,
+            "text_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 56
+        }
+      },
+      "error": null,
+      "run": 1,
+      "timestamp": "2026-11-08T19:25:35"
+    },
+    {
+      "ok": true,
+      "http_status": "200 OK",
+      "request": {
+        "model": "deepseek-flash",
+        "temperature": 1.2,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Площадь прямоугольника равна 48 см², а одна сторона — 6 см. Чему равен периметр?"
+          }
+        ]
+      },
+      "answer": "Другая сторона прямоугольника:\n\n\\(48 : 6 = 8\\) см.\n\nПериметр:\n\n\\(2 \\cdot (6 + 8) = 2 \\cdot 14 = 28\\) см.\n\n**Ответ: 28 см.**",
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 95,
+        "prompt_tokens": 56,
+        "total_tokens": 151,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 40,
+          "rejected_prediction_tokens": null,
+          "text_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": null
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 56
+      },
+      "latency_sec": 1.547,
+      "raw_response": {
+        "id": "9b5f8ceb-df23-48ad-99e8-236e90539493",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "Другая сторона прямоугольника:\n\n\\(48 : 6 = 8\\) см.\n\nПериметр:\n\n\\(2 \\cdot (6 + 8) = 2 \\cdot 14 = 28\\) см.\n\n**Ответ: 28 см.**",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": null,
+              "reasoning_content": "We need answer in Russian. Need compute. Rectangle area 48 one side 6. Other =48/6=8. Perimeter=2*(6+8)=28 cm. Need concise."
+            }
+          }
+        ],
+        "created": 1794140736,
+        "model": "deepseek-flash",
+        "object": "chat.completion",
+        "metadata": null,
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+        "usage": {
+          "completion_tokens": 95,
+          "prompt_tokens": 56,
+          "total_tokens": 151,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 40,
+            "rejected_prediction_tokens": null,
+            "text_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 0,
+            "image_tokens": null,
+            "text_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 56
+        }
+      },
+      "error": null,
+      "run": 2,
+      "timestamp": "2026-11-08T19:25:37"
+    },
+    {
+      "ok": true,
+      "http_status": "200 OK",
+      "request": {
+        "model": "deepseek-flash",
+        "temperature": 1.2,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Площадь прямоугольника равна 48 см², а одна сторона — 6 см. Чему равен периметр?"
+          }
+        ]
+      },
+      "answer": "Другая сторона прямоугольника:\n\n\\(48 : 6 = 8\\) см.\n\nПериметр:\n\n\\(2 \\cdot (6 + 8) = 28\\) см.\n\n**Ответ: 28 см.**",
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 89,
+        "prompt_tokens": 56,
+        "total_tokens": 145,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 41,
+          "rejected_prediction_tokens": null,
+          "text_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": null
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 56
+      },
+      "latency_sec": 1.225,
+      "raw_response": {
+        "id": "58c5c56f-15bc-431a-93ba-16bfba34d47f",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "Другая сторона прямоугольника:\n\n\\(48 : 6 = 8\\) см.\n\nПериметр:\n\n\\(2 \\cdot (6 + 8) = 28\\) см.\n\n**Ответ: 28 см.**",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": null,
+              "reasoning_content": "We need answer Russian. Need solve. Area rectangle 48, one side 6. Other side =48/6=8. Perimeter=2*(6+8)=28 cm. Need concise."
+            }
+          }
+        ],
+        "created": 1794140737,
+        "model": "deepseek-flash",
+        "object": "chat.completion",
+        "metadata": null,
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+        "usage": {
+          "completion_tokens": 89,
+          "prompt_tokens": 56,
+          "total_tokens": 145,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 41,
+            "rejected_prediction_tokens": null,
+            "text_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 0,
+            "image_tokens": null,
+            "text_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 56
+        }
+      },
+      "error": null,
+      "run": 3,
+      "timestamp": "2026-11-08T19:25:38"
+    },
+    {
+      "ok": true,
+      "http_status": "200 OK",
+      "request": {
+        "model": "deepseek-flash",
+        "temperature": 1.2,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Площадь прямоугольника равна 48 см², а одна сторона — 6 см. Чему равен периметр?"
+          }
+        ]
+      },
+      "answer": "Другая сторона прямоугольника:\n\n\\(48 : 6 = 8\\) см.\n\nПериметр:\n\n\\(2 \\cdot (6 + 8) = 2 \\cdot 14 = 28\\) см.\n\n**Ответ: 28 см.**",
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 94,
+        "prompt_tokens": 56,
+        "total_tokens": 150,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 39,
+          "rejected_prediction_tokens": null,
+          "text_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": null
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 56
+      },
+      "latency_sec": 1.43,
+      "raw_response": {
+        "id": "088d772c-15e1-4eeb-814a-1244cbb373b5",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "Другая сторона прямоугольника:\n\n\\(48 : 6 = 8\\) см.\n\nПериметр:\n\n\\(2 \\cdot (6 + 8) = 2 \\cdot 14 = 28\\) см.\n\n**Ответ: 28 см.**",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": null,
+              "reasoning_content": "We need answer in Russian likely. Need compute. Area=48, side=6, other=8, perimeter=2*(6+8)=28 cm. Need concise. Maybe explain."
+            }
+          }
+        ],
+        "created": 1794140738,
+        "model": "deepseek-flash",
+        "object": "chat.completion",
+        "metadata": null,
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+        "usage": {
+          "completion_tokens": 94,
+          "prompt_tokens": 56,
+          "total_tokens": 150,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 39,
+            "rejected_prediction_tokens": null,
+            "text_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 0,
+            "image_tokens": null,
+            "text_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 56
+        }
+      },
+      "error": null,
+      "run": 4,
+      "timestamp": "2026-11-08T19:25:40"
+    },
+    {
+      "ok": true,
+      "http_status": "200 OK",
+      "request": {
+        "model": "deepseek-flash",
+        "temperature": 1.2,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Площадь прямоугольника равна 48 см², а одна сторона — 6 см. Чему равен периметр?"
+          }
+        ]
+      },
+      "answer": "Другая сторона прямоугольника:\n\n\\(48 : 6 = 8\\) см.\n\nПериметр:\n\n\\(2 \\cdot (6 + 8) = 2 \\cdot 14 = 28\\) см.\n\n**Ответ: 28 см.**",
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 96,
+        "prompt_tokens": 56,
+        "total_tokens": 152,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 41,
+          "rejected_prediction_tokens": null,
+          "text_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cache_write_tokens": null,
+          "cached_tokens": 0,
+          "image_tokens": null,
+          "text_tokens": null
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 56
+      },
+      "latency_sec": 1.637,
+      "raw_response": {
+        "id": "5a74538a-d9da-4785-8451-3a6c64d0a550",
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "Другая сторона прямоугольника:\n\n\\(48 : 6 = 8\\) см.\n\nПериметр:\n\n\\(2 \\cdot (6 + 8) = 2 \\cdot 14 = 28\\) см.\n\n**Ответ: 28 см.**",
+              "refusal": null,
+              "role": "assistant",
+              "annotations": null,
+              "audio": null,
+              "function_call": null,
+              "tool_calls": null,
+              "reasoning_content": "We need answer in Russian likely. Need solve. Area rectangle = 48, one side 6, other = 8. Perimeter = 2(6+8)=28 cm. Need concise."
+            }
+          }
+        ],
+        "created": 1794140740,
+        "model": "deepseek-flash",
+        "object": "chat.completion",
+        "metadata": null,
+        "moderation": null,
+        "service_tier": null,
+        "system_fingerprint": "bc19ba97cbe016479903222bb1578db6",
+        "usage": {
+          "completion_tokens": 96,
+          "prompt_tokens": 56,
+          "total_tokens": 152,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 41,
+            "rejected_prediction_tokens": null,
+            "text_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cache_write_tokens": null,
+            "cached_tokens": 0,
+            "image_tokens": null,
+            "text_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 56
+        }
+      },
+      "error": null,
+      "run": 5,
+      "timestamp": "2026-11-08T19:25:41"
+    }
+  ]
+}
