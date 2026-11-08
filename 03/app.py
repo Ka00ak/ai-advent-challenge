@@ -16,7 +16,7 @@ with st.expander("⚙️ Параметры генерации", expanded=True):
     # ===== НОВОЕ: выбор уровня рассуждения =====
     reasoning_effort = st.radio(
         "Уровень рассуждения (reasoning_effort)",
-        options=["low", "max"],
+        options=["low", "high", "max"],
         index=1,
         horizontal=True,
         help="low — минимальное рассуждение (быстрее/дешевле); max — максимальное (глубокое, по умолчанию в K3)."
