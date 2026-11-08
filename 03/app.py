@@ -5,19 +5,23 @@ import threading
 import streamlit as st
 from openai import OpenAI
 
-# Настройка страницы
 st.set_page_config(page_title="Kimi API Test", page_icon="🤖")
 st.title("🤖 Простой запрос к Kimi API")
 
-# Поле для ввода API-ключа (вставь свой ключ здесь)
 api_key = os.getenv("KIMI_API_KEY")
 
-# Текстовое поле для вопроса
 user_input = st.text_area("Введите ваш запрос:", height=150, placeholder="Например: Привет, как дела?")
 
-# Параметры генерации
 with st.expander("⚙️ Параметры генерации", expanded=True):
-    # Максимальное количество токенов (необязательно — оставь пустым, чтобы не передавать)
+    # ===== НОВОЕ: выбор уровня рассуждения =====
+    reasoning_effort = st.radio(
+        "Уровень рассуждения (reasoning_effort)",
+        options=["low", "max"],
+        index=1,
+        horizontal=True,
+        help="low — минимальное рассуждение (быстрее/дешевле); max — максимальное (глубокое, по умолчанию в K3)."
+    )
+
     max_tokens_input = st.text_input(
         "Максимальное количество токенов (необязательно)",
         value="",
@@ -35,7 +39,6 @@ with st.expander("⚙️ Параметры генерации", expanded=True):
             st.warning("max_tokens должен быть целым числом. Значение будет проигнорировано.")
             max_tokens = None
 
-    # Stop sequence (можно несколько через запятую)
     stop_input = st.text_input(
         "Stop sequence",
         placeholder="Например: END, ###",
@@ -43,39 +46,36 @@ with st.expander("⚙️ Параметры генерации", expanded=True):
     )
     stop_sequences = [s.strip() for s in stop_input.split(",") if s.strip()] or None
 
-    # Structured output (JSON или обычный текст)
     json_output = st.checkbox(
         "Structured output (JSON)",
         value=False,
         help="Заставляет модель вернуть валидный JSON. Обязательно укажи формат JSON в запросе!"
     )
 
-# Инициализация клиента Kimi (совместим с OpenAI SDK)
 client = OpenAI(
     api_key=api_key,
     base_url="https://api.moonshot.ai/v1",
 )
 
-# Кнопка отправки
 if st.button("Отправить", type="primary"):
     if not user_input.strip():
         st.warning("Пожалуйста, введи текст запроса.")
     else:
         with st.spinner("Kimi думает..."):
             try:
-                # Формируем системный промпт (для JSON добавляем инструкцию)
                 system_content = "Ты полезный ассистент."
                 if json_output:
                     system_content += " Отвечай строго в формате JSON."
 
-                # Собираем параметры запроса
                 request_params = {
                     "model": "kimi-k3",
                     "messages": [
                         {"role": "system", "content": system_content},
                         {"role": "user", "content": user_input}
                     ],
-                    "temperature": 1,
+                    # ===== НОВОЕ: передаём reasoning_effort =====
+                    "reasoning_effort": reasoning_effort,
+                    # temperature НЕ передаём: для K3 он фиксирован
                 }
 
                 if max_tokens is not None:
@@ -87,17 +87,13 @@ if st.button("Отправить", type="primary"):
                 if json_output:
                     request_params["response_format"] = {"type": "json_object"}
 
-                # ===== Переданный контекст =====
                 st.subheader("📤 Переданный контекст")
-
-                # Полный запрос одним блоком (как уйдёт на сервер)
                 with st.expander("Полный запрос (JSON)", expanded=False):
                     st.code(
                         json.dumps(request_params, indent=4, ensure_ascii=False),
                         language="json"
                     )
 
-                # ===== Живой счётчик времени + запрос в отдельном потоке =====
                 st.subheader("⏱️ Время ответа")
                 timer_placeholder = st.empty()
 
@@ -120,17 +116,14 @@ if st.button("Отправить", type="primary"):
                 thread = threading.Thread(target=do_request, daemon=True)
                 thread.start()
 
-                # Живое обновление счётчика, пока поток работает
                 while not done_event.is_set():
                     elapsed_live = time.perf_counter() - start_time
                     timer_placeholder.markdown(f"**⏳ Идёт запрос: {elapsed_live:.1f} с**")
                     time.sleep(0.1)
 
-                # Финальное значение
                 total_elapsed = time.perf_counter() - start_time
                 timer_placeholder.markdown(f"**✅ Готово за {total_elapsed:.3f} с**")
 
-                # Проверяем ошибку из потока
                 if "error" in error_holder:
                     raise error_holder["error"]
 
@@ -139,29 +132,29 @@ if st.button("Отправить", type="primary"):
                 http_response = raw_response.http_response
                 completion = raw_response.parse()
 
-                # ===== Сырой HTTP-ответ =====
                 st.subheader("🌐 Сырой HTTP-ответ")
-
                 with st.expander("Сырое тело ответа (raw body)"):
                     try:
                         parsed = json.loads(http_response.text)
-                    except json.JSONDecodeError as e:
+                    except json.JSONDecodeError:
                         parsed = http_response.text
                     formatted = json.dumps(parsed, indent=4, ensure_ascii=False)
                     st.code(formatted, language="json")
 
-                # ===== Метрики из распарсенного ответа =====
                 choice = completion.choices[0]
                 content = choice.message.content or ""
 
+                # ===== НОВОЕ: показываем reasoning_content, если есть =====
+                reasoning_content = getattr(choice.message, "reasoning_content", None)
+                if reasoning_content:
+                    with st.expander("🧠 Рассуждения модели (reasoning_content)", expanded=False):
+                        st.markdown(reasoning_content)
+
                 if choice.finish_reason == "length":
-                    st.warning("⚠️ Генерация обрезана по лимиту max_tokens — ответ может быть неполным (для JSON это почти гарантированно означает невалидный результат).")
+                    st.warning("⚠️ Генерация обрезана по лимиту max_tokens — ответ может быть неполным.")
 
-                # ===== Основной вывод + проверка JSON =====
                 st.subheader("💬 Ответ")
-
                 if json_output:
-                    # Парсинг и проверка валидности JSON
                     try:
                         parsed = json.loads(content)
                         st.success("✅ JSON корректен (валиден)")
@@ -169,18 +162,13 @@ if st.button("Отправить", type="primary"):
                     except json.JSONDecodeError as e:
                         st.error("❌ JSON некорректен (невалиден)")
                         st.code(
-                            f"Ошибка: {e.msg}\n"
-                            f"Строка: {e.lineno}, колонка: {e.colno} (символ {e.pos})",
+                            f"Ошибка: {e.msg}\nСтрока: {e.lineno}, колонка: {e.colno} (символ {e.pos})",
                             language="text"
                         )
-                        # Показываем проблемный фрагмент с указателем на позицию ошибки
                         lines = content.splitlines()
                         if 0 < e.lineno <= len(lines):
                             bad_line = lines[e.lineno - 1]
-                            st.code(
-                                f"{bad_line}\n{' ' * (e.colno - 1)}^",
-                                language="text"
-                            )
+                            st.code(f"{bad_line}\n{' ' * (e.colno - 1)}^", language="text")
                 else:
                     st.markdown(content)
 
