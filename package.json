@@ -1,0 +1,17 @@
+{
+  "name": "ai-advent-challenge",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "0*",
+    "1*"
+  ],
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev:06": "npm run dev -w 06",
+    "build": "npm run build --workspaces --if-present",
+    "preview:06": "npm run preview -w 06"
+  }
+}
