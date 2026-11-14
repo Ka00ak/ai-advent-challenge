@@ -12,9 +12,11 @@
   "scripts": {
     "dev:06": "npm run dev -w 06",
     "dev:07": "npm run dev -w 07",
+    "dev:08": "npm run dev -w 08",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "preview:06": "npm run preview -w 06",
-    "preview:07": "npm run preview -w 07"
+    "preview:07": "npm run preview -w 07",
+    "preview:08": "npm run preview -w 08"
   }
 }
