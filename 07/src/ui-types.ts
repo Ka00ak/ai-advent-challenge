@@ -9,3 +9,11 @@ export interface UiMessage {
   stopped?: string
   steps: AgentStep[]
 }
+
+/** Состояние автосохранения истории в localStorage. */
+export interface SaveState {
+  state: 'idle' | 'saved' | 'error'
+  savedAt?: string
+  bytes?: number
+  error?: string
+}

@@ -98,6 +98,8 @@ export interface AgentStep {
   iteration: number
   exchange: LlmExchange
   toolResults: ToolInvocation[]
+  /** Шаг восстановлен из сохранённой истории, а не получен в текущем запуске. */
+  restored?: boolean
 }
 
 export type AgentStopReason = 'final' | 'max-iterations' | 'cancelled'

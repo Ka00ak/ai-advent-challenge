@@ -10,6 +10,7 @@ import type {
   ToolCall,
   ToolInvocation,
 } from '../types'
+import { repairToolCallSequence } from './history'
 import { ToolRegistry } from './ToolRegistry'
 
 export interface AgentConfig extends LlmSettings {
@@ -23,6 +24,8 @@ export interface AgentCallbacks {
   onToolStart?: (invocation: ToolInvocation) => void
   onToolEnd?: (invocation: ToolInvocation) => void
   onFinalText?: (text: string) => void
+  /** Каждое новое сообщение (user/assistant/tool) — для сохранения контекста на лету. */
+  onMessageAppended?: (message: ChatMessage) => void
 }
 
 function makeId(): string {
@@ -100,9 +103,15 @@ export class Agent {
     const steps: AgentStep[] = []
     const messages: ChatMessage[] = [
       { role: 'system', content: this.config.systemPrompt },
-      ...history,
-      { role: 'user', content: userText },
+      ...repairToolCallSequence(history.filter(message => message.role !== 'system')),
     ]
+    const append = (message: ChatMessage): void => {
+      messages.push(message)
+      callbacks.onMessageAppended?.(message)
+    }
+
+    append({ role: 'user', content: userText })
+
     const tools = this.registry.schemas()
     const maxIterations = Math.max(1, Math.floor(this.config.maxIterations))
 
@@ -171,7 +180,7 @@ export class Agent {
       }
       exchange.message = assistantMessage
       callbacks.onExchangeEnd?.(exchange)
-      messages.push(assistantMessage)
+      append(assistantMessage)
 
       const step: AgentStep = { iteration, exchange, toolResults: [] }
       steps.push(step)
@@ -208,7 +217,7 @@ export class Agent {
         step.toolResults.push(pending)
         callbacks.onToolEnd?.(pending)
 
-        messages.push({
+        append({
           role: 'tool',
           tool_call_id: call.id,
           name: call.function.name,

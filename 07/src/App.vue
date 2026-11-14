@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { Agent } from './agent/Agent'
 import ApiLogPanel from './components/ApiLogPanel.vue'
+import HistoryPanel from './components/HistoryPanel.vue'
 import MessageBubble from './components/MessageBubble.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import { SYSTEM_PROMPT } from './prompt'
@@ -12,9 +13,24 @@ import {
   saveStoredApiKey,
   type AppSettings,
 } from './settings'
+import {
+  CONVERSATION_STORAGE_KEY,
+  CONVERSATION_VERSION,
+  clearConversation,
+  cloneMessages,
+  conversationStats,
+  createEmptyConversation,
+  formatBytes,
+  getBrowserStorage,
+  loadConversation,
+  parseConversation,
+  reconstructUiMessages,
+  saveConversation,
+  type StoredConversation,
+} from './storage/conversation'
 import { createDefaultToolRegistry } from './tools'
 import type { ChatMessage, LlmExchange } from './types'
-import type { UiMessage } from './ui-types'
+import type { SaveState, UiMessage } from './ui-types'
 
 const TEST_PROMPTS = [
   {
@@ -35,19 +51,46 @@ const TEST_PROMPTS = [
   },
 ]
 
+const loaded = loadConversation()
+const initialMessages = loaded.conversation?.messages ?? []
+const initialJson =
+  loaded.conversation && typeof TextEncoder !== 'undefined'
+    ? new TextEncoder().encode(JSON.stringify(loaded.conversation)).length
+    : undefined
+
 const settings = ref<AppSettings>(loadSettings())
-const messages = ref<UiMessage[]>([])
+const conversation = ref<StoredConversation | null>(loaded.conversation)
+const historyMessages = ref<ChatMessage[]>(initialMessages)
+const messages = ref<UiMessage[]>(
+  initialMessages.length > 0 ? reconstructUiMessages(initialMessages) : [],
+)
 const apiLog = ref<LlmExchange[]>([])
 const input = ref('')
 const running = ref(false)
 const statusText = ref('')
 const composerNotice = ref('')
-const tab = ref<'settings' | 'log'>('settings')
+const tab = ref<'settings' | 'history' | 'log'>('settings')
 const chatRef = ref<HTMLElement | null>(null)
+const restoreNotice = ref(Boolean(loaded.conversation))
+const saveState = ref<SaveState>(
+  loaded.conversation
+    ? { state: 'saved', savedAt: loaded.conversation.updatedAt, bytes: initialJson }
+    : loaded.error
+      ? { state: 'error', error: loaded.error }
+      : { state: 'idle' },
+)
 
 let controller: AbortController | null = null
+let runGeneration = 0
 
 const apiCount = computed(() => apiLog.value.length)
+const stats = computed(() => conversationStats(historyMessages.value))
+const storageAvailable = getBrowserStorage() !== null
+const storageLabel = computed(() => {
+  if (saveState.value.state === 'error') return 'история не сохранена'
+  if (!historyMessages.value.length) return 'история пуста'
+  return saveState.value.bytes ? `сохранено · ${formatBytes(saveState.value.bytes)}` : 'сохранено'
+})
 
 function makeId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -67,10 +110,51 @@ function isAbortError(error: unknown): boolean {
   )
 }
 
-function toHistory(items: UiMessage[]): ChatMessage[] {
-  return items
-    .filter(item => !item.pending && !item.error && item.content.trim())
-    .map(item => ({ role: item.role, content: item.content }))
+function currentSnapshot(): StoredConversation {
+  const now = new Date().toISOString()
+  const fallback = createEmptyConversation(new Date(now))
+  return {
+    version: CONVERSATION_VERSION,
+    id: conversation.value?.id ?? fallback.id,
+    createdAt: conversation.value?.createdAt ?? fallback.createdAt,
+    updatedAt: now,
+    messages: cloneMessages(historyMessages.value),
+  }
+}
+
+function persistNow(): void {
+  if (!historyMessages.value.length) {
+    clearConversation()
+    conversation.value = null
+    saveState.value = { state: 'idle' }
+    return
+  }
+
+  const snapshot = currentSnapshot()
+  const result = saveConversation(snapshot)
+  if (result.ok) {
+    conversation.value = snapshot
+    saveState.value = { state: 'saved', savedAt: result.savedAt, bytes: result.bytes }
+  } else {
+    saveState.value = { state: 'error', error: result.error }
+  }
+}
+
+function resetConversation(): void {
+  runGeneration += 1
+  if (running.value) controller?.abort()
+  controller = null
+  running.value = false
+  messages.value = []
+  historyMessages.value = []
+  apiLog.value = []
+  conversation.value = null
+  input.value = ''
+  statusText.value = ''
+  composerNotice.value = ''
+  restoreNotice.value = false
+  clearConversation()
+  saveState.value = { state: 'idle' }
 }
 
 async function scrollToBottom(): Promise<void> {
@@ -104,7 +188,9 @@ async function send(preset?: string): Promise<void> {
     return
   }
 
-  const history = toHistory(messages.value)
+  // Снимок истории до новой реплики: агент добавит user-сообщение сам
+  // и вернёт каждое новое сообщение через onMessageAppended.
+  const history = cloneMessages(historyMessages.value)
   messages.value.push({ id: makeId(), role: 'user', content: text, pending: false, steps: [] })
 
   const assistant = reactive<UiMessage>({
@@ -121,6 +207,8 @@ async function send(preset?: string): Promise<void> {
   running.value = true
   statusText.value = 'Подготовка запроса…'
   controller = new AbortController()
+  const generation = ++runGeneration
+  const isCurrentRun = (): boolean => generation === runGeneration
   scrollSoon()
 
   function updateExchange(exchange: LlmExchange): void {
@@ -149,10 +237,12 @@ async function send(preset?: string): Promise<void> {
       history,
       {
         onStatus: message => {
+          if (!isCurrentRun()) return
           statusText.value = message
           scrollSoon()
         },
         onExchangeStart: exchange => {
+          if (!isCurrentRun()) return
           apiLog.value.push(exchange)
           assistant.steps.push({
             iteration: assistant.steps.length + 1,
@@ -162,14 +252,17 @@ async function send(preset?: string): Promise<void> {
           scrollSoon()
         },
         onExchangeEnd: exchange => {
+          if (!isCurrentRun()) return
           updateExchange(exchange)
           scrollSoon()
         },
         onToolStart: invocation => {
+          if (!isCurrentRun()) return
           statusText.value = `Инструмент «${invocation.name}»: выполняется…`
           scrollSoon()
         },
         onToolEnd: invocation => {
+          if (!isCurrentRun()) return
           const step = assistant.steps[assistant.steps.length - 1]
           if (step) step.toolResults.push({ ...invocation })
           statusText.value = `Инструмент «${invocation.name}»: ${
@@ -178,11 +271,24 @@ async function send(preset?: string): Promise<void> {
           scrollSoon()
         },
         onFinalText: finalText => {
+          if (!isCurrentRun()) return
           assistant.content = finalText
+        },
+        onMessageAppended: message => {
+          if (!isCurrentRun()) return
+          historyMessages.value.push(message)
+          persistNow()
         },
       },
       controller.signal,
     )
+
+    if (isCurrentRun()) {
+      // Синхронизируем канонический массив с тем, что реально ушло в модель:
+      // сюда попадут и synthetic tool-ответы для прерванных вызовов.
+      historyMessages.value = result.messages.filter(message => message.role !== 'system')
+      persistNow()
+    }
 
     assistant.content = result.finalText || assistant.content
     if (result.stoppedReason === 'cancelled') {
@@ -194,16 +300,20 @@ async function send(preset?: string): Promise<void> {
           : 'Модель вернула пустой ответ.'
     }
   } catch (error) {
+    if (!isCurrentRun()) return
     if (isAbortError(error)) {
       assistant.stopped = 'Остановлено пользователем'
     } else {
       assistant.error = toErrorMessage(error)
     }
   } finally {
-    assistant.pending = false
-    running.value = false
-    controller = null
-    statusText.value = ''
+    if (generation === runGeneration) {
+      assistant.pending = false
+      running.value = false
+      controller = null
+      statusText.value = ''
+    }
+    persistNow()
     scrollSoon()
   }
 }
@@ -213,12 +323,43 @@ function stop(): void {
 }
 
 function newDialog(): void {
-  if (running.value) controller?.abort()
-  messages.value = []
+  resetConversation()
+}
+
+function exportHistory(): void {
+  if (!historyMessages.value.length) return
+  const payload = currentSnapshot()
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `lab07-conversation-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function importHistory(payload: { filename: string; text: string }): void {
+  if (running.value) {
+    composerNotice.value = 'Дождись окончания текущего ответа, затем загрузи историю.'
+    return
+  }
+
+  const result = parseConversation(payload.text)
+  if (!result.conversation) {
+    composerNotice.value = `Не удалось загрузить ${payload.filename}: ${result.error ?? 'неизвестная ошибка'}`
+    tab.value = 'history'
+    return
+  }
+
+  conversation.value = result.conversation
+  historyMessages.value = result.conversation.messages
+  messages.value = reconstructUiMessages(result.conversation.messages)
   apiLog.value = []
-  input.value = ''
-  statusText.value = ''
-  composerNotice.value = ''
+  restoreNotice.value = true
+  composerNotice.value = `Загружена история из ${payload.filename}.`
+  persistNow()
+  tab.value = 'history'
+  scrollSoon()
 }
 
 function clearLog(): void {
@@ -229,13 +370,14 @@ function exportLog(): void {
   const payload = {
     exportedAt: new Date().toISOString(),
     settings: { ...settings.value, apiKey: settings.value.apiKey ? '***' : '' },
+    conversation: conversation.value,
     exchanges: apiLog.value,
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `lab06-api-log-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+  link.download = `lab07-api-log-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -253,20 +395,32 @@ watch(
 watch(input, () => {
   if (composerNotice.value) composerNotice.value = ''
 })
+
+onBeforeUnmount(() => {
+  if (historyMessages.value.length) persistNow()
+})
 </script>
 
 <template>
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <span class="lab-badge">06</span>
+        <span class="lab-badge">07</span>
         <div>
-          <h1>Агент с инструментами</h1>
-          <p>Модель сама выбирает, когда вызвать время, калькулятор или конвертер валют</p>
+          <h1>Агент с сохранением контекста</h1>
+          <p>История messages, tool_calls и результатов переживает перезапуск приложения</p>
         </div>
       </div>
       <div class="topbar-actions">
         <span class="pill">{{ settings.model || 'модель не выбрана' }}</span>
+        <span
+          class="pill save-pill"
+          :class="saveState.state"
+          :title="`localStorage: ${CONVERSATION_STORAGE_KEY}`"
+        >
+          <span class="storage-dot" />
+          {{ storageLabel }}
+        </span>
         <span class="pill muted">{{ apiCount }} API</span>
         <button class="btn ghost small" @click="newDialog">Новый диалог</button>
       </div>
@@ -276,11 +430,12 @@ watch(input, () => {
       <section class="chat-panel">
         <div ref="chatRef" class="chat">
           <div v-if="!messages.length" class="empty">
-            <div class="empty-badge">tool-calling</div>
-            <h2>Агент сам решает, какой инструмент вызвать</h2>
+            <div class="empty-badge">tool-calling + persistence</div>
+            <h2>Агент помнит диалог после перезапуска</h2>
             <p>
-              Проверь три сценария из задания: вопрос без инструментов, запрос с одним
-              инструментом и цепочку из двух вызовов подряд.
+              Начни с вопроса, который требует инструмента, перезагрузи страницу (F5) —
+              и продолжи с того же места. В историю попадают не только реплики, но и
+              вызовы инструментов с их результатами.
             </p>
 
             <div class="presets">
@@ -299,9 +454,30 @@ watch(input, () => {
             </div>
 
             <p class="hint">
-              Все реальные запросы к API можно открыть во вкладке «API» справа: там видны
-              messages, схемы инструментов, ответы модели и tool_calls.
+              Сохранение автоматическое: JSON-снимок диалога лежит в
+              <code>localStorage</code> под ключом
+              <code>{{ CONVERSATION_STORAGE_KEY }}</code>. Сырой массив
+              <code>messages</code> можно посмотреть и скачать во вкладке «История»
+              справа.
             </p>
+            <p v-if="!storageAvailable" class="warn">
+              localStorage недоступен — история не сохранится после перезапуска.
+            </p>
+          </div>
+
+          <div v-if="restoreNotice && messages.length" class="restore-banner">
+            <div>
+              <strong>История восстановлена из JSON</strong>
+              <p class="muted">
+                {{ stats.total }} messages · {{ stats.user }} user ·
+                {{ stats.assistant }} assistant · {{ stats.tool }} tool · из них
+                {{ stats.toolCalls }} tool_calls и {{ stats.toolResults }} результатов
+                инструментов
+              </p>
+            </div>
+            <button type="button" class="icon-btn" @click="restoreNotice = false">
+              Скрыть
+            </button>
           </div>
 
           <MessageBubble
@@ -318,7 +494,7 @@ watch(input, () => {
               v-model="input"
               rows="2"
               :disabled="running"
-              placeholder="Например: переведи 250 USD в EUR и добавь 15%…"
+              placeholder="Продолжи диалог: «А если умножить прошлый результат на 2?»…"
               @keydown="onKeydown"
             />
             <div class="composer-actions">
@@ -356,6 +532,14 @@ watch(input, () => {
           >
             Настройки
           </button>
+          <button
+            type="button"
+            :class="{ active: tab === 'history' }"
+            @click="tab = 'history'"
+          >
+            История
+            <span v-if="stats.total" class="count">{{ stats.total }}</span>
+          </button>
           <button type="button" :class="{ active: tab === 'log' }" @click="tab = 'log'">
             API
             <span v-if="apiCount" class="count">{{ apiCount }}</span>
@@ -363,6 +547,15 @@ watch(input, () => {
         </div>
 
         <SettingsPanel v-if="tab === 'settings'" v-model="settings" :disabled="running" />
+        <HistoryPanel
+          v-else-if="tab === 'history'"
+          :conversation="conversation"
+          :messages="historyMessages"
+          :save-state="saveState"
+          @export="exportHistory"
+          @import="importHistory"
+          @clear="resetConversation"
+        />
         <ApiLogPanel
           v-else
           :exchanges="apiLog"

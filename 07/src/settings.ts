@@ -58,8 +58,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   rememberKey: false,
 }
 
-const SETTINGS_KEY = 'lab06.settings.v1'
-const API_KEY_STORAGE = 'lab06.apiKey.v1'
+const SETTINGS_KEY = 'lab07.settings.v1'
+const API_KEY_STORAGE = 'lab07.apiKey.v1'
 
 function canUseStorage(): boolean {
   try {

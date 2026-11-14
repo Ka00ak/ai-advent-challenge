@@ -42,7 +42,10 @@ function toolStatus(tool: ToolInvocation): string {
         <div v-for="step in props.message.steps" :key="step.exchange.id" class="step">
           <div class="step-head">
             <span class="step-num">Итерация {{ step.iteration }}</span>
-            <span class="muted">{{ step.exchange.durationMs }} ms</span>
+            <span v-if="step.restored" class="step-restored">из JSON</span>
+            <span v-if="step.exchange.durationMs > 0" class="muted">
+              {{ step.exchange.durationMs }} ms
+            </span>
             <span v-if="tokenLabel(step)" class="muted">{{ tokenLabel(step) }}</span>
             <span v-if="step.toolResults.length" class="step-tools">
               {{ step.toolResults.length }} tool{{ step.toolResults.length > 1 ? 's' : '' }}
@@ -57,7 +60,7 @@ function toolStatus(tool: ToolInvocation): string {
             <div class="tool-head">
               <code>{{ tool.name }}</code>
               <span class="tool-status" :class="tool.ok ? 'ok' : 'bad'">{{ toolStatus(tool) }}</span>
-              <span class="muted">{{ tool.durationMs }} ms</span>
+              <span v-if="tool.durationMs > 0" class="muted">{{ tool.durationMs }} ms</span>
             </div>
             <div class="tool-label">arguments</div>
             <pre class="tool-json">{{ prettyArguments(tool.arguments) }}</pre>

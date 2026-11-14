@@ -8,3 +8,4 @@
 | [04](./04) | 05.11.2026 | Python, Streamlit | `streamlit run 04/app.py` |
 | [05](./05) | 06.11.2026 | Python, Streamlit | `streamlit run 05/app.py` |
 | [06](./06) | 09.11.2026 | Vite, Vue, TypeScript | `npm run dev -w 06` |
+| [07](./07) | 10.11.2026 | Vite, Vue, TypeScript | `npm run dev -w 07` |
