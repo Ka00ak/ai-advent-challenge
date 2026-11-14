@@ -1,4 +1,4 @@
-# ai-advent-challenge-06 - 14.11.2026
+# ai-advent-challenge-06 - 09.11.2026
 
 Агент с tool-calling: пользователь пишет запрос, модель сама решает, какой инструмент
 вызвать, код выполняет вызов и возвращает результат обратно в модель. Цикл повторяется,
@@ -118,3 +118,11 @@ npm test -w 06
 - Максимум итераций ограничен настройкой (по умолчанию 6) — защита от бесконечного цикла.
 - Курсы валют и список инструментов зашиты в код.
 - Ответ модели выводится как обычный текст, без markdown-рендера.
+
+## Result
+
+https://github.com/user-attachments/assets/ad8cae53-52af-4953-bd60-e27e430881c7
+
+https://github.com/user-attachments/assets/707a5fd6-51bb-4e7d-adf9-38fd9d4f6c8b
+
+https://github.com/user-attachments/assets/fb17f685-5953-43c6-b794-885d559b3faa
