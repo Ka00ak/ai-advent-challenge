@@ -20,12 +20,24 @@ import type {
   ToolInvocation,
 } from '../types'
 import { repairToolCallSequence } from './history'
+import {
+  compressHistory,
+  normalizeCompression,
+  type CompressionConfig,
+  type CompressionRunStats,
+  type ContextSummary,
+} from './compression'
+import { createLlmSummaryGenerator } from './summarizer'
 import { ToolRegistry } from './ToolRegistry'
 
 export interface AgentConfig extends LlmSettings {
   systemPrompt: string
   /** Ручное переопределение контекстного окна. null — взять из профиля модели. */
   contextLimit?: number | null
+  /** Управление контекстом: последние N как есть + сводка остального. */
+  compression?: CompressionConfig
+  /** Сводка, сохранённая отдельно от истории (передаётся между запусками). */
+  summary?: ContextSummary | null
 }
 
 export interface AgentCallbacks {
@@ -39,6 +51,10 @@ export interface AgentCallbacks {
   onFinalText?: (text: string) => void
   /** Каждое новое сообщение (user/assistant/tool) — для сохранения контекста на лету. */
   onMessageAppended?: (message: ChatMessage) => void
+  /** Сводка обновилась: её нужно сохранить отдельно от полной истории. */
+  onSummaryUpdate?: (summary: ContextSummary | null) => void
+  /** Диагностика сжатия перед первым запросом. */
+  onCompression?: (stats: CompressionRunStats) => void
 }
 
 function makeId(): string {
@@ -114,23 +130,59 @@ export class Agent {
     signal?: AbortSignal,
   ): Promise<AgentRunResult> {
     const steps: AgentStep[] = []
-    const messages: ChatMessage[] = [
+    const maxIterations = Math.max(1, Math.floor(this.config.maxIterations))
+    const profile: ModelProfile = resolveModelProfile(
+      this.config.model,
+      this.config.contextLimit,
+    )
+
+    // 1. Приводим историю к валидному виду и решаем, что сжимать.
+    const cleanedHistory = repairToolCallSequence(
+      history.filter(message => message.role !== 'system'),
+    )
+    const compressionConfig = normalizeCompression(this.config.compression)
+    if (compressionConfig.enabled) {
+      callbacks.onStatus?.('Проверяю историю и сводку…')
+    }
+    const summaryGenerator =
+      compressionConfig.enabled && compressionConfig.mode === 'llm'
+        ? createLlmSummaryGenerator({
+            settings: this.config,
+            profile,
+            signal,
+            onExchangeStart: callbacks.onExchangeStart,
+            onExchangeEnd: callbacks.onExchangeEnd,
+          })
+        : undefined
+
+    const compressionOutcome = await compressHistory({
+      messages: cleanedHistory,
+      config: compressionConfig,
+      summary: this.config.summary,
+      generateSummary: summaryGenerator,
+    })
+    if (compressionOutcome.stats.summaryUpdated) {
+      callbacks.onSummaryUpdate?.(compressionOutcome.summary)
+    }
+    callbacks.onCompression?.(compressionOutcome.stats)
+
+    // 2. В модель уходит summary + хвост, а полная история остаётся для
+    //    сохранения и интерфейса.
+    const promptMessages: ChatMessage[] = [
       { role: 'system', content: this.config.systemPrompt },
-      ...repairToolCallSequence(history.filter(message => message.role !== 'system')),
+      ...compressionOutcome.prepared,
     ]
+    const fullMessages: ChatMessage[] = [...cleanedHistory]
+
     const append = (message: ChatMessage): void => {
-      messages.push(message)
+      promptMessages.push(message)
+      fullMessages.push(message)
       callbacks.onMessageAppended?.(message)
     }
 
     append({ role: 'user', content: userText })
 
     const tools = this.registry.schemas()
-    const maxIterations = Math.max(1, Math.floor(this.config.maxIterations))
-    const profile: ModelProfile = resolveModelProfile(
-      this.config.model,
-      this.config.contextLimit,
-    )
 
     let finalText = ''
     let stoppedReason: AgentStopReason = 'max-iterations'
@@ -151,14 +203,18 @@ export class Agent {
       // Оценка до отправки нужна для индикатора заполнения контекста.
       // Даже при переполнении отправляем запрос: пусть решение принимает
       // провайдер — он либо ответит, либо вернёт context_length_exceeded.
-      const estimate = buildPromptEstimate(messages, tools, profile.contextLimit)
+      const estimate = buildPromptEstimate(
+        promptMessages,
+        tools,
+        profile.contextLimit,
+      )
       callbacks.onPromptEstimate?.(estimate, iteration)
 
       callbacks.onStatus?.(`Запрос к модели (итерация ${iteration} из ${maxIterations})…`)
 
       const request: LlmRequest = {
         model: this.config.model,
-        messages: structuredClone(messages),
+        messages: structuredClone(promptMessages),
         temperature: this.config.temperature,
         ...(this.config.maxTokens !== null && this.config.maxTokens > 0
           ? { max_tokens: Math.floor(this.config.maxTokens) }
@@ -168,6 +224,7 @@ export class Agent {
 
       const exchange: LlmExchange = {
         id: makeId(),
+        kind: 'chat',
         url: buildEndpoint(this.config.baseUrl),
         startedAt: new Date().toISOString(),
         durationMs: 0,
@@ -304,8 +361,10 @@ export class Agent {
     return {
       finalText,
       steps,
-      messages: messages.filter(message => message.role !== 'system'),
+      messages: fullMessages,
       stoppedReason,
+      summary: compressionOutcome.summary,
+      compression: compressionOutcome.stats,
       tokenStats: {
         requests: tokenRequests,
         promptTokens: promptTokensTotal,

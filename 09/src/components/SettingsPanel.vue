@@ -47,6 +47,24 @@ const contextLimit = computed<number | string>({
   },
 })
 
+const keepRecentMessages = computed<number | string>({
+  get: () => settings.value.keepRecentMessages,
+  set: value => {
+    const numeric = typeof value === 'number' ? value : Number(value)
+    settings.value.keepRecentMessages =
+      Number.isFinite(numeric) && numeric > 0 ? Math.floor(numeric) : 8
+  },
+})
+
+const summarizeEveryMessages = computed<number | string>({
+  get: () => settings.value.summarizeEveryMessages,
+  set: value => {
+    const numeric = typeof value === 'number' ? value : Number(value)
+    settings.value.summarizeEveryMessages =
+      Number.isFinite(numeric) && numeric > 0 ? Math.floor(numeric) : 10
+  },
+})
+
 function onProviderChange(event: Event): void {
   const select = event.target as HTMLSelectElement
   const id = select.value as ProviderId
@@ -198,6 +216,69 @@ function onProviderChange(event: Event): void {
           :disabled="disabled"
         />
         <p class="hint">Одна итерация — один запрос к модели. Защита от бесконечного tool-loop.</p>
+      </div>
+    </section>
+
+    <section class="field-group">
+      <h2>Управление контекстом</h2>
+
+      <label class="checkbox">
+        <input v-model="settings.compressionEnabled" type="checkbox" :disabled="disabled" />
+        <span>Сжимать старую часть истории в сводку</span>
+      </label>
+      <p class="hint">
+        Полная история остаётся в localStorage. В модель уходят только последние
+        сообщения и отдельно сохранённая сводка.
+      </p>
+
+      <div class="field">
+        <label for="keep-recent">Последних сообщений как есть</label>
+        <input
+          id="keep-recent"
+          v-model.number="keepRecentMessages"
+          type="number"
+          min="1"
+          max="200"
+          :disabled="disabled || !settings.compressionEnabled"
+        />
+        <p class="hint">
+          Окно выравнивается по границе хода пользователя, чтобы не разрывать
+          пару assistant(tool_calls) → tool.
+        </p>
+      </div>
+
+      <div class="field">
+        <label for="summarize-every">Сжимать каждые N старых сообщений</label>
+        <input
+          id="summarize-every"
+          v-model.number="summarizeEveryMessages"
+          type="number"
+          min="1"
+          max="500"
+          :disabled="disabled || !settings.compressionEnabled"
+        />
+        <p class="hint">
+          Когда сверх последних {{ keepRecentMessages }} накапливается столько
+          сообщений, агент обновляет сводку. {{ summarizeEveryMessages }} —
+          компромисс между точностью и числом запросов на сжатие.
+        </p>
+      </div>
+
+      <div class="field">
+        <label for="summary-mode">Как строить сводку</label>
+        <select
+          id="summary-mode"
+          v-model="settings.summaryMode"
+          :disabled="disabled || !settings.compressionEnabled"
+        >
+          <option value="llm">LLM — отдельный запрос к модели</option>
+          <option value="local">local — локальная выжимка без API</option>
+        </select>
+        <p class="hint">
+          LLM лучше переформулирует, но тратит токены на сам запрос сжатия.
+          Локальная выжимка бесплатна и сохраняет пользовательские формулировки
+          дословно.
+        </p>
       </div>
     </section>
 

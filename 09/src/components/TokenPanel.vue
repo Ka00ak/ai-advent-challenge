@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
+  previewCompression,
+  type CompressionConfig,
+  type ContextSummary,
+} from '../agent/compression'
+import { SUMMARY_STORAGE_KEY } from '../storage/summary'
+import {
   buildTokenScenarios,
   estimateMessagesTokens,
   formatPercent,
@@ -17,11 +23,25 @@ const props = defineProps<{
   exchanges: LlmExchange[]
   context: ContextBreakdown
   profile: ModelProfile
+  compression: CompressionConfig
+  summary: ContextSummary | null
 }>()
 
-const summary = computed(() => summarizeExchanges(props.exchanges, props.profile))
+const usage = computed(() => summarizeExchanges(props.exchanges, props.profile))
+const compressionPreview = computed(() =>
+  previewCompression(props.messages, props.compression, props.summary),
+)
 const historyTokens = computed(() => estimateMessagesTokens(props.messages))
-const lastExchange = computed(() => props.exchanges.at(-1))
+const chatExchanges = computed(() =>
+  props.exchanges.filter(exchange => exchange.kind !== 'summary'),
+)
+const summaryExchanges = computed(() =>
+  props.exchanges.filter(exchange => exchange.kind === 'summary'),
+)
+const summaryCost = computed(() =>
+  summaryExchanges.value.reduce((sum, exchange) => sum + (exchange.costUsd ?? 0), 0),
+)
+const lastExchange = computed(() => chatExchanges.value.at(-1))
 const scenarios = computed(() => buildTokenScenarios(props.profile))
 
 const current = computed(() => {
@@ -52,7 +72,7 @@ const current = computed(() => {
 })
 
 const requestRows = computed(() =>
-  props.exchanges.map((exchange, index) => {
+  chatExchanges.value.map((exchange, index) => {
     const promptTokens = exchange.usage?.prompt_tokens ?? exchange.estimate?.totalTokens ?? 0
     const completionTokens = exchange.usage?.completion_tokens ?? 0
     return {
@@ -115,6 +135,90 @@ function scenarioLabel(kind: 'short' | 'long' | 'overflow'): string {
 <template>
   <div class="tokens">
     <section class="field-group">
+      <h2>Сжатие истории</h2>
+
+      <div class="compress-card" :class="{ disabled: !props.compression.enabled }">
+        <div class="compress-head">
+          <strong>
+            {{ props.compression.enabled ? 'сжатие включено' : 'сжатие выключено' }}
+          </strong>
+          <span class="muted">
+            последние {{ props.compression.keepRecent }} · каждые
+            {{ props.compression.summarizeEvery }}
+          </span>
+        </div>
+
+        <div class="compress-grid">
+          <div>
+            <span class="muted">полная история</span>
+            <strong>{{ formatTokens(compressionPreview.fullHistoryTokens) }}</strong>
+          </div>
+          <div>
+            <span class="muted">в запросе</span>
+            <strong>{{ formatTokens(compressionPreview.sentHistoryTokens) }}</strong>
+          </div>
+          <div>
+            <span class="muted">сводка</span>
+            <strong>{{ formatTokens(compressionPreview.summaryTokens) }}</strong>
+          </div>
+          <div>
+            <span class="muted">экономия</span>
+            <strong
+              :class="compressionPreview.savedTokens >= 0 ? 'good' : 'bad'"
+            >
+              {{ compressionPreview.savedTokens >= 0 ? '−' : '+' }}{{
+                formatTokens(Math.abs(compressionPreview.savedTokens))
+              }}
+            </strong>
+          </div>
+        </div>
+
+        <div class="gauge small">
+          <span
+            class="gauge-fill saved"
+            :style="{ width: `${Math.min(100, Math.max(0, compressionPreview.savedRatio * 100))}%` }"
+          />
+        </div>
+
+        <div class="context-meta">
+          <span>
+            экономия {{ formatPercent(Math.max(0, compressionPreview.savedRatio)) }}
+          </span>
+          <span>
+            сжато {{ compressionPreview.summarizedMessages }} ·
+            свежих {{ compressionPreview.recentMessages }}
+          </span>
+        </div>
+
+        <p v-if="props.compression.enabled && !compressionPreview.usedSummary" class="hint">
+          Сводки ещё нет. Когда сверх последних {{ props.compression.keepRecent }}
+          накопится {{ props.compression.summarizeEvery }} сообщений, агент
+          сожмёт их в отдельный summary.
+          <template v-if="compressionPreview.pendingMessages">
+            Сейчас в очереди: {{ compressionPreview.pendingMessages }}.
+          </template>
+        </p>
+        <p v-else-if="props.compression.enabled" class="hint">
+          В запрос уходит сводка на {{ formatTokens(compressionPreview.summaryTokens) }}
+          токенов и {{ compressionPreview.recentMessages }} последних сообщений.
+          Полная история остаётся в localStorage.
+        </p>
+        <p v-else class="hint">
+          В модель уходит вся история. Включи сжатие в настройках, чтобы
+          экономить prompt-токены.
+        </p>
+
+        <p class="hint">
+          Сводка хранится отдельно: <code>{{ SUMMARY_STORAGE_KEY }}</code>.
+          <template v-if="summaryExchanges.length">
+            Запросов на сжатие: {{ summaryExchanges.length }},
+            стоимость {{ formatUsd(summaryCost) }}.
+          </template>
+        </p>
+      </div>
+    </section>
+
+    <section class="field-group">
       <h2>Контекстное окно</h2>
 
       <div class="context-card" :class="props.context.status">
@@ -156,8 +260,9 @@ function scenarioLabel(kind: 'short' | 'long' | 'overflow'): string {
 
         <p class="hint">
           Это оценка по эвристике (кириллица / латиница / JSON) плюс схемы
-          инструментов. Точные значения приходят от провайдера в
-          <code>usage</code> после ответа. Лимит:
+          инструментов. «История» здесь — то, что реально уходит в запрос:
+          summary + последние сообщения. Точные значения приходят от провайдера
+          в <code>usage</code> после ответа. Лимит:
           <strong>{{ props.profile.label }}</strong> ·
           {{ formatTokens(props.profile.contextLimit) }} токенов.
         </p>
@@ -196,8 +301,8 @@ function scenarioLabel(kind: 'short' | 'long' | 'overflow'): string {
         Провайдер не вернул <code>usage</code> — показана локальная оценка.
       </p>
       <p v-else-if="!current.hasRequest" class="hint">
-        Запросов ещё не было. В prompt входит system-промпт, вся история, черновик
-        в поле ввода и схемы инструментов.
+        Запросов ещё не было. В prompt входит system-промпт, сводка (если есть),
+        последние сообщения, черновик в поле ввода и схемы инструментов.
       </p>
     </section>
 
@@ -210,28 +315,33 @@ function scenarioLabel(kind: 'short' | 'long' | 'overflow'): string {
           <span class="stat-label">history</span>
         </div>
         <div class="stat">
-          <span class="stat-value">{{ summary.requests }}</span>
+          <span class="stat-value">{{ formatTokens(compressionPreview.sentHistoryTokens) }}</span>
+          <span class="stat-label">в запросе</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">{{ usage.requests }}</span>
           <span class="stat-label">requests</span>
         </div>
         <div class="stat">
-          <span class="stat-value">{{ formatTokens(summary.promptTokens) }}</span>
+          <span class="stat-value">{{ formatTokens(usage.promptTokens) }}</span>
           <span class="stat-label">prompt sum</span>
         </div>
         <div class="stat">
-          <span class="stat-value">{{ formatTokens(summary.completionTokens) }}</span>
+          <span class="stat-value">{{ formatTokens(usage.completionTokens) }}</span>
           <span class="stat-label">completion</span>
         </div>
         <div class="stat">
-          <span class="stat-value">{{ formatUsd(summary.costUsd) }}</span>
+          <span class="stat-value">{{ formatUsd(usage.costUsd) }}</span>
           <span class="stat-label">cost</span>
         </div>
       </div>
 
       <p class="hint">
-        «history» — оценка текущего массива <code>messages</code> без system и
-        схем инструментов. «prompt sum» — сумма токенов всех запросов сессии:
-        каждый шаг tool-loop отправляет историю заново, поэтому сумма растёт
-        быстрее, чем сама история. Цены профиля:
+        «history» — оценка полной истории без system и схем инструментов.
+        «prompt sum» — сумма токенов всех запросов сессии, включая
+        {{ usage.summaryRequests }} запрос(ов) на сжатие. Каждый шаг tool-loop
+        отправляет контекст заново, поэтому сумма растёт быстрее, чем сама
+        история. Цены профиля:
         {{ formatUsd(props.profile.inputUsdPerMillion) }}/1M вход ·
         {{ formatUsd(props.profile.outputUsdPerMillion) }}/1M выход.
       </p>

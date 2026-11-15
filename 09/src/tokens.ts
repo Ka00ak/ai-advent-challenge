@@ -288,6 +288,10 @@ export function formatUsd(usd: number): string {
 
 export interface UsageSummary {
   requests: number
+  /** Обычные запросы агента (не сжатие). */
+  chatRequests: number
+  /** Отдельные запросы на обновление сводки. */
+  summaryRequests: number
   promptTokens: number
   completionTokens: number
   totalTokens: number
@@ -303,6 +307,8 @@ export function summarizeExchanges(
 ): UsageSummary {
   const summary: UsageSummary = {
     requests: exchanges.length,
+    chatRequests: 0,
+    summaryRequests: 0,
     promptTokens: 0,
     completionTokens: 0,
     totalTokens: 0,
@@ -312,6 +318,8 @@ export function summarizeExchanges(
   }
 
   for (const exchange of exchanges) {
+    if (exchange.kind === 'summary') summary.summaryRequests += 1
+    else summary.chatRequests += 1
     const usage = exchange.usage
     const promptTokens = usage?.prompt_tokens ?? exchange.estimate?.totalTokens ?? 0
     const completionTokens = usage?.completion_tokens ?? 0

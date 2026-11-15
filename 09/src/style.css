@@ -392,7 +392,7 @@ summary:focus-visible {
 
 .history-stats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
   gap: 6px;
   margin: 12px 0;
 }
@@ -572,21 +572,22 @@ summary:focus-visible {
   gap: 6px;
   padding: 10px;
   border-bottom: 1px solid var(--border-soft);
+  overflow-x: auto;
 }
 
 .tabs button {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 8px 9px;
   border-radius: 9px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -614,7 +615,8 @@ summary:focus-visible {
 .settings,
 .log,
 .history,
-.tokens {
+.tokens,
+.memory {
   flex: 1 1 auto;
   overflow-y: auto;
   padding: 16px;
@@ -1501,4 +1503,280 @@ input[type="range"] {
   font-family: var(--mono);
   font-size: 10px;
   color: #ffd0d0;
+}
+
+/* ---------- Day 09: compression / memory ---------- */
+
+.summary-pill {
+  cursor: pointer;
+  border-color: rgba(167, 139, 250, 0.4);
+  background: rgba(167, 139, 250, 0.12);
+  color: #d8ccff;
+}
+
+.compress-card {
+  padding: 12px;
+  border: 1px solid rgba(124, 155, 255, 0.28);
+  border-radius: 11px;
+  background: rgba(124, 155, 255, 0.05);
+}
+
+.compress-card.disabled {
+  border-color: var(--border);
+  background: var(--panel-2);
+  opacity: 0.82;
+}
+
+.compress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.compress-head strong {
+  color: #dce4ff;
+}
+
+.compress-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.compress-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--panel-3);
+  font-size: 11px;
+}
+
+.compress-grid strong {
+  color: #e3e9ff;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.good {
+  color: var(--green) !important;
+}
+
+.bad {
+  color: var(--red) !important;
+}
+
+.gauge-fill.saved {
+  background: linear-gradient(90deg, #2aa877, var(--green));
+}
+
+.summary-card {
+  padding: 11px;
+  border: 1px solid rgba(167, 139, 250, 0.32);
+  border-radius: 10px;
+  background: rgba(167, 139, 250, 0.06);
+}
+
+.summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  color: #d8ccff;
+  font-size: 11px;
+}
+
+.summary-time {
+  margin-top: 3px;
+  font-size: 10px;
+}
+
+.summary-text {
+  max-height: 220px;
+  margin: 9px 0 0;
+  padding: 9px;
+  overflow: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: #0b0e14;
+  color: #cfd8ee;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.memory-dialog-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 18px 0;
+  padding: 15px;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  border-radius: 13px;
+  background: rgba(167, 139, 250, 0.07);
+}
+
+.memory-dialog-card p {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.detail-table,
+.benchmark-table {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+
+.detail-head,
+.detail-row,
+.benchmark-head,
+.benchmark-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 72px;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  font-size: 11px;
+}
+
+.detail-head,
+.benchmark-head {
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-3);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.benchmark-head,
+.benchmark-row {
+  grid-template-columns: minmax(0, 1fr) 76px 76px;
+}
+
+.detail-row + .detail-row,
+.benchmark-row + .benchmark-row {
+  border-top: 1px solid var(--border-soft);
+}
+
+.detail-fact,
+.benchmark-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.detail-fact strong,
+.benchmark-fact strong {
+  color: #dce4ff;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.detail-category {
+  align-self: flex-start;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(124, 155, 255, 0.14);
+  color: #b9c9ff;
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.check {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: 0 auto;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  background: var(--panel-3);
+  color: var(--muted);
+}
+
+.check.ok {
+  background: rgba(66, 211, 146, 0.14);
+  color: var(--green);
+}
+
+.check.bad {
+  background: rgba(255, 122, 122, 0.14);
+  color: var(--red);
+}
+
+.benchmark-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.benchmark-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.benchmark-card strong {
+  color: #e6ecff;
+  font-size: 19px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.benchmark-status {
+  padding: 7px 9px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.benchmark-answer {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.benchmark-answer summary {
+  cursor: pointer;
+  color: #b9c9ff;
+}
+
+.benchmark-answer p {
+  margin: 5px 0 0;
+  line-height: 1.5;
+}
+
+.badge.summary {
+  border-color: rgba(167, 139, 250, 0.4);
+  background: rgba(167, 139, 250, 0.14);
+  color: #d8ccff;
+}
+
+@media (max-width: 900px) {
+  .memory-dialog-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

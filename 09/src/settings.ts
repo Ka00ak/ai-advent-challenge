@@ -1,3 +1,5 @@
+import type { SummaryMode } from './agent/compression'
+
 export type ProviderId = 'deepseek' | 'moonshot' | 'custom'
 
 export interface ProviderPreset {
@@ -46,6 +48,11 @@ export interface AppSettings {
   maxIterations: number
   /** Ручной лимит контекста. null — взять из профиля выбранной модели. */
   contextLimit: number | null
+  /** Управление контекстом: хранить последние N сообщений как есть. */
+  compressionEnabled: boolean
+  keepRecentMessages: number
+  summarizeEveryMessages: number
+  summaryMode: SummaryMode
   rememberKey: boolean
 }
 
@@ -58,11 +65,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
   maxTokens: null,
   maxIterations: 6,
   contextLimit: null,
+  compressionEnabled: true,
+  keepRecentMessages: 8,
+  summarizeEveryMessages: 10,
+  summaryMode: 'llm',
   rememberKey: false,
 }
 
-const SETTINGS_KEY = 'lab08.settings.v1'
-const API_KEY_STORAGE = 'lab08.apiKey.v1'
+const SETTINGS_KEY = 'lab09.settings.v1'
+const API_KEY_STORAGE = 'lab09.apiKey.v1'
 
 function canUseStorage(): boolean {
   try {

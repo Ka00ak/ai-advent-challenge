@@ -6,6 +6,7 @@ import {
   formatBytes,
   type StoredConversation,
 } from '../storage/conversation'
+import { SUMMARY_STORAGE_KEY, type StoredSummary } from '../storage/summary'
 import type { ChatMessage } from '../types'
 import type { SaveState } from '../ui-types'
 
@@ -13,6 +14,7 @@ const props = defineProps<{
   conversation: StoredConversation | null
   messages: ChatMessage[]
   saveState: SaveState
+  summary: StoredSummary | null
 }>()
 
 const emit = defineEmits<{
@@ -82,6 +84,14 @@ async function onFileChange(event: Event): Promise<void> {
           <span>Последнее сохранение</span>
           <span>{{ formatTimestamp(props.saveState.savedAt ?? props.conversation?.updatedAt) }}</span>
         </div>
+        <div class="storage-line muted">
+          <span>Сводка · отдельно</span>
+          <code>{{ SUMMARY_STORAGE_KEY }}</code>
+        </div>
+        <div class="storage-line muted">
+          <span>В сводке</span>
+          <span>{{ props.summary?.coveredMessages ?? 0 }} сообщений</span>
+        </div>
         <p v-if="props.saveState.error" class="storage-error">{{ props.saveState.error }}</p>
       </div>
 
@@ -110,8 +120,8 @@ async function onFileChange(event: Event): Promise<void> {
 
       <p class="hint">
         Сохраняется весь массив <code>messages</code>: реплики, <code>tool_calls</code>
-        и ответы инструментов. При следующем запуске он загружается обратно и уходит в
-        модель как обычная история диалога.
+        и ответы инструментов. Сводка лежит отдельно и в этот JSON не входит —
+        полную историю всегда можно экспортировать без потерь.
       </p>
 
       <div class="history-actions">
