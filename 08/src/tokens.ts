@@ -430,7 +430,7 @@ export function buildTokenScenarios(profile: ModelProfile): TokenScenario[] {
       description: 'История больше контекстного окна модели.',
       messages: dialogWithTokens(overflowTarget, 40),
       expected:
-        'Агент блокирует запрос до отправки. Если отправить в обход — API вернёт 400 context_length_exceeded.',
+        'Агент всё равно отправляет запрос: провайдер либо ответит, либо вернёт 400 context_length_exceeded.',
     },
   ]
 
@@ -453,25 +453,4 @@ export function buildTokenScenarios(profile: ModelProfile): TokenScenario[] {
 
   scenarioCache.set(cacheKey, scenarios)
   return scenarios
-}
-
-/* ------------------------------------------------------------------ */
-/* Ошибка переполнения                                                 */
-/* ------------------------------------------------------------------ */
-
-export class ContextOverflowError extends Error {
-  readonly estimate: ContextBreakdown
-
-  constructor(estimate: ContextBreakdown) {
-    super(
-      `Контекст переполнен: ~${formatTokens(estimate.totalTokens)} токенов при лимите ` +
-        `${formatTokens(estimate.limit)} (${formatPercent(estimate.ratio)}). ` +
-        `system ${formatTokens(estimate.systemTokens)} + история ${formatTokens(estimate.historyTokens)} + ` +
-        `новое сообщение ${formatTokens(estimate.currentTokens)} + инструменты ${formatTokens(estimate.toolsTokens)}. ` +
-        `Модель отклонит такой запрос (context_length_exceeded). ` +
-        `Сократи историю, начни новый диалог или увеличь лимит контекста в настройках.`,
-    )
-    this.name = 'ContextOverflowError'
-    this.estimate = estimate
-  }
 }

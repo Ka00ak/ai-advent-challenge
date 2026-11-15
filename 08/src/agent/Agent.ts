@@ -1,6 +1,5 @@
 import { buildEndpoint, createChatCompletion } from '../api/llm'
 import {
-  ContextOverflowError,
   buildPromptEstimate,
   estimateCost,
   estimateTextTokens,
@@ -149,13 +148,11 @@ export class Agent {
         break
       }
 
-      // Оценка до отправки: не даём провайдеру вернуть дорогую ошибку 400,
-      // если переполнение видно уже локально.
+      // Оценка до отправки нужна для индикатора заполнения контекста.
+      // Даже при переполнении отправляем запрос: пусть решение принимает
+      // провайдер — он либо ответит, либо вернёт context_length_exceeded.
       const estimate = buildPromptEstimate(messages, tools, profile.contextLimit)
       callbacks.onPromptEstimate?.(estimate, iteration)
-      if (estimate.status === 'overflow') {
-        throw new ContextOverflowError(estimate)
-      }
 
       callbacks.onStatus?.(`Запрос к модели (итерация ${iteration} из ${maxIterations})…`)
 

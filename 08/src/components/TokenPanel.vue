@@ -108,7 +108,7 @@ const scenarioStatus = computed(() => ({
 function scenarioLabel(kind: 'short' | 'long' | 'overflow'): string {
   if (kind === 'short') return 'проходит'
   if (kind === 'long') return 'дорого, но проходит'
-  return 'блокируется'
+  return 'переполнено, но отправляется'
 }
 </script>
 
@@ -308,11 +308,10 @@ function scenarioLabel(kind: 'short' | 'long' | 'overflow'): string {
         <strong>Что ломается при переполнении</strong>
         <p>
           Chat Completions API принимает один промпт целиком: system + вся история +
-          tools. Если сумма больше контекстного окна, агент останавливается до
-          отправки и показывает ошибку <code>ContextOverflowError</code>. Если
-          отправить запрос в обход проверки, провайдер вернёт HTTP 400
-          <code>context_length_exceeded</code> — ответа не будет, токены на
-          отклонённый запрос обычно не списываются, но диалог застрянет.
+          tools. Если сумма больше контекстного окна, агент всё равно отправляет
+          запрос, чтобы показать реальный ответ провайдера: он либо ответит, либо
+          вернёт HTTP 400 <code>context_length_exceeded</code> — тогда ответа не
+          будет, токены на отклонённый запрос обычно не списываются.
         </p>
         <p>
           Лечение: начать новый диалог, удалить старые реплики, сократить

@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Agent } from '../src/agent/Agent'
 import { ToolRegistry } from '../src/agent/ToolRegistry'
 import {
-  ContextOverflowError,
   analyzeContext,
   buildPromptEstimate,
   buildTokenScenarios,
@@ -227,8 +226,18 @@ describe('сценарии', () => {
 })
 
 describe('Agent и токены', () => {
-  it('блокирует запрос до отправки, если контекст переполнен', async () => {
-    const fetchMock = installFetchMock([])
+  it('отправляет запрос даже при переполненном контексте', async () => {
+    const fetchMock = installFetchMock([
+      {
+        choices: [
+          {
+            index: 0,
+            message: { role: 'assistant', content: 'Ответ модели.' },
+            finish_reason: 'stop',
+          },
+        ],
+      },
+    ])
     const history: ChatMessage[] = [
       { role: 'user', content: 'Длинная история. '.repeat(200) },
       { role: 'assistant', content: 'Ответ. '.repeat(200) },
@@ -236,8 +245,16 @@ describe('Agent и токены', () => {
 
     const agent = new Agent({ ...config, contextLimit: 100 }, new ToolRegistry([calculatorTool]))
 
-    await expect(agent.run('Ещё вопрос', history)).rejects.toBeInstanceOf(ContextOverflowError)
-    expect(fetchMock).not.toHaveBeenCalled()
+    let estimateStatus: string | undefined
+    const result = await agent.run('Ещё вопрос', history, {
+      onPromptEstimate: estimate => {
+        estimateStatus = estimate.status
+      },
+    })
+
+    expect(estimateStatus).toBe('overflow')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result.finalText).toBe('Ответ модели.')
   })
 
   it('возвращает токены запроса, ответа и стоимость запуска', async () => {

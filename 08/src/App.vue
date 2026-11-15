@@ -31,7 +31,6 @@ import {
 } from './storage/conversation'
 import { createDefaultToolRegistry } from './tools'
 import {
-  ContextOverflowError,
   analyzeContext,
   formatPercent,
   formatTokens,
@@ -327,8 +326,6 @@ async function send(preset?: string): Promise<void> {
     if (!isCurrentRun()) return
     if (isAbortError(error)) {
       assistant.stopped = 'Остановлено пользователем'
-    } else if (error instanceof ContextOverflowError) {
-      assistant.error = error.message
     } else {
       assistant.error = toErrorMessage(error)
     }
@@ -475,8 +472,8 @@ onBeforeUnmount(() => {
             <p>
               Начни с короткого вопроса, затем продолжи диалог и открой вкладку
               «Токены»: видно, как растут prompt, ответ и стоимость. Если история
-              превысит лимит модели, агент остановится до отправки и покажет
-              разбивку переполнения.
+              превысит лимит модели, агент всё равно отправит запрос, чтобы
+              показать реальный ответ провайдера.
             </p>
 
             <div class="presets">
