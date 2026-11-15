@@ -341,3 +341,11 @@ summary, проверяет наличие деталей в полном и с�
 - Проверка памяти использует ключевые слова, а не семантическую оценку:
   ответ «480 тыс. ₽» будет засчитан, а необычная формулировка — нет.
 - Нет стриминга: ответ приходит целиком после каждого запроса.
+
+## Result
+
+https://github.com/user-attachments/assets/70ac648c-07ce-4031-b637-e44e94aff277
+
+https://github.com/user-attachments/assets/e334443f-b414-45b1-8287-38e2a0b5a43f
+
+https://github.com/user-attachments/assets/963b463a-ce35-4ee5-9bf4-1cb5083c9833
