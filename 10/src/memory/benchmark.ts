@@ -1,11 +1,17 @@
 import { buildEndpoint, createChatCompletion } from '../api/llm'
-import {
-  compressHistory,
-  type CompressionConfig,
-  type CompressionRunStats,
-  type ContextSummary,
-  type SummaryGenerator,
+import type {
+  CompressionConfig,
+  CompressionRunStats,
+  ContextSummary,
+  SummaryGenerator,
 } from '../agent/compression'
+import {
+  normalizeContextConfig,
+  prepareContext,
+  type ContextRunStats,
+  type ContextStrategy,
+} from '../agent/context'
+import type { FactExtractor, FactMode, StickyFactsState } from '../agent/facts'
 import { repairToolCallSequence } from '../agent/history'
 import {
   buildPromptEstimate,
@@ -18,16 +24,31 @@ import type { ChatMessage, LlmExchange, LlmRequest, LlmSettings, TokenUsage } fr
 import { answerMentions, type MemoryDetail } from './dialog'
 
 /**
- * Проверка памяти: один и тот же набор вопросов задаётся модели дважды —
- * с полной историей и с историей после сжатия. Ответ считается «вспомненным»,
- * если в нём есть ожидаемая деталь (имя, срок, сумма, решение).
+ * Проверка памяти: один и тот же набор вопросов задаётся модели в нескольких
+ * режимах. Ответ считается «вспомненным», если в нём есть ожидаемая деталь.
  *
- * Это не магическая метрика качества: модель может ответить своими словами,
- * поэтому ключевые слова подобраны с запасом. Зато видно, какие детали
- * переживают сжатие, а какие исчезают.
+ * Day 10 добавляет к full/summary режимы sliding и facts. Все прогоны идут на
+ * одном диалоге и одном списке деталей, поэтому таблица сравнения честная:
+ * отличается только то, что реально уходит в запрос.
  */
 
-export const MEMORY_SYSTEM_PROMPT = `Ты — ассистент проекта. Отвечай на вопрос пользователя одной короткой фразой, опираясь только на историю диалога. Если нужной детали в истории нет, ответь «не знаю». Не выдумывай числа, имена и даты.`
+export const MEMORY_SYSTEM_PROMPT = `Ты — ассистент проекта. Отвечай на вопрос пользователя одной короткой фразой, опираясь только на историю диалога и блок памяти. Если нужной детали в истории нет, ответь «не знаю». Не выдумывай числа, имена и даты.`
+
+export type BenchmarkMode = 'full' | 'sliding' | 'facts' | 'summary'
+
+export const ALL_BENCHMARK_MODES: BenchmarkMode[] = [
+  'full',
+  'sliding',
+  'facts',
+  'summary',
+]
+
+export const BENCHMARK_MODE_LABELS: Record<BenchmarkMode, string> = {
+  full: 'Без стратегии',
+  sliding: 'Sliding Window',
+  facts: 'Sticky Facts',
+  summary: 'Summary',
+}
 
 export interface MemoryCheck {
   detailId: string
@@ -41,14 +62,26 @@ export interface MemoryCheck {
 }
 
 export interface MemoryModeResult {
-  mode: 'full' | 'compressed'
+  mode: BenchmarkMode
+  label: string
   checks: MemoryCheck[]
   remembered: number
   total: number
   promptTokens: number
   completionTokens: number
   costUsd: number
+  /** Оценка того, что реально уходит в запрос, без system-промпта. */
   historyTokens: number
+  /** Те же токены под явным именем для сравнительной таблицы. */
+  contextTokens: number
+  /** Токены на обновление памяти (summary или facts), если они были. */
+  extractionRequests: number
+  extractionPromptTokens: number
+  extractionCompletionTokens: number
+  extractionCostUsd: number
+  /** prompt всех вопросов + prompt на обновление памяти. */
+  netPromptTokens: number
+  factsCount: number
   summaryPromptTokens: number
   summaryCompletionTokens: number
   summaryCostUsd: number
@@ -59,11 +92,17 @@ export interface MemoryBenchmarkReport {
   startedAt: string
   finishedAt: string
   details: MemoryDetail[]
+  modes: BenchmarkMode[]
   full: MemoryModeResult
+  /** Summary-режим: сохранено имя для совместимости с day 09. */
   compressed: MemoryModeResult
+  sliding: MemoryModeResult | null
+  facts: MemoryModeResult | null
+  strategies: MemoryModeResult[]
   summary: ContextSummary | null
+  factsState: StickyFactsState | null
   compression: CompressionRunStats
-  /** Экономия только на prompt-токенах вопросов. */
+  /** Экономия только на prompt-токенах вопросов (summary против full). */
   savedPromptTokens: number
   /** Экономия с учётом запросов на само сжатие. */
   netSavedPromptTokens: number
@@ -78,13 +117,25 @@ export interface RunMemoryBenchmarkInput {
   profile: ModelProfile
   compression: CompressionConfig
   summary?: ContextSummary | null
+  facts?: StickyFactsState | null
+  factsMode?: FactMode
+  factExtractor?: FactExtractor
   systemPrompt?: string
   generateSummary?: SummaryGenerator
   signal?: AbortSignal
   maxAnswerTokens?: number
-  onProgress?: (text: string, done: number, total: number, mode: 'full' | 'compressed') => void
+  modes?: BenchmarkMode[]
+  onProgress?: (text: string, done: number, total: number, mode: BenchmarkMode) => void
   onExchangeStart?: (exchange: LlmExchange) => void
   onExchangeEnd?: (exchange: LlmExchange) => void
+}
+
+interface PreparedBase {
+  base: ChatMessage[]
+  summary: ContextSummary | null
+  facts: StickyFactsState | null
+  compression: CompressionRunStats | null
+  context: ContextRunStats | null
 }
 
 function makeId(): string {
@@ -111,47 +162,89 @@ function contentToText(content: unknown): string {
   return ''
 }
 
+function emptyCompressionStats(
+  fullHistoryTokens: number,
+  sentHistoryTokens: number,
+): CompressionRunStats {
+  return {
+    enabled: false,
+    usedSummary: false,
+    summaryUpdated: false,
+    summaryUpdates: 0,
+    summaryRequests: 0,
+    summaryPromptTokens: 0,
+    summaryCompletionTokens: 0,
+    summaryCostUsd: 0,
+    summaryUsageReported: 0,
+    fullHistoryTokens,
+    sentHistoryTokens,
+    summaryTokens: 0,
+    tailTokens: sentHistoryTokens,
+    savedTokens: fullHistoryTokens - sentHistoryTokens,
+    recentMessages: 0,
+    summarizedMessages: 0,
+  }
+}
+
+function modeToStrategy(mode: BenchmarkMode): ContextStrategy {
+  if (mode === 'summary') return 'summary'
+  if (mode === 'facts') return 'facts'
+  return 'sliding'
+}
+
 async function prepareBase(
   input: RunMemoryBenchmarkInput,
-  mode: 'full' | 'compressed',
-): Promise<{
-  base: ChatMessage[]
-  summary: ContextSummary | null
-  compression: CompressionRunStats | null
-}> {
+  mode: BenchmarkMode,
+): Promise<PreparedBase> {
   const history = repairToolCallSequence(
     input.messages.filter(message => message.role !== 'system'),
   )
 
   if (mode === 'full') {
-    return { base: history, summary: null, compression: null }
+    return {
+      base: history,
+      summary: null,
+      facts: null,
+      compression: null,
+      context: null,
+    }
   }
 
-  const outcome = await compressHistory({
+  const config = normalizeContextConfig({
+    strategy: modeToStrategy(mode),
+    keepRecent: input.compression?.keepRecent ?? 8,
+    compression: input.compression,
+    factsMode: input.factsMode ?? 'local',
+  })
+
+  const outcome = await prepareContext({
     messages: history,
-    config: input.compression,
-    summary: input.summary,
-    generateSummary: input.generateSummary,
+    config,
+    summary: mode === 'summary' ? input.summary : null,
+    // Facts всегда строим из проверяемого диалога, а не из чужой ветки:
+    // иначе сравнение стратегий будет нечестным.
+    facts: mode === 'facts' ? (input.facts ?? null) : null,
+    generateSummary: mode === 'summary' ? input.generateSummary : undefined,
+    extractFacts: mode === 'facts' ? input.factExtractor : undefined,
   })
 
   return {
     base: outcome.prepared,
     summary: outcome.summary,
-    compression: outcome.stats,
+    facts: outcome.facts,
+    compression: outcome.compression,
+    context: outcome.stats,
   }
 }
 
 async function runMode(
   input: RunMemoryBenchmarkInput,
-  mode: 'full' | 'compressed',
-): Promise<{
-  result: MemoryModeResult
-  summary: ContextSummary | null
-  compression: CompressionRunStats | null
-}> {
+  mode: BenchmarkMode,
+): Promise<{ result: MemoryModeResult; prepared: PreparedBase }> {
   const prepared = await prepareBase(input, mode)
   const systemPrompt = input.systemPrompt ?? MEMORY_SYSTEM_PROMPT
   const maxAnswerTokens = input.maxAnswerTokens ?? 96
+  const label = BENCHMARK_MODE_LABELS[mode]
 
   const checks: MemoryCheck[] = []
   let promptTokensTotal = 0
@@ -163,7 +256,7 @@ async function runMode(
     if (input.signal?.aborted) throw new DOMException('Отменено', 'AbortError')
 
     input.onProgress?.(
-      `${mode === 'full' ? 'Без сжатия' : 'Со сжатием'}: вопрос ${index + 1} из ${input.details.length}`,
+      `${label}: вопрос ${index + 1} из ${input.details.length}`,
       index,
       input.details.length,
       mode,
@@ -243,30 +336,63 @@ async function runMode(
   }
 
   input.onProgress?.(
-    `${mode === 'full' ? 'Без сжатия' : 'Со сжатием'}: готово`,
+    `${label}: готово`,
     input.details.length,
     input.details.length,
     mode,
   )
 
-  const compression = prepared.compression
+  const context = prepared.context
+  const historyTokens = estimateMessagesTokens(prepared.base)
+  const extractionRequests =
+    mode === 'summary'
+      ? (context?.summaryRequests ?? 0)
+      : mode === 'facts'
+        ? (context?.factsRequests ?? 0)
+        : 0
+  const extractionPromptTokens =
+    mode === 'summary'
+      ? (context?.summaryPromptTokens ?? 0)
+      : mode === 'facts'
+        ? (context?.factsPromptTokens ?? 0)
+        : 0
+  const extractionCompletionTokens =
+    mode === 'summary'
+      ? (context?.summaryCompletionTokens ?? 0)
+      : mode === 'facts'
+        ? (context?.factsCompletionTokens ?? 0)
+        : 0
+  const extractionCostUsd =
+    mode === 'summary'
+      ? (context?.summaryCostUsd ?? 0)
+      : mode === 'facts'
+        ? (context?.factsCostUsd ?? 0)
+        : 0
+
   return {
+    prepared,
     result: {
       mode,
+      label,
       checks,
       remembered: checks.filter(check => check.remembered).length,
       total: checks.length,
       promptTokens: promptTokensTotal,
       completionTokens: completionTokensTotal,
       costUsd: costTotal,
-      historyTokens: estimateMessagesTokens(prepared.base),
-      summaryPromptTokens: compression?.summaryPromptTokens ?? 0,
-      summaryCompletionTokens: compression?.summaryCompletionTokens ?? 0,
-      summaryCostUsd: compression?.summaryCostUsd ?? 0,
-      summaryRequests: compression?.summaryRequests ?? 0,
+      historyTokens,
+      contextTokens: historyTokens,
+      extractionRequests,
+      extractionPromptTokens,
+      extractionCompletionTokens,
+      extractionCostUsd,
+      netPromptTokens: promptTokensTotal + extractionPromptTokens,
+      factsCount: context?.factsCount ?? 0,
+      summaryPromptTokens: context?.summaryPromptTokens ?? 0,
+      summaryCompletionTokens: context?.summaryCompletionTokens ?? 0,
+      summaryCostUsd: context?.summaryCostUsd ?? 0,
+      summaryRequests: context?.summaryRequests ?? 0,
     },
-    summary: prepared.summary,
-    compression,
   }
 }
 
@@ -274,50 +400,62 @@ export async function runMemoryBenchmark(
   input: RunMemoryBenchmarkInput,
 ): Promise<MemoryBenchmarkReport> {
   const startedAt = new Date().toISOString()
-  const full = await runMode(input, 'full')
-  const compressed = await runMode(input, 'compressed')
+  const requested: BenchmarkMode[] = input.modes?.length
+    ? [...input.modes]
+    : ['full', 'summary']
+  const modes: BenchmarkMode[] = requested.includes('full')
+    ? requested
+    : ['full', ...requested]
+
+  const byMode = new Map<BenchmarkMode, { result: MemoryModeResult; prepared: PreparedBase }>()
+  for (const mode of modes) {
+    if (byMode.has(mode)) continue
+    byMode.set(mode, await runMode(input, mode))
+  }
+
+  const fullEntry = byMode.get('full')!
+  const summaryEntry = byMode.get('summary')
+  const factsEntry = byMode.get('facts')
+  const slidingEntry = byMode.get('sliding')
+
+  const full = fullEntry.result
+  const compressed = summaryEntry?.result ?? full
+  const strategies = modes
+    .map(mode => byMode.get(mode)?.result)
+    .filter((result): result is MemoryModeResult => Boolean(result))
+
   const finishedAt = new Date().toISOString()
 
-  const savedPromptTokens = full.result.promptTokens - compressed.result.promptTokens
+  const summaryExtractionPrompt = compressed.extractionPromptTokens
+  const savedPromptTokens = full.promptTokens - compressed.promptTokens
   const netSavedPromptTokens =
-    full.result.promptTokens -
-    (compressed.result.promptTokens + compressed.result.summaryPromptTokens)
+    full.promptTokens - (compressed.promptTokens + summaryExtractionPrompt)
   const savedCostUsd =
-    full.result.costUsd -
-    (compressed.result.costUsd + compressed.result.summaryCostUsd)
+    full.costUsd - (compressed.costUsd + compressed.extractionCostUsd)
+
+  const summaryCompression =
+    summaryEntry?.prepared.compression ??
+    emptyCompressionStats(full.historyTokens, summaryEntry?.result.historyTokens ?? full.historyTokens)
 
   return {
     startedAt,
     finishedAt,
     details: input.details,
-    full: full.result,
-    compressed: compressed.result,
-    summary: compressed.summary,
-    compression:
-      compressed.compression ?? {
-        enabled: input.compression.enabled,
-        usedSummary: false,
-        summaryUpdated: false,
-        summaryUpdates: 0,
-        summaryRequests: 0,
-        summaryPromptTokens: 0,
-        summaryCompletionTokens: 0,
-        summaryCostUsd: 0,
-        summaryUsageReported: 0,
-        fullHistoryTokens: full.result.historyTokens,
-        sentHistoryTokens: compressed.result.historyTokens,
-        summaryTokens: 0,
-        tailTokens: compressed.result.historyTokens,
-        savedTokens: full.result.historyTokens - compressed.result.historyTokens,
-        recentMessages: 0,
-        summarizedMessages: 0,
-      },
+    modes,
+    full,
+    compressed,
+    sliding: slidingEntry?.result ?? null,
+    facts: factsEntry?.result ?? null,
+    strategies,
+    summary: summaryEntry?.prepared.summary ?? null,
+    factsState: factsEntry?.prepared.facts ?? null,
+    compression: summaryCompression,
     savedPromptTokens,
     netSavedPromptTokens,
     savedCostUsd,
     savedRatio:
-      full.result.promptTokens > 0
-        ? savedPromptTokens / full.result.promptTokens
+      full.promptTokens > 0
+        ? savedPromptTokens / full.promptTokens
         : 0,
   }
 }

@@ -1,6 +1,8 @@
 /** Общие типы для агента, инструментов и журнала API-запросов. */
 
 import type { CompressionRunStats, ContextSummary } from './agent/compression'
+import type { ContextRunStats } from './agent/context'
+import type { StickyFactsState } from './agent/facts'
 import type { ContextBreakdown } from './tokens'
 
 export type ChatRole = 'system' | 'user' | 'assistant' | 'tool'
@@ -66,8 +68,11 @@ export interface TokenUsage {
 /** Один запрос к LLM и полученный на него ответ (для журнала и отладки). */
 export interface LlmExchange {
   id: string
-  /** chat — обычный запрос агента, summary — запрос на сжатие истории. */
-  kind?: 'chat' | 'summary'
+  /**
+   * chat — обычный запрос агента, summary — запрос на сжатие истории,
+   * facts — извлечение key-value памяти.
+   */
+  kind?: 'chat' | 'summary' | 'facts'
   url: string
   startedAt: string
   durationMs: number
@@ -147,8 +152,12 @@ export interface AgentRunResult {
   tokenStats: AgentTokenStats
   /** Актуальная сводка: хранится отдельно от messages. */
   summary: ContextSummary | null
+  /** Key-value память: хранится отдельно от messages и сводки. */
+  facts: StickyFactsState | null
   /** Что именно ушло в запрос и сколько на этом сэкономлено. */
   compression: CompressionRunStats
+  /** Метрики выбранной стратегии контекста. */
+  context: ContextRunStats
 }
 
 export interface LlmSettings {

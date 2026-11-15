@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { runMemoryBenchmark } from '../src/memory/benchmark'
+import { ALL_BENCHMARK_MODES, runMemoryBenchmark } from '../src/memory/benchmark'
 import {
   MEMORY_DETAILS,
   answerMentions,
@@ -139,6 +139,75 @@ describe('проверка памяти через API', () => {
     expect(compressedRequest?.messages.length).toBeLessThan(
       requests[0]?.messages.length ?? 0,
     )
+  })
+
+  it('прогоняет sliding, facts и summary на одном диалоге и сравнивает детали', async () => {
+    const dialog = buildMemoryDialog()
+    const profile = resolveModelProfile('deepseek-chat')
+    const requests: LlmRequest[] = []
+
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body)) as LlmRequest
+      requests.push(request)
+      const lastUser = [...request.messages].reverse().find(message => message.role === 'user')
+      const detail = MEMORY_DETAILS.find(item => item.question === lastUser?.content)
+      // Модель отвечает только тем, что реально видит в контексте.
+      const visible = detail ? messagesContainDetail(request.messages, detail) : false
+      return jsonResponse({
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: visible ? detail!.fact : 'не знаю',
+            },
+            finish_reason: 'stop',
+          },
+        ],
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const report = await runMemoryBenchmark({
+      messages: dialog,
+      details: MEMORY_DETAILS,
+      settings: {
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'test-key',
+        model: 'deepseek-chat',
+        temperature: 0,
+        maxTokens: null,
+        maxIterations: 3,
+      },
+      profile,
+      compression: {
+        enabled: true,
+        keepRecent: 8,
+        summarizeEvery: 10,
+        mode: 'local',
+      },
+      summary: null,
+      facts: null,
+      factsMode: 'local',
+      modes: ALL_BENCHMARK_MODES,
+    })
+
+    // 4 режима × 12 вопросов, без отдельных запросов на память в local-режиме.
+    expect(fetchMock).toHaveBeenCalledTimes(48)
+    expect(report.strategies).toHaveLength(4)
+    expect(report.modes).toEqual(ALL_BENCHMARK_MODES)
+
+    expect(report.full.remembered).toBe(12)
+    expect(report.sliding?.remembered).toBe(0)
+    expect(report.facts?.remembered).toBe(12)
+    expect(report.compressed.remembered).toBe(12)
+
+    expect(report.facts?.factsCount).toBeGreaterThanOrEqual(12)
+    expect(report.facts?.extractionRequests).toBe(0)
+    expect(report.sliding?.extractionRequests).toBe(0)
+    expect(report.facts?.contextTokens).toBeLessThan(report.full.contextTokens)
+    expect(report.sliding?.contextTokens).toBeLessThan(report.full.contextTokens)
+    expect(report.factsState?.facts.length).toBeGreaterThanOrEqual(12)
   })
 })
 

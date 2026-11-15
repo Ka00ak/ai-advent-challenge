@@ -1780,3 +1780,277 @@ input[type="range"] {
     flex-direction: column;
   }
 }
+
+/* ---------- Day 10: strategies, facts, branches ---------- */
+
+.strategy-pill {
+  cursor: pointer;
+  border-color: rgba(66, 211, 146, 0.35);
+  background: rgba(66, 211, 146, 0.1);
+  color: #b6f5d8;
+}
+
+.facts-pill {
+  cursor: pointer;
+  border-color: rgba(255, 209, 102, 0.4);
+  background: rgba(255, 209, 102, 0.1);
+  color: #ffe6a3;
+}
+
+.branch-pill {
+  cursor: pointer;
+  border-color: rgba(167, 139, 250, 0.4);
+  background: rgba(167, 139, 250, 0.12);
+  color: #d8ccff;
+}
+
+.badge.facts {
+  border-color: rgba(255, 209, 102, 0.4);
+  background: rgba(255, 209, 102, 0.14);
+  color: #ffe6a3;
+}
+
+.strategy-hero {
+  padding: 12px;
+  border: 1px solid rgba(66, 211, 146, 0.3);
+  border-radius: 11px;
+  background: rgba(66, 211, 146, 0.05);
+}
+
+.strategy-hero.strategy-facts {
+  border-color: rgba(255, 209, 102, 0.32);
+  background: rgba(255, 209, 102, 0.05);
+}
+
+.strategy-hero.strategy-summary {
+  border-color: rgba(167, 139, 250, 0.32);
+  background: rgba(167, 139, 250, 0.06);
+}
+
+.strategy-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.strategy-description {
+  margin: 6px 0 9px;
+  color: #c7cede;
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.facts-card {
+  padding: 11px;
+  border: 1px solid rgba(255, 209, 102, 0.32);
+  border-radius: 10px;
+  background: rgba(255, 209, 102, 0.05);
+}
+
+.facts-meta,
+.checkpoint-meta,
+.branch-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  color: #d9cfb3;
+  font-size: 11px;
+}
+
+.facts-table {
+  margin-top: 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+
+.facts-head,
+.facts-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 72px;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  font-size: 11px;
+}
+
+.facts-head {
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-3);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.facts-row + .facts-row {
+  border-top: 1px solid var(--border-soft);
+}
+
+.facts-row code {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #ffe6a3;
+  overflow-wrap: anywhere;
+}
+
+.facts-row > span:nth-child(2) {
+  color: #dce4ff;
+  overflow-wrap: anywhere;
+}
+
+.strategy-table .benchmark-head,
+.strategy-table .benchmark-row {
+  grid-template-columns: minmax(0, 1fr) 48px 56px 48px 60px;
+}
+
+.complexity-table {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+
+.complexity-head,
+.complexity-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 58px 72px minmax(0, 1.2fr);
+  align-items: center;
+  gap: 6px;
+  padding: 8px 9px;
+  font-size: 11px;
+}
+
+.complexity-head {
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-3);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.complexity-row + .complexity-row {
+  border-top: 1px solid var(--border-soft);
+}
+
+.complexity-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.complexity-name strong {
+  color: #dce4ff;
+  font-size: 11.5px;
+}
+
+.complexity-name .muted {
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.complexity-code {
+  color: #a9b9e8;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.conclusion {
+  padding: 12px;
+  border: 1px solid rgba(124, 155, 255, 0.28);
+  border-radius: 11px;
+  background: rgba(124, 155, 255, 0.05);
+}
+
+.conclusion p {
+  margin: 0 0 9px;
+  color: #c7cede;
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.conclusion p:last-child {
+  margin-bottom: 0;
+}
+
+.conclusion strong {
+  color: #dce4ff;
+}
+
+.checkpoint-card {
+  padding: 12px;
+  border: 1px solid rgba(167, 139, 250, 0.32);
+  border-radius: 11px;
+  background: rgba(167, 139, 250, 0.06);
+}
+
+.checkpoint-card.empty {
+  border-color: var(--border);
+  background: var(--panel-2);
+}
+
+.checkpoint-card p {
+  margin: 5px 0 0;
+  font-size: 11.5px;
+}
+
+.checkpoint-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.checkpoint-head strong,
+.checkpoint-card > div > strong {
+  color: #dce4ff;
+  font-size: 12.5px;
+}
+
+.branch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.branch-card {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.branch-card.active {
+  border-color: rgba(66, 211, 146, 0.4);
+  background: rgba(66, 211, 146, 0.06);
+}
+
+.branch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.branch-head strong {
+  color: #dce4ff;
+  font-size: 12.5px;
+}
+
+.branch-preview {
+  margin-top: 6px;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+

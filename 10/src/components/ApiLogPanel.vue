@@ -64,13 +64,15 @@ async function copyExchange(entry: LlmExchange): Promise<void> {
     <div v-if="!props.exchanges.length" class="log-empty">
       Здесь появятся реальные HTTP-запросы к LLM: полный `messages`, схемы
       инструментов, ответ модели, tool_calls и usage. Запросы на сжатие истории
-      помечены бейджем `summary`. Открой любой запрос, чтобы посмотреть JSON.
+      помечены бейджем `summary`, на извлечение key-value памяти — `facts`.
+      Открой любой запрос, чтобы посмотреть JSON.
     </div>
 
     <details v-for="entry in props.exchanges" :key="entry.id" class="log-entry">
       <summary>
         <span class="method">POST</span>
         <span v-if="entry.kind === 'summary'" class="badge summary">summary</span>
+        <span v-if="entry.kind === 'facts'" class="badge facts">facts</span>
         <span class="log-model">{{ entry.request.model }}</span>
         <span class="muted">{{ entry.durationMs }} ms</span>
         <span v-if="entry.usage?.total_tokens" class="muted">

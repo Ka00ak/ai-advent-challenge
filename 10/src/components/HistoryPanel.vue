@@ -6,6 +6,8 @@ import {
   formatBytes,
   type StoredConversation,
 } from '../storage/conversation'
+import type { StickyFactsState } from '../agent/facts'
+import { FACTS_STORAGE_KEY } from '../storage/facts'
 import { SUMMARY_STORAGE_KEY, type StoredSummary } from '../storage/summary'
 import type { ChatMessage } from '../types'
 import type { SaveState } from '../ui-types'
@@ -15,6 +17,7 @@ const props = defineProps<{
   messages: ChatMessage[]
   saveState: SaveState
   summary: StoredSummary | null
+  facts: StickyFactsState | null
 }>()
 
 const emit = defineEmits<{
@@ -89,8 +92,16 @@ async function onFileChange(event: Event): Promise<void> {
           <code>{{ SUMMARY_STORAGE_KEY }}</code>
         </div>
         <div class="storage-line muted">
+          <span>Facts · отдельно</span>
+          <code>{{ FACTS_STORAGE_KEY }}</code>
+        </div>
+        <div class="storage-line muted">
           <span>В сводке</span>
           <span>{{ props.summary?.coveredMessages ?? 0 }} сообщений</span>
+        </div>
+        <div class="storage-line muted">
+          <span>В facts</span>
+          <span>{{ props.facts?.facts.length ?? 0 }} записей</span>
         </div>
         <p v-if="props.saveState.error" class="storage-error">{{ props.saveState.error }}</p>
       </div>
@@ -120,8 +131,8 @@ async function onFileChange(event: Event): Promise<void> {
 
       <p class="hint">
         Сохраняется весь массив <code>messages</code>: реплики, <code>tool_calls</code>
-        и ответы инструментов. Сводка лежит отдельно и в этот JSON не входит —
-        полную историю всегда можно экспортировать без потерь.
+        и ответы инструментов. Сводка, facts и ветки лежат отдельно и в этот JSON
+        не входят — полную историю всегда можно экспортировать без потерь.
       </p>
 
       <div class="history-actions">

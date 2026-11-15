@@ -2,14 +2,25 @@
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { Agent } from './agent/Agent'
 import {
-  buildCompressedContext,
   compressHistory,
-  previewCompression,
   type CompressionConfig,
   type ContextSummary,
 } from './agent/compression'
+import {
+  buildContextMessages,
+  contextStrategyLabel,
+  normalizeContextConfig,
+  previewContext,
+} from './agent/context'
+import { createLlmFactExtractor } from './agent/factExtractor'
+import {
+  updateFacts,
+  type FactsUpdateOutcome,
+  type StickyFactsState,
+} from './agent/facts'
 import { createLlmSummaryGenerator } from './agent/summarizer'
 import ApiLogPanel from './components/ApiLogPanel.vue'
+import BranchPanel from './components/BranchPanel.vue'
 import ContextPanel from './components/ContextPanel.vue'
 import HistoryPanel from './components/HistoryPanel.vue'
 import MessageBubble from './components/MessageBubble.vue'
@@ -20,9 +31,24 @@ import {
   buildMemoryDialog,
 } from './memory/dialog'
 import {
+  ALL_BENCHMARK_MODES,
   runMemoryBenchmark as runMemoryBenchmarkCheck,
   type MemoryBenchmarkReport,
 } from './memory/benchmark'
+import {
+  BRANCHES_STORAGE_KEY,
+  activeBranch as getActiveBranch,
+  clearBranches as clearStoredBranches,
+  createBranchState,
+  createBranchesFromCheckpoint,
+  loadBranches,
+  saveBranches,
+  saveCheckpoint,
+  switchBranch,
+  updateActiveBranch,
+  type BranchState,
+  type DialogBranch,
+} from './memory/branches'
 import { SYSTEM_PROMPT } from './prompt'
 import {
   clearStoredApiKey,
@@ -46,6 +72,13 @@ import {
   saveConversation,
   type StoredConversation,
 } from './storage/conversation'
+import {
+  FACTS_STORAGE_KEY,
+  clearFacts as clearStoredFacts,
+  createStoredFacts,
+  loadFacts,
+  saveFacts,
+} from './storage/facts'
 import {
   SUMMARY_STORAGE_KEY,
   clearSummary as clearStoredSummary,
@@ -86,7 +119,11 @@ const TEST_PROMPTS = [
 
 const loaded = loadConversation()
 const loadedSummary = loadSummary()
-const initialMessages = loaded.conversation?.messages ?? []
+const loadedFacts = loadFacts()
+const loadedBranches = loadBranches()
+const loadedActiveBranch = getActiveBranch(loadedBranches.state)
+const initialMessages =
+  loadedActiveBranch?.messages ?? loaded.conversation?.messages ?? []
 const initialJson =
   loaded.conversation && typeof TextEncoder !== 'undefined'
     ? new TextEncoder().encode(JSON.stringify(loaded.conversation)).length
@@ -99,20 +136,34 @@ const messages = ref<UiMessage[]>(
   initialMessages.length > 0 ? reconstructUiMessages(initialMessages) : [],
 )
 const summary = ref<StoredSummary | null>(
-  loaded.conversation &&
+  loadedActiveBranch?.summary ??
+    (loaded.conversation &&
     loadedSummary.summary &&
     (!loadedSummary.summary.conversationId ||
       loadedSummary.summary.conversationId === loaded.conversation.id)
-    ? loadedSummary.summary
-    : null,
+      ? loadedSummary.summary
+      : null),
 )
+const facts = ref<StickyFactsState | null>(
+  loadedActiveBranch?.facts ??
+    (loaded.conversation &&
+    loadedFacts.facts &&
+    (!loadedFacts.facts.conversationId ||
+      loadedFacts.facts.conversationId === loaded.conversation.id)
+      ? loadedFacts.facts
+      : null),
+)
+const branchState = ref<BranchState | null>(loadedActiveBranch ? loadedBranches.state : null)
 const apiLog = ref<LlmExchange[]>([])
 const input = ref('')
 const running = ref(false)
 const compressing = ref(false)
+const factsBusy = ref(false)
 const statusText = ref('')
 const composerNotice = ref('')
-const tab = ref<'settings' | 'history' | 'tokens' | 'memory' | 'log'>('settings')
+const tab = ref<
+  'settings' | 'history' | 'tokens' | 'memory' | 'branches' | 'log'
+>('settings')
 const chatRef = ref<HTMLElement | null>(null)
 const restoreNotice = ref(Boolean(loaded.conversation))
 const benchmark = ref<MemoryBenchmarkReport | null>(null)
@@ -142,12 +193,21 @@ const compressionConfig = computed<CompressionConfig>(() => ({
   summarizeEvery: settings.value.summarizeEveryMessages,
   mode: settings.value.summaryMode,
 }))
-/** То, что реально уйдёт в модель: summary + последние N сообщений. */
+const contextConfig = computed(() =>
+  normalizeContextConfig({
+    strategy: settings.value.contextStrategy,
+    keepRecent: settings.value.keepRecentMessages,
+    compression: compressionConfig.value,
+    factsMode: settings.value.factsMode,
+  }),
+)
+/** То, что реально уйдёт в модель при выбранной стратегии. */
 const requestMessages = computed(() =>
-  buildCompressedContext(
+  buildContextMessages(
     historyMessages.value,
-    compressionConfig.value,
+    contextConfig.value,
     summary.value,
+    facts.value,
   ),
 )
 const contextEstimate = computed(() =>
@@ -159,11 +219,12 @@ const contextEstimate = computed(() =>
     limit: modelProfile.value.contextLimit,
   }),
 )
-const compressionPreview = computed(() =>
-  previewCompression(
+const strategyPreview = computed(() =>
+  previewContext(
     historyMessages.value,
-    compressionConfig.value,
+    contextConfig.value,
     summary.value,
+    facts.value,
   ),
 )
 const usageSummary = computed(() => summarizeExchanges(apiLog.value, modelProfile.value))
@@ -206,6 +267,7 @@ function upsertExchange(exchange: LlmExchange): void {
 function persistSummary(): void {
   if (!summary.value) {
     clearStoredSummary()
+    syncActiveBranch()
     return
   }
 
@@ -215,6 +277,23 @@ function persistSummary(): void {
   if (!result.ok) {
     composerNotice.value = result.error ?? 'Не удалось сохранить сводку.'
   }
+  syncActiveBranch()
+}
+
+function persistFacts(): void {
+  if (!facts.value?.facts.length) {
+    clearStoredFacts()
+    syncActiveBranch()
+    return
+  }
+
+  const stored = createStoredFacts(facts.value, conversation.value?.id ?? null)
+  facts.value = stored
+  const result = saveFacts(stored)
+  if (!result.ok) {
+    composerNotice.value = result.error ?? 'Не удалось сохранить facts.'
+  }
+  syncActiveBranch()
 }
 
 function clearSummaryState(): void {
@@ -225,6 +304,119 @@ function clearSummaryState(): void {
   clearStoredSummary()
   benchmark.value = null
   benchmarkStatus.value = ''
+  syncActiveBranch()
+}
+
+function clearFactsState(): void {
+  facts.value = null
+  clearStoredFacts()
+  syncActiveBranch()
+}
+
+/** Снимок текущей ветки: сообщения + независимая память. */
+function branchSnapshot(): {
+  messages: ChatMessage[]
+  summary: StoredSummary | null
+  facts: StickyFactsState | null
+} {
+  return {
+    messages: cloneMessages(historyMessages.value),
+    summary: summary.value,
+    facts: facts.value,
+  }
+}
+
+function persistBranches(): void {
+  if (!branchState.value) return
+  const result = saveBranches(branchState.value)
+  if (!result.ok) {
+    composerNotice.value = result.error ?? 'Не удалось сохранить ветки.'
+  }
+}
+
+/** Любое изменение истории/памяти отражаем в активной ветке. */
+function syncActiveBranch(): void {
+  if (!branchState.value) return
+  branchState.value = updateActiveBranch(branchState.value, branchSnapshot())
+  persistBranches()
+}
+
+function activeBranchView(): DialogBranch | null {
+  return getActiveBranch(branchState.value)
+}
+
+function loadBranchIntoView(branch: DialogBranch): void {
+  runGeneration += 1
+  if (running.value) controller?.abort()
+  controller = null
+  running.value = false
+  compressing.value = false
+  factsBusy.value = false
+  historyMessages.value = cloneMessages(branch.messages)
+  messages.value = reconstructUiMessages(branch.messages)
+  summary.value = branch.summary
+  facts.value = branch.facts
+  apiLog.value = []
+  benchmark.value = null
+  benchmarkStatus.value = ''
+  statusText.value = ''
+  composerNotice.value = `Активная ветка: ${branch.name}. Сообщений: ${branch.messages.length}.`
+  persistSummary()
+  persistFacts()
+  persistNow()
+  scrollSoon()
+}
+
+function saveCheckpointAction(): void {
+  if (running.value || benchmarking.value || compressing.value || factsBusy.value) return
+  const snapshot = branchSnapshot()
+  let state = branchState.value ?? createBranchState(snapshot, 'Основная')
+  state = updateActiveBranch(state, snapshot)
+  state = saveCheckpoint(
+    state,
+    snapshot,
+    `Checkpoint · ${new Date().toLocaleTimeString('ru-RU')}`,
+  )
+  branchState.value = state
+  persistBranches()
+  composerNotice.value = `Checkpoint сохранён: ${snapshot.messages.length} сообщений, facts: ${
+    snapshot.facts?.facts.length ?? 0
+  }. Теперь можно создать две ветки.`
+  tab.value = 'branches'
+}
+
+function createBranchesAction(): void {
+  if (!branchState.value?.checkpoint) {
+    composerNotice.value = 'Сначала сохрани checkpoint.'
+    tab.value = 'branches'
+    return
+  }
+  const result = createBranchesFromCheckpoint(branchState.value)
+  branchState.value = result.state
+  persistBranches()
+  const branch = getActiveBranch(branchState.value)
+  if (branch) loadBranchIntoView(branch)
+  composerNotice.value = 'Созданы две ветки от одного checkpoint. Переключайся между ними и продолжай диалог независимо.'
+  tab.value = 'branches'
+}
+
+function switchBranchAction(branchId: string): void {
+  if (!branchState.value) return
+  if (running.value || benchmarking.value || compressing.value || factsBusy.value) {
+    composerNotice.value = 'Дождись окончания текущей операции перед переключением ветки.'
+    return
+  }
+  const next = switchBranch(branchState.value, branchId)
+  branchState.value = next
+  persistBranches()
+  const branch = getActiveBranch(next)
+  if (branch) loadBranchIntoView(branch)
+  tab.value = 'branches'
+}
+
+function resetBranches(): void {
+  branchState.value = null
+  clearStoredBranches()
 }
 
 function currentSnapshot(): StoredConversation {
@@ -263,6 +455,7 @@ function resetConversation(): void {
   controller = null
   running.value = false
   compressing.value = false
+  factsBusy.value = false
   messages.value = []
   historyMessages.value = []
   apiLog.value = []
@@ -272,12 +465,14 @@ function resetConversation(): void {
   composerNotice.value = ''
   restoreNotice.value = false
   clearSummaryState()
+  clearFactsState()
+  resetBranches()
   clearConversation()
   saveState.value = { state: 'idle' }
 }
 
-function loadMemoryDialog(): void {
-  if (running.value || compressing.value || benchmarking.value) {
+async function loadMemoryDialog(): Promise<void> {
+  if (running.value || compressing.value || benchmarking.value || factsBusy.value) {
     composerNotice.value = 'Дождись окончания текущей операции, затем загрузи диалог.'
     return
   }
@@ -289,16 +484,31 @@ function loadMemoryDialog(): void {
   snapshot.messages = cloneMessages(dialog)
   conversation.value = snapshot
   apiLog.value = []
-  clearSummaryState()
+  summary.value = null
+  clearStoredSummary()
+  benchmark.value = null
+  benchmarkStatus.value = ''
+  resetBranches()
+  facts.value = null
+
+  // Локально строим facts сразу, чтобы вкладка «Стратегии» показывала
+  // key-value память ещё до первого запроса к модели.
+  const localFacts = await updateFacts({
+    messages: dialog,
+    previous: null,
+    mode: 'local',
+  })
+  facts.value = localFacts.facts
+  persistFacts()
   persistNow()
   restoreNotice.value = false
-  composerNotice.value = `Загружен контрольный диалог: ${dialog.length} сообщений и ${MEMORY_DETAILS.length} деталей.`
+  composerNotice.value = `Загружен контрольный диалог: ${dialog.length} сообщений, ${MEMORY_DETAILS.length} деталей, facts: ${localFacts.facts.facts.length}.`
   tab.value = 'memory'
   scrollSoon()
 }
 
 async function compressNow(): Promise<void> {
-  if (running.value || compressing.value || benchmarking.value) return
+  if (running.value || compressing.value || benchmarking.value || factsBusy.value) return
 
   const source = cloneMessages(historyMessages.value)
   if (!source.length) {
@@ -353,8 +563,68 @@ async function compressNow(): Promise<void> {
   }
 }
 
+async function rebuildFactsAction(): Promise<void> {
+  if (running.value || compressing.value || benchmarking.value || factsBusy.value) return
+
+  const source = cloneMessages(historyMessages.value)
+  if (!source.length) {
+    composerNotice.value = 'История пуста: сначала загрузи контрольный диалог.'
+    tab.value = 'memory'
+    return
+  }
+
+  if (settings.value.factsMode === 'llm' && !settings.value.apiKey.trim()) {
+    composerNotice.value = 'Для LLM-извлечения facts нужен API-ключ. Пока использую local-режим.'
+  }
+
+  const generation = runGeneration
+  factsBusy.value = true
+  composerNotice.value = ''
+  try {
+    const extractor =
+      settings.value.factsMode === 'llm' && settings.value.apiKey.trim()
+        ? createLlmFactExtractor({
+            settings: settings.value,
+            profile: modelProfile.value,
+            onExchangeStart: upsertExchange,
+            onExchangeEnd: upsertExchange,
+          })
+        : undefined
+
+    const outcome: FactsUpdateOutcome = await updateFacts({
+      messages: source,
+      previous: null,
+      mode: extractor ? 'llm' : 'local',
+      extractor,
+    })
+
+    if (generation !== runGeneration) return
+    facts.value = outcome.facts
+    persistFacts()
+    composerNotice.value = `Facts обновлены: ${outcome.facts.facts.length} записей, обработано ${
+      outcome.stats.updatedMessages
+    } сообщений, запросов к модели: ${outcome.stats.requests}.`
+    tab.value = 'memory'
+  } catch (error) {
+    if (generation !== runGeneration) return
+    if (!isAbortError(error)) {
+      composerNotice.value = `Не удалось обновить facts: ${toErrorMessage(error)}`
+    }
+    tab.value = 'memory'
+  } finally {
+    if (generation === runGeneration) factsBusy.value = false
+  }
+}
+
+function clearFactsAction(): void {
+  if (running.value || compressing.value) return
+  clearFactsState()
+  composerNotice.value = 'Facts очищены. При стратегии Sticky Facts память начнёт собираться заново.'
+  tab.value = 'memory'
+}
+
 async function runMemoryBenchmarkAction(): Promise<void> {
-  if (benchmarking.value || running.value || compressing.value) return
+  if (benchmarking.value || running.value || compressing.value || factsBusy.value) return
 
   if (!settings.value.apiKey.trim()) {
     composerNotice.value = 'Для проверки памяти нужен API-ключ в настройках.'
@@ -362,7 +632,7 @@ async function runMemoryBenchmarkAction(): Promise<void> {
     return
   }
 
-  if (!historyMessages.value.length) loadMemoryDialog()
+  if (!historyMessages.value.length) await loadMemoryDialog()
   const source = cloneMessages(historyMessages.value)
   if (!source.length) return
 
@@ -385,6 +655,16 @@ async function runMemoryBenchmarkAction(): Promise<void> {
             onExchangeEnd: upsertExchange,
           })
         : undefined
+    const factExtractor =
+      settings.value.factsMode === 'llm'
+        ? createLlmFactExtractor({
+            settings: settings.value,
+            profile: modelProfile.value,
+            signal: benchmarkController.signal,
+            onExchangeStart: upsertExchange,
+            onExchangeEnd: upsertExchange,
+          })
+        : undefined
 
     const report = await runMemoryBenchmarkCheck({
       messages: source,
@@ -393,7 +673,11 @@ async function runMemoryBenchmarkAction(): Promise<void> {
       profile: modelProfile.value,
       compression: compressionConfig.value,
       summary: summary.value,
+      facts: null,
+      factsMode: settings.value.factsMode,
+      factExtractor,
       generateSummary: generator,
+      modes: ALL_BENCHMARK_MODES,
       signal: benchmarkController.signal,
       onProgress: text => {
         benchmarkStatus.value = text
@@ -408,6 +692,10 @@ async function runMemoryBenchmarkAction(): Promise<void> {
     if (report.summary) {
       summary.value = toStoredSummary(report.summary)
       persistSummary()
+    }
+    if (report.factsState) {
+      facts.value = report.factsState
+      persistFacts()
     }
     benchmarkStatus.value = 'Готово'
   } catch (error) {
@@ -453,8 +741,8 @@ function onKeydown(event: KeyboardEvent): void {
 async function send(preset?: string): Promise<void> {
   const text = (preset ?? input.value).trim()
   if (!text || running.value) return
-  if (benchmarking.value || compressing.value) {
-    composerNotice.value = 'Дождись окончания проверки памяти или сжатия.'
+  if (benchmarking.value || compressing.value || factsBusy.value) {
+    composerNotice.value = 'Дождись окончания проверки памяти, сжатия или обновления facts.'
     return
   }
 
@@ -510,6 +798,9 @@ async function send(preset?: string): Promise<void> {
       systemPrompt: SYSTEM_PROMPT,
       compression: compressionConfig.value,
       summary: summary.value,
+      strategy: settings.value.contextStrategy,
+      facts: facts.value,
+      factsMode: settings.value.factsMode,
     },
     createDefaultToolRegistry(),
   )
@@ -527,7 +818,7 @@ async function send(preset?: string): Promise<void> {
         onExchangeStart: exchange => {
           if (!isCurrentRun()) return
           upsertExchange(exchange)
-          if (exchange.kind === 'summary') {
+          if (exchange.kind === 'summary' || exchange.kind === 'facts') {
             scrollSoon()
             return
           }
@@ -571,6 +862,11 @@ async function send(preset?: string): Promise<void> {
           summary.value = toStoredSummary(nextSummary)
           persistSummary()
         },
+        onFactsUpdate: nextFacts => {
+          if (!isCurrentRun()) return
+          facts.value = nextFacts
+          persistFacts()
+        },
       },
       controller.signal,
     )
@@ -580,7 +876,9 @@ async function send(preset?: string): Promise<void> {
       // живёт только в запросе; в localStorage остаются все сообщения.
       historyMessages.value = result.messages.filter(message => message.role !== 'system')
       summary.value = toStoredSummary(result.summary)
+      facts.value = result.facts
       persistSummary()
+      persistFacts()
       persistNow()
     }
 
@@ -625,12 +923,14 @@ function exportHistory(): void {
   const payload = {
     ...currentSnapshot(),
     summary: summary.value,
+    facts: facts.value,
+    branching: branchState.value,
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `lab09-conversation-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+  link.download = `lab10-conversation-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -653,6 +953,8 @@ function importHistory(payload: { filename: string; text: string }): void {
   messages.value = reconstructUiMessages(result.conversation.messages)
   apiLog.value = []
   clearSummaryState()
+  clearFactsState()
+  resetBranches()
   restoreNotice.value = true
   composerNotice.value = `Загружена история из ${payload.filename}.`
   persistNow()
@@ -673,12 +975,19 @@ function exportLog(): void {
       context: contextEstimate.value,
       summary: usageSummary.value,
     },
-    compression: {
-      config: compressionConfig.value,
-      preview: compressionPreview.value,
+    context: {
+      strategy: settings.value.contextStrategy,
+      config: contextConfig.value,
+      preview: strategyPreview.value,
       summary: summary.value,
-      storageKey: SUMMARY_STORAGE_KEY,
+      facts: facts.value,
+      storageKeys: {
+        summary: SUMMARY_STORAGE_KEY,
+        facts: FACTS_STORAGE_KEY,
+        branches: BRANCHES_STORAGE_KEY,
+      },
     },
+    branching: branchState.value,
     conversation: conversation.value,
     exchanges: apiLog.value,
   }
@@ -686,7 +995,7 @@ function exportLog(): void {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `lab09-api-log-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+  link.download = `lab10-api-log-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -708,6 +1017,8 @@ watch(input, () => {
 onBeforeUnmount(() => {
   if (historyMessages.value.length) persistNow()
   if (summary.value) persistSummary()
+  if (facts.value) persistFacts()
+  if (branchState.value) persistBranches()
 })
 </script>
 
@@ -715,18 +1026,21 @@ onBeforeUnmount(() => {
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <span class="lab-badge">09</span>
+        <span class="lab-badge">10</span>
         <div>
-          <h1>Агент со сжатием истории</h1>
-          <p>Последние N сообщений как есть · сводка остального · экономия токенов</p>
+          <h1>Агент с тремя стратегиями контекста</h1>
+          <p>Sliding Window · Sticky Facts · Summary · сравнение памяти и токенов</p>
         </div>
       </div>
       <div class="topbar-actions">
         <span class="pill">{{ settings.model || 'модель не выбрана' }}</span>
+        <span class="pill strategy-pill" @click="tab = 'memory'">
+          {{ contextStrategyLabel(settings.contextStrategy) }}
+        </span>
         <span
           class="pill token-pill"
           :class="contextEstimate.status"
-          :title="`Оценка запроса с учётом сжатия: ${formatTokens(contextEstimate.totalTokens)} из ${formatTokens(contextEstimate.limit)} токенов. Полная история: ${formatTokens(compressionPreview.fullHistoryTokens)} токенов. Открыть вкладку «Токены»`"
+          :title="`Оценка запроса при стратегии «${contextStrategyLabel(settings.contextStrategy)}»: ${formatTokens(contextEstimate.totalTokens)} из ${formatTokens(contextEstimate.limit)} токенов. Полная история: ${formatTokens(strategyPreview.fullHistoryTokens)} токенов. Открыть вкладку «Токены»`"
           @click="tab = 'tokens'"
         >
           ~{{ formatTokens(contextEstimate.totalTokens) }} tok ·
@@ -738,7 +1052,23 @@ onBeforeUnmount(() => {
           :title="`Сводка покрывает ${summary.coveredMessages} сообщений и хранится отдельно: ${SUMMARY_STORAGE_KEY}`"
           @click="tab = 'memory'"
         >
-          память · {{ summary.coveredMessages }}
+          summary · {{ summary.coveredMessages }}
+        </span>
+        <span
+          v-if="facts?.facts.length"
+          class="pill facts-pill"
+          :title="`Sticky facts: ${facts.facts.length} записей, ключ localStorage ${FACTS_STORAGE_KEY}`"
+          @click="tab = 'memory'"
+        >
+          facts · {{ facts.facts.length }}
+        </span>
+        <span
+          v-if="activeBranchView()"
+          class="pill branch-pill"
+          :title="`Активная ветка. Хранится в ${BRANCHES_STORAGE_KEY}`"
+          @click="tab = 'branches'"
+        >
+          {{ activeBranchView()?.name }}
         </span>
         <span
           class="pill save-pill"
@@ -757,13 +1087,15 @@ onBeforeUnmount(() => {
       <section class="chat-panel">
         <div ref="chatRef" class="chat">
           <div v-if="!messages.length" class="empty">
-            <div class="empty-badge">summary + last N messages</div>
-            <h2>Длинный диалог без переполнения контекста</h2>
+            <div class="empty-badge">sliding · facts · summary</div>
+            <h2>Три способа не потерять контекст</h2>
             <p>
-              Агент хранит последние {{ settings.keepRecentMessages }} сообщений как
-              есть, а более старую часть заменяет сводкой. Полная история остаётся
-              в localStorage — в модель уходит только summary и свежий хвост.
-              Загрузи контрольный диалог и проверь, какие детали пережили сжатие.
+              Сейчас выбрана стратегия
+              <strong>{{ contextStrategyLabel(settings.contextStrategy) }}</strong>:
+              последние {{ settings.keepRecentMessages }} сообщений и
+              {{ settings.contextStrategy === 'facts' ? 'key-value память' : settings.contextStrategy === 'summary' ? 'сводка старой части' : 'ничего старше окна' }}.
+              Загрузи контрольный диалог, прогони все три стратегии и сравни,
+              сколько из 12 деталей каждая сохраняет.
             </p>
 
             <div class="presets">
@@ -801,14 +1133,14 @@ onBeforeUnmount(() => {
             </div>
 
             <p class="hint">
-              Сохранение автоматическое: полная история лежит в
-              <code>localStorage</code> под ключом
-              <code>{{ CONVERSATION_STORAGE_KEY }}</code>, сводка — отдельно под
-              <code>{{ SUMMARY_STORAGE_KEY }}</code>. Оба JSON можно посмотреть
-              во вкладках «История» и «Память».
+              Сохранение автоматическое: история — <code>{{ CONVERSATION_STORAGE_KEY }}</code>,
+              сводка — <code>{{ SUMMARY_STORAGE_KEY }}</code>, facts —
+              <code>{{ FACTS_STORAGE_KEY }}</code>, ветки —
+              <code>{{ BRANCHES_STORAGE_KEY }}</code>. Это четыре независимых
+              JSON в <code>localStorage</code>.
             </p>
             <p v-if="!storageAvailable" class="warn">
-              localStorage недоступен — история и сводка не сохранятся после перезапуска.
+              localStorage недоступен — история, память и ветки не сохранятся после перезапуска.
             </p>
           </div>
 
@@ -900,8 +1232,18 @@ onBeforeUnmount(() => {
             :class="{ active: tab === 'memory' }"
             @click="tab = 'memory'"
           >
-            Память
-            <span v-if="summary" class="count">{{ summary.coveredMessages }}</span>
+            Стратегии
+            <span v-if="facts?.facts.length" class="count">{{ facts.facts.length }}</span>
+          </button>
+          <button
+            type="button"
+            :class="{ active: tab === 'branches' }"
+            @click="tab = 'branches'"
+          >
+            Ветки
+            <span v-if="branchState?.branches.length" class="count">
+              {{ branchState.branches.length }}
+            </span>
           </button>
           <button type="button" :class="{ active: tab === 'log' }" @click="tab = 'log'">
             API
@@ -916,6 +1258,7 @@ onBeforeUnmount(() => {
           :messages="historyMessages"
           :save-state="saveState"
           :summary="summary"
+          :facts="facts"
           @export="exportHistory"
           @import="importHistory"
           @clear="resetConversation"
@@ -928,24 +1271,44 @@ onBeforeUnmount(() => {
           :profile="modelProfile"
           :compression="compressionConfig"
           :summary="summary"
+          :strategy="settings.contextStrategy"
+          :facts="facts"
+          :preview="strategyPreview"
         />
         <ContextPanel
           v-else-if="tab === 'memory'"
           :messages="historyMessages"
           :summary="summary"
+          :facts="facts"
+          :strategy="settings.contextStrategy"
+          :facts-mode="settings.factsMode"
           :compression="compressionConfig"
           :profile="modelProfile"
+          :preview="strategyPreview"
           :benchmark="benchmark"
           :benchmark-running="benchmarking"
           :benchmark-status="benchmarkStatus"
           :compressing="compressing"
-          :busy="running || compressing || benchmarking"
+          :facts-busy="factsBusy"
+          :busy="running || compressing || benchmarking || factsBusy"
           :details="MEMORY_DETAILS"
           @seed-dialog="loadMemoryDialog"
           @compress-now="compressNow"
+          @rebuild-facts="rebuildFactsAction"
           @clear-summary="clearSummaryAction"
+          @clear-facts="clearFactsAction"
           @run-benchmark="runMemoryBenchmarkAction"
           @cancel-benchmark="stopBenchmark"
+        />
+        <BranchPanel
+          v-else-if="tab === 'branches'"
+          :state="branchState"
+          :message-count="historyMessages.length"
+          :busy="running || compressing || benchmarking || factsBusy"
+          @save-checkpoint="saveCheckpointAction"
+          @create-branches="createBranchesAction"
+          @switch="switchBranchAction"
+          @clear="resetBranches"
         />
         <ApiLogPanel
           v-else

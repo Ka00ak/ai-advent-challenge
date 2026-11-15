@@ -11,3 +11,4 @@
 | [07](./07) | 10.11.2026 | Vite, Vue, TypeScript | `npm run dev -w 07` |
 | [08](./08) | 11.11.2026 | Vite, Vue, TypeScript | `npm run dev -w 08` |
 | [09](./09) | 12.11.2026 | Vite, Vue, TypeScript | `npm run dev -w 09` |
+| [10](./10) | 13.11.2026 | Vite, Vue, TypeScript | `npm run dev -w 10` |

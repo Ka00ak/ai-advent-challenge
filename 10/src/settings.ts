@@ -1,4 +1,6 @@
 import type { SummaryMode } from './agent/compression'
+import type { ContextStrategy } from './agent/context'
+import type { FactMode } from './agent/facts'
 
 export type ProviderId = 'deepseek' | 'moonshot' | 'custom'
 
@@ -48,11 +50,15 @@ export interface AppSettings {
   maxIterations: number
   /** Ручной лимит контекста. null — взять из профиля выбранной модели. */
   contextLimit: number | null
+  /** Стратегия управления контекстом. */
+  contextStrategy: ContextStrategy
   /** Управление контекстом: хранить последние N сообщений как есть. */
   compressionEnabled: boolean
   keepRecentMessages: number
   summarizeEveryMessages: number
   summaryMode: SummaryMode
+  /** Sticky Facts: извлекать факты LLM-запросом или локальной эвристикой. */
+  factsMode: FactMode
   rememberKey: boolean
 }
 
@@ -65,15 +71,17 @@ export const DEFAULT_SETTINGS: AppSettings = {
   maxTokens: null,
   maxIterations: 6,
   contextLimit: null,
+  contextStrategy: 'summary',
   compressionEnabled: true,
   keepRecentMessages: 8,
   summarizeEveryMessages: 10,
   summaryMode: 'llm',
+  factsMode: 'local',
   rememberKey: false,
 }
 
-const SETTINGS_KEY = 'lab09.settings.v1'
-const API_KEY_STORAGE = 'lab09.apiKey.v1'
+const SETTINGS_KEY = 'lab10.settings.v1'
+const API_KEY_STORAGE = 'lab10.apiKey.v1'
 
 function canUseStorage(): boolean {
   try {
@@ -117,9 +125,15 @@ export function loadSettings(): AppSettings {
     if (!raw) return { ...DEFAULT_SETTINGS }
     const parsed = JSON.parse(raw) as Partial<AppSettings>
     const rememberKey = parsed.rememberKey === true
+    const contextStrategy: ContextStrategy =
+      parsed.contextStrategy === 'sliding' || parsed.contextStrategy === 'facts'
+        ? parsed.contextStrategy
+        : 'summary'
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
+      contextStrategy,
+      factsMode: parsed.factsMode === 'llm' ? 'llm' : 'local',
       rememberKey,
       apiKey: rememberKey ? loadStoredApiKey() : '',
     }

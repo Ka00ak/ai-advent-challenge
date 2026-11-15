@@ -222,14 +222,32 @@ function onProviderChange(event: Event): void {
     <section class="field-group">
       <h2>Управление контекстом</h2>
 
-      <label class="checkbox">
-        <input v-model="settings.compressionEnabled" type="checkbox" :disabled="disabled" />
-        <span>Сжимать старую часть истории в сводку</span>
-      </label>
-      <p class="hint">
-        Полная история остаётся в localStorage. В модель уходят только последние
-        сообщения и отдельно сохранённая сводка.
-      </p>
+      <div class="field">
+        <label for="context-strategy">Стратегия</label>
+        <select
+          id="context-strategy"
+          v-model="settings.contextStrategy"
+          :disabled="disabled"
+        >
+          <option value="sliding">Sliding Window — только последние N</option>
+          <option value="facts">Sticky Facts — facts + последние N</option>
+          <option value="summary">Summary — сводка + последние N</option>
+        </select>
+        <p class="hint">
+          <template v-if="settings.contextStrategy === 'sliding'">
+            Самая дешёвая стратегия: 0 дополнительных запросов. Всё, что старше
+            окна, полностью исчезает из контекста.
+          </template>
+          <template v-else-if="settings.contextStrategy === 'facts'">
+            Отдельная key-value память. При LLM-режиме — один запрос на каждое
+            сообщение пользователя; при local — бесплатная эвристика.
+          </template>
+          <template v-else>
+            Сводка обновляется порциями. Один запрос на порцию старых сообщений,
+            зато сохраняется связный пересказ диалога.
+          </template>
+        </p>
+      </div>
 
       <div class="field">
         <label for="keep-recent">Последних сообщений как есть</label>
@@ -239,47 +257,77 @@ function onProviderChange(event: Event): void {
           type="number"
           min="1"
           max="200"
-          :disabled="disabled || !settings.compressionEnabled"
+          :disabled="disabled"
         />
         <p class="hint">
-          Окно выравнивается по границе хода пользователя, чтобы не разрывать
-          пару assistant(tool_calls) → tool.
+          Общее окно для всех трёх стратегий. Выравнивается по границе хода
+          пользователя, чтобы не разрывать пару assistant(tool_calls) → tool.
         </p>
       </div>
 
-      <div class="field">
-        <label for="summarize-every">Сжимать каждые N старых сообщений</label>
-        <input
-          id="summarize-every"
-          v-model.number="summarizeEveryMessages"
-          type="number"
-          min="1"
-          max="500"
-          :disabled="disabled || !settings.compressionEnabled"
-        />
-        <p class="hint">
-          Когда сверх последних {{ keepRecentMessages }} накапливается столько
-          сообщений, агент обновляет сводку. {{ summarizeEveryMessages }} —
-          компромисс между точностью и числом запросов на сжатие.
-        </p>
-      </div>
+      <template v-if="settings.contextStrategy === 'facts'">
+        <div class="field">
+          <label for="facts-mode">Как обновлять facts</label>
+          <select
+            id="facts-mode"
+            v-model="settings.factsMode"
+            :disabled="disabled"
+          >
+            <option value="local">local — эвристика без API</option>
+            <option value="llm">LLM — запрос на каждое сообщение</option>
+          </select>
+          <p class="hint">
+            LLM понимает свободные формулировки, но добавляет по одному запросу
+            на каждую реплику пользователя. Local бесплатен, но знает только
+            типовые шаблоны (имена, сроки, бюджеты, решения).
+          </p>
+        </div>
+      </template>
 
-      <div class="field">
-        <label for="summary-mode">Как строить сводку</label>
-        <select
-          id="summary-mode"
-          v-model="settings.summaryMode"
-          :disabled="disabled || !settings.compressionEnabled"
-        >
-          <option value="llm">LLM — отдельный запрос к модели</option>
-          <option value="local">local — локальная выжимка без API</option>
-        </select>
+      <template v-if="settings.contextStrategy === 'summary'">
+        <label class="checkbox">
+          <input v-model="settings.compressionEnabled" type="checkbox" :disabled="disabled" />
+          <span>Сжимать старую часть истории в сводку</span>
+        </label>
         <p class="hint">
-          LLM лучше переформулирует, но тратит токены на сам запрос сжатия.
-          Локальная выжимка бесплатна и сохраняет пользовательские формулировки
-          дословно.
+          Полная история остаётся в localStorage. В модель уходят только последние
+          сообщения и отдельно сохранённая сводка.
         </p>
-      </div>
+
+        <div class="field">
+          <label for="summarize-every">Сжимать каждые N старых сообщений</label>
+          <input
+            id="summarize-every"
+            v-model.number="summarizeEveryMessages"
+            type="number"
+            min="1"
+            max="500"
+            :disabled="disabled || !settings.compressionEnabled"
+          />
+          <p class="hint">
+            Когда сверх последних {{ keepRecentMessages }} накапливается столько
+            сообщений, агент обновляет сводку. {{ summarizeEveryMessages }} —
+            компромисс между точностью и числом запросов на сжатие.
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="summary-mode">Как строить сводку</label>
+          <select
+            id="summary-mode"
+            v-model="settings.summaryMode"
+            :disabled="disabled || !settings.compressionEnabled"
+          >
+            <option value="llm">LLM — отдельный запрос к модели</option>
+            <option value="local">local — локальная выжимка без API</option>
+          </select>
+          <p class="hint">
+            LLM лучше переформулирует, но тратит токены на сам запрос сжатия.
+            Локальная выжимка бесплатна и сохраняет пользовательские формулировки
+            дословно.
+          </p>
+        </div>
+      </template>
     </section>
 
     <section class="field-group">

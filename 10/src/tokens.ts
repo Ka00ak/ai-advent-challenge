@@ -292,6 +292,8 @@ export interface UsageSummary {
   chatRequests: number
   /** Отдельные запросы на обновление сводки. */
   summaryRequests: number
+  /** Отдельные запросы на извлечение facts. */
+  factsRequests: number
   promptTokens: number
   completionTokens: number
   totalTokens: number
@@ -309,6 +311,7 @@ export function summarizeExchanges(
     requests: exchanges.length,
     chatRequests: 0,
     summaryRequests: 0,
+    factsRequests: 0,
     promptTokens: 0,
     completionTokens: 0,
     totalTokens: 0,
@@ -319,6 +322,7 @@ export function summarizeExchanges(
 
   for (const exchange of exchanges) {
     if (exchange.kind === 'summary') summary.summaryRequests += 1
+    else if (exchange.kind === 'facts') summary.factsRequests += 1
     else summary.chatRequests += 1
     const usage = exchange.usage
     const promptTokens = usage?.prompt_tokens ?? exchange.estimate?.totalTokens ?? 0

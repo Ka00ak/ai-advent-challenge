@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { CompressionConfig, ContextSummary } from '../agent/compression'
 import {
-  previewCompression,
-  type CompressionConfig,
-  type ContextSummary,
-} from '../agent/compression'
+  contextStrategyLabel,
+  contextStrategyMeta,
+  type ContextPreview,
+  type ContextStrategy,
+} from '../agent/context'
+import type { StickyFactsState } from '../agent/facts'
+import { FACTS_STORAGE_KEY } from '../storage/facts'
 import { SUMMARY_STORAGE_KEY } from '../storage/summary'
 import {
   buildTokenScenarios,
@@ -25,21 +29,32 @@ const props = defineProps<{
   profile: ModelProfile
   compression: CompressionConfig
   summary: ContextSummary | null
+  strategy: ContextStrategy
+  facts: StickyFactsState | null
+  preview: ContextPreview
 }>()
 
 const usage = computed(() => summarizeExchanges(props.exchanges, props.profile))
-const compressionPreview = computed(() =>
-  previewCompression(props.messages, props.compression, props.summary),
-)
+const compressionPreview = computed(() => props.preview)
+const strategyMeta = computed(() => contextStrategyMeta(props.strategy))
+const strategyName = computed(() => contextStrategyLabel(props.strategy))
 const historyTokens = computed(() => estimateMessagesTokens(props.messages))
 const chatExchanges = computed(() =>
-  props.exchanges.filter(exchange => exchange.kind !== 'summary'),
+  props.exchanges.filter(
+    exchange => exchange.kind !== 'summary' && exchange.kind !== 'facts',
+  ),
 )
 const summaryExchanges = computed(() =>
   props.exchanges.filter(exchange => exchange.kind === 'summary'),
 )
+const factsExchanges = computed(() =>
+  props.exchanges.filter(exchange => exchange.kind === 'facts'),
+)
 const summaryCost = computed(() =>
   summaryExchanges.value.reduce((sum, exchange) => sum + (exchange.costUsd ?? 0), 0),
+)
+const factsCost = computed(() =>
+  factsExchanges.value.reduce((sum, exchange) => sum + (exchange.costUsd ?? 0), 0),
 )
 const lastExchange = computed(() => chatExchanges.value.at(-1))
 const scenarios = computed(() => buildTokenScenarios(props.profile))
@@ -135,18 +150,17 @@ function scenarioLabel(kind: 'short' | 'long' | 'overflow'): string {
 <template>
   <div class="tokens">
     <section class="field-group">
-      <h2>Сжатие истории</h2>
+      <h2>Стратегия контекста</h2>
 
-      <div class="compress-card" :class="{ disabled: !props.compression.enabled }">
+      <div class="compress-card" :class="{ disabled: !compressionPreview.usedSummary && !compressionPreview.usedFacts }">
         <div class="compress-head">
-          <strong>
-            {{ props.compression.enabled ? 'сжатие включено' : 'сжатие выключено' }}
-          </strong>
+          <strong>{{ strategyName }}</strong>
           <span class="muted">
-            последние {{ props.compression.keepRecent }} · каждые
-            {{ props.compression.summarizeEvery }}
+            последние {{ props.preview.keepRecent }} · {{ strategyMeta.short }}
           </span>
         </div>
+
+        <p class="hint">{{ strategyMeta.description }}</p>
 
         <div class="compress-grid">
           <div>
@@ -158,18 +172,24 @@ function scenarioLabel(kind: 'short' | 'long' | 'overflow'): string {
             <strong>{{ formatTokens(compressionPreview.sentHistoryTokens) }}</strong>
           </div>
           <div>
-            <span class="muted">сводка</span>
+            <span class="muted">facts</span>
+            <strong>{{ formatTokens(compressionPreview.factsTokens) }}</strong>
+          </div>
+          <div>
+            <span class="muted">summary</span>
             <strong>{{ formatTokens(compressionPreview.summaryTokens) }}</strong>
           </div>
           <div>
             <span class="muted">экономия</span>
-            <strong
-              :class="compressionPreview.savedTokens >= 0 ? 'good' : 'bad'"
-            >
+            <strong :class="compressionPreview.savedTokens >= 0 ? 'good' : 'bad'">
               {{ compressionPreview.savedTokens >= 0 ? '−' : '+' }}{{
                 formatTokens(Math.abs(compressionPreview.savedTokens))
               }}
             </strong>
+          </div>
+          <div>
+            <span class="muted">facts в памяти</span>
+            <strong>{{ props.facts?.facts.length ?? 0 }}</strong>
           </div>
         </div>
 
@@ -185,34 +205,40 @@ function scenarioLabel(kind: 'short' | 'long' | 'overflow'): string {
             экономия {{ formatPercent(Math.max(0, compressionPreview.savedRatio)) }}
           </span>
           <span>
-            сжато {{ compressionPreview.summarizedMessages }} ·
+            отброшено/сжато {{ compressionPreview.droppedMessages }} ·
             свежих {{ compressionPreview.recentMessages }}
           </span>
         </div>
 
-        <p v-if="props.compression.enabled && !compressionPreview.usedSummary" class="hint">
+        <p v-if="props.strategy === 'summary' && !compressionPreview.usedSummary" class="hint">
           Сводки ещё нет. Когда сверх последних {{ props.compression.keepRecent }}
           накопится {{ props.compression.summarizeEvery }} сообщений, агент
-          сожмёт их в отдельный summary.
-          <template v-if="compressionPreview.pendingMessages">
-            Сейчас в очереди: {{ compressionPreview.pendingMessages }}.
-          </template>
+          сожмёт их в отдельный summary. До этого в запрос уходит вся история.
         </p>
-        <p v-else-if="props.compression.enabled" class="hint">
+        <p v-else-if="props.strategy === 'summary'" class="hint">
           В запрос уходит сводка на {{ formatTokens(compressionPreview.summaryTokens) }}
           токенов и {{ compressionPreview.recentMessages }} последних сообщений.
-          Полная история остаётся в localStorage.
+        </p>
+        <p v-else-if="props.strategy === 'facts'" class="hint">
+          В запрос уходит key-value память на {{ formatTokens(compressionPreview.factsTokens) }}
+          токенов и {{ compressionPreview.recentMessages }} последних сообщений.
+          {{ props.facts?.facts.length ?? 0 }} фактов хранятся отдельно от истории.
         </p>
         <p v-else class="hint">
-          В модель уходит вся история. Включи сжатие в настройках, чтобы
-          экономить prompt-токены.
+          В модель уходят только последние {{ props.preview.keepRecent }} сообщений.
+          Всё, что старше окна, отбрасывается без возможности восстановить.
         </p>
 
         <p class="hint">
-          Сводка хранится отдельно: <code>{{ SUMMARY_STORAGE_KEY }}</code>.
+          Память хранится отдельно: summary — <code>{{ SUMMARY_STORAGE_KEY }}</code>,
+          facts — <code>{{ FACTS_STORAGE_KEY }}</code>.
           <template v-if="summaryExchanges.length">
             Запросов на сжатие: {{ summaryExchanges.length }},
             стоимость {{ formatUsd(summaryCost) }}.
+          </template>
+          <template v-if="factsExchanges.length">
+            Запросов на facts: {{ factsExchanges.length }},
+            стоимость {{ formatUsd(factsCost) }}.
           </template>
         </p>
       </div>
@@ -260,8 +286,8 @@ function scenarioLabel(kind: 'short' | 'long' | 'overflow'): string {
 
         <p class="hint">
           Это оценка по эвристике (кириллица / латиница / JSON) плюс схемы
-          инструментов. «История» здесь — то, что реально уходит в запрос:
-          summary + последние сообщения. Точные значения приходят от провайдера
+          инструментов. «История» здесь — то, что реально уходит в запрос при
+          стратегии «{{ strategyName }}». Точные значения приходят от провайдера
           в <code>usage</code> после ответа. Лимит:
           <strong>{{ props.profile.label }}</strong> ·
           {{ formatTokens(props.profile.contextLimit) }} токенов.
@@ -339,9 +365,9 @@ function scenarioLabel(kind: 'short' | 'long' | 'overflow'): string {
       <p class="hint">
         «history» — оценка полной истории без system и схем инструментов.
         «prompt sum» — сумма токенов всех запросов сессии, включая
-        {{ usage.summaryRequests }} запрос(ов) на сжатие. Каждый шаг tool-loop
-        отправляет контекст заново, поэтому сумма растёт быстрее, чем сама
-        история. Цены профиля:
+        {{ usage.summaryRequests }} запрос(ов) на сжатие и
+        {{ usage.factsRequests }} на facts. Каждый шаг tool-loop отправляет
+        контекст заново, поэтому сумма растёт быстрее, чем сама история. Цены профиля:
         {{ formatUsd(props.profile.inputUsdPerMillion) }}/1M вход ·
         {{ formatUsd(props.profile.outputUsdPerMillion) }}/1M выход.
       </p>

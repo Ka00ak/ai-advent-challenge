@@ -5,7 +5,7 @@ import type { UiMessage } from '../ui-types'
 export const CONVERSATION_VERSION = 1 as const
 
 /** Ключ, под которым JSON-снимок диалога лежит в localStorage. */
-export const CONVERSATION_STORAGE_KEY = 'lab09.conversation.v1'
+export const CONVERSATION_STORAGE_KEY = 'lab10.conversation.v1'
 
 /**
  * Снимок диалога. `messages` — каноническая история для LLM:

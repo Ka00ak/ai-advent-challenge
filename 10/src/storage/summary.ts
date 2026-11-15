@@ -2,7 +2,7 @@ import type { ContextSummary, SummaryMode } from '../agent/compression'
 import { getBrowserStorage, type KeyValueStorage } from './conversation'
 
 /** Сводка хранится отдельно от полной истории диалога. */
-export const SUMMARY_STORAGE_KEY = 'lab09.summary.v1'
+export const SUMMARY_STORAGE_KEY = 'lab10.summary.v1'
 export const SUMMARY_VERSION = 1 as const
 
 export interface StoredSummary extends ContextSummary {
