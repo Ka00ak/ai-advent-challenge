@@ -336,3 +336,11 @@ src/
 предсказуемая по деталям, **Summary** — самая гибкая по смыслу. Для проектного
 диалога из 12 конкретных деталей facts выигрывают; для болтовни и длинных
 рассуждений лучше summary; для экономии — окно.
+
+## Result
+
+https://github.com/user-attachments/assets/9f49d056-fd76-4995-b765-6317d91518a0
+
+https://github.com/user-attachments/assets/1654ca3a-7dfe-403d-ab3f-34d2fb2af9a3
+
+https://github.com/user-attachments/assets/15d1bb92-744e-4f0a-a4ff-01c5f619fb77
