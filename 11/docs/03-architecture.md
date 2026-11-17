@@ -3,513 +3,468 @@
 ## 1. Принципы
 
 1. **Слой — модуль.** STM, WM, LTM не импортируют друг друга; их соединяет
-   только `MemoryService` / сборщик промпта.
-2. **Хранилище — снаружи логики.** Функции слоёв работают с чистыми объектами;
-   localStorage подключается в `src/storage/*` и в `App.vue`.
-3. **Один вход записи.** Все изменения памяти идут через router, tool-обработчик
-   или UI-операции; прямых `push` в массивы из компонентов нет.
-4. **Контракт раньше кода.** Типы и сигнатуры из этого документа фиксируются в
-   задаче T1; дальнейшие изменения — только с правкой спецификации.
-5. **Детерминизм.** Сортировки, scoring и усечение не зависят от порядка ключей
-   объекта и текущего времени, кроме явно переданного `now()`.
+   `AppController` и сборщик промпта.
+2. **Хранение снаружи логики.** Доменные функции работают с чистыми структурами;
+   файлы — в `storage`, TUI/CLI — тонкие адаптеры.
+3. **Один вход записи.** Router, tool `memory_write` или явная команда. Прямых
+   `push` в векторы из TUI нет.
+4. **Контракт раньше кода.** Типы и сигнатуры фиксируются в T1.
+5. **Один контроллер — два фронта.** TUI и CLI вызывают одни и те же методы.
+6. **Блокирующий HTTP в фоне.** TUI не должен зависать на запросе.
 
-## 2. Структура файлов
+## 2. Cargo-проект
 
 ```text
-11/src/
-  memory/
-    types.ts            # все интерфейсы из 02-domain-model.md
-    config.ts           # DEFAULT_MEMORY_CONFIG, normalizeMemoryConfig
-    stm.ts              # StmState, окно, сводка, токены
-    working.ts          # WM: upsert, status, archive, prune, render
-    ltm.ts              # LTM: upsert, supersede, active, render
-    candidates.ts       # локальное извлечение кандидатов (бывший facts.ts)
-    candidateExtractor.ts # LLM-извлечение (бывший factExtractor.ts)
-    router.ts           # R1–R6, pending, audit
-    retrieval.ts        # score + top-K + бюджеты
-    prompt.ts           # assembleMemoryPrompt + MemoryBreakdown
-    service.ts          # MemoryService: prepare, applyToolWrite, clear
-    migration.ts        # facts Дня 10 → LTM
-    audit.ts            # события, маскирование секретов
-    fixtures.ts         # 34 сообщения контрольного диалога
-    probes.ts           # 18 probe-вопросов + probeMatches
-    experiment.ts       # 7 конфигураций + очистка + Markdown/JSON отчёт
-  agent/
-    Agent.ts            # интеграция памяти, tool-loop, memory_write
-    compression.ts      # без изменений: summary STM
-    summarizer.ts       # без изменений
-    history.ts          # без изменений
-    ToolRegistry.ts     # без изменений
-  storage/
-    conversation.ts     # STM-сообщения (ключ lab11)
-    summary.ts          # сводка STM (ключ lab11)
-    working.ts          # lab11.working.v1
-    ltm.ts              # lab11.ltm.v1
-    pending.ts          # lab11.pending.v1
-    meta.ts             # lab11.meta.v1
-    migration.ts        # lab11.migration.v1
-    branches.ts         # снимок трёх слоёв
-  components/
-    MemoryPanel.vue     # три слоя + операции
-    MemoryItemCard.vue  # карточка записи
-    PendingPanel.vue    # очередь подтверждений
-    ExperimentPanel.vue # прогоны, матрица, отчёт
-    TokenPanel.vue      # + разбивка по слоям
-    SettingsPanel.vue   # + лимиты и режимы памяти
-    ApiLogPanel.vue     # + kind='memory'
-    HistoryPanel.vue    # STM = история
-    BranchPanel.vue     # снимки всех слоёв
-  App.vue               # загрузка/сохранение, запуск, эксперимент
+11/
+  Cargo.toml
+  Cargo.lock
+  rust-toolchain.toml          # stable, edition 2024
+  .gitignore                   # target/, data/, *.log
+  fixtures/
+    day10-facts.json           # sample facts Дня 10
+  src/
+    main.rs                    # clap: tui | chat | memory | import-facts | experiment
+    cli/
+      mod.rs
+      commands.rs
+      output.rs                # таблицы/JSON для CLI
+    app/
+      mod.rs
+      controller.rs            # AppController / AppRuntime
+      state.rs                 # AppState для TUI
+      events.rs                # Job, AppEvent, UiCommand
+      jobs.rs                  # worker thread, mpsc
+    domain/
+      mod.rs
+      memory.rs                # типы из 02
+      settings.rs              # Settings, MemoryConfig, defaults
+      chat.rs                  # ChatMessage, TurnOutcome, TokenStats
+    storage/
+      mod.rs
+      atomic.rs                # tmp+fsync+rename, .bak, permissions
+      stm.rs
+      working.rs
+      ltm.rs
+      pending.rs
+      meta.rs
+      settings.rs
+      branches.rs
+      lock.rs                  # fs2
+      paths.rs                 # data-dir resolution
+    memory/
+      mod.rs
+      candidates.rs            # локальное извлечение
+      extractor.rs             # LLM-извлечение
+      router.rs                # R1–R6, pending, audit
+      retrieval.rs             # score + top-K
+      prompt.rs                # assemble_prompt
+      tokens.rs                # эвристика токенов
+      migration.rs             # facts → LTM
+      audit.rs                 # маскирование, события
+    llm/
+      mod.rs
+      client.rs                # ChatClient trait + ReqwestClient
+      dto.rs                   # OpenAI-compatible JSON
+      tools.rs                 # calculator/time/currency/memory_write
+      agent.rs                 # tool-loop
+    experiment/
+      mod.rs
+      fixtures.rs              # 34 сообщения
+      probes.rs                # 18 probe
+      runner.rs                # 7 конфигураций + очистка
+      report.rs                # Markdown/JSON
+    tui/
+      mod.rs
+      app.rs                   # terminal setup, event loop
+      theme.rs
+      keymap.rs
+      widgets/
+        mod.rs
+        memory.rs
+        pending.rs
+        experiment.rs
+        tokens.rs
+        settings.rs
+        history.rs
+        api_log.rs
+        branches.rs
+        help.rs
+        modal.rs
+        input.rs               # однострочный ввод
+  tests/
+    storage.rs
+    router.rs
+    prompt.rs
+    migration.rs
+    experiment.rs
+    cli.rs
 ```
 
-Удаляются/переименовываются: `agent/facts.ts` → `memory/candidates.ts`,
-`agent/factExtractor.ts` → `memory/candidateExtractor.ts`,
-`agent/context.ts` → `memory/prompt.ts` + `memory/service.ts`,
-`memory/benchmark.ts` → `memory/experiment.ts` (старый benchmark можно оставить
-для регрессии, но UI Дня 11 использует новый).
+Зависимости (Cargo.toml):
+
+```toml
+[package]
+name = "lab11"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+thiserror = "2"
+anyhow = "1"
+directories = "5"
+fs2 = "0.4"
+unicode-width = "0.2"
+
+[dev-dependencies]
+tempfile = "3"
+assert_cmd = "2"
+predicates = "3"
+```
 
 ## 3. Контракты модулей
 
-### STM
+### Storage
 
-```ts
-export function emptyStm(): StmState
-export function stmFromConversation(messages: ChatMessage[], summary: string | null, covered: number): StmState
+```rust
+pub struct DataPaths { pub root: PathBuf, /* ... */ }
 
-export interface StmWindow {
-  messages: ChatMessage[]
-  dropped: number
-  tokens: number
-}
+pub fn resolve_data_dir(cli: Option<PathBuf>) -> Result<DataPaths>;
 
-/** Последние N сообщений с границей по user; последняя user-реплика всегда внутри. */
-export function selectStmWindow(stm: StmState, window: number, maxTokens: number): StmWindow
+pub fn load_stm(paths: &DataPaths) -> Result<StmState, LoadError>;
+pub fn save_stm(paths: &DataPaths, state: &StmState) -> Result<(), SaveError>;
 
-export function stmSummaryTokens(stm: StmState): number
+pub fn load_working(paths: &DataPaths) -> Result<WorkingMemoryState, LoadError>;
+pub fn save_working(paths: &DataPaths, state: &WorkingMemoryState) -> Result<(), SaveError>;
+
+pub fn load_ltm(paths: &DataPaths) -> Result<LtmState, LoadError>;
+pub fn save_ltm(paths: &DataPaths, state: &LtmState) -> Result<(), SaveError>;
+
+pub fn load_pending(paths: &DataPaths) -> Result<Vec<PendingWrite>, LoadError>;
+pub fn save_pending(paths: &DataPaths, pending: &[PendingWrite]) -> Result<(), SaveError>;
+
+pub fn load_meta(paths: &DataPaths) -> Result<MemoryMetaState, LoadError>;
+pub fn save_meta(paths: &DataPaths, meta: &MemoryMetaState) -> Result<(), SaveError>;
+
+pub fn load_bundle(paths: &DataPaths) -> Result<MemoryBundle, LoadError>;
+pub fn acquire_lock(paths: &DataPaths) -> Result<LockGuard, LockError>;
 ```
 
-Требования: не разрывать `assistant(tool_calls) → tool`; использовать
-`findRecentStart`/`repairToolCallSequence`; если последняя реплика одна больше
-бюджета — включить её целиком и пометить `overflow` в breakdown.
+`LoadError` различает `NotFound` (пустой слой — норма), `Corrupt { path }`,
+`UnsupportedVersion { found }`, `Io`. `save_*` используют `atomic_write_json`:
 
-### WM
-
-```ts
-export function emptyWorkingMemory(): WorkingMemoryState
-
-export interface WmUpsert {
-  item: Omit<WmItem, 'id' | 'createdAt' | 'updatedAt'>
-  now?: () => Date
-}
-
-export function upsertWmItem(state: WorkingMemoryState, input: WmUpsert): {
-  state: WorkingMemoryState
-  op: 'create' | 'update'
-  item: WmItem
-}
-
-export function setWmItemStatus(state: WorkingMemoryState, id: string, status: WmItem['status']): WorkingMemoryState
-export function removeWmItem(state: WorkingMemoryState, id: string): WorkingMemoryState
-export function archiveTask(state: WorkingMemoryState): WorkingMemoryState
-export function pruneWm(state: WorkingMemoryState, config: MemoryConfig['wm'], now: Date): WorkingMemoryState
-
-export interface RenderedBlock { text: string; tokens: number; includedIds: string[]; dedupedIds: string[] }
-export function renderWorkingMemory(state: WorkingMemoryState, maxTokens: number): RenderedBlock
+```rust
+pub fn atomic_write_json<T: Serialize + ?Sized>(path: &Path, value: &T) -> Result<(), SaveError>;
 ```
 
-Правила: active — по `order`, затем по `updatedAt`; `done`-пункты плана
-рендерятся как `[x]`, остальные `done`/`dropped` — нет; при превышении лимита
-сначала выкидываются `note`, затем старые `status`, затем `entity`; `goal` и
-активный `plan` — в последнюю очередь.
+Порядок: создать каталог → записать `path.tmp` → `sync_all` → `rename` поверх
+`path` (старый файл предварительно копируется в `path.bak`).
 
-`archiveTask` завершает задачу: `taskId = null`, `taskTitle = ''`, все
-`active`-пункты переводятся в `dropped`; `done` остаются для истории и
-удаляются GC по `ttlDays`. Автоматического переноса в LTM нет.
+### Слои
 
-### LTM
+```rust
+pub fn select_stm_window(stm: &StmState, window: usize, max_tokens: usize) -> StmWindow;
+pub fn stm_summary_tokens(stm: &StmState) -> usize;
 
-```ts
-export function emptyLtm(conversationId?: string | null): LtmState
-export function activeLtmRecords(state: LtmState): LtmRecord[]
-export function findActiveLtm(state: LtmState, key: string): LtmRecord | null
+pub fn empty_working(now: DateTime<Utc>) -> WorkingMemoryState;
+pub fn upsert_wm_item(state: &mut WorkingMemoryState, input: WmUpsert, now: DateTime<Utc>) -> WmChange;
+pub fn set_wm_status(state: &mut WorkingMemoryState, id: &str, status: WmStatus, now: DateTime<Utc>);
+pub fn remove_wm_item(state: &mut WorkingMemoryState, id: &str);
+pub fn archive_task(state: &mut WorkingMemoryState, now: DateTime<Utc>);
+pub fn prune_wm(state: &mut WorkingMemoryState, config: &WmConfig, now: DateTime<Utc>);
+pub fn render_wm(state: &WorkingMemoryState, max_tokens: usize, included_ltm: &[Id]) -> RenderedBlock;
 
-export interface UpsertLtmInput {
-  kind: LtmKind
-  key: string
-  value: string
-  tags?: string[]
-  source: LtmRecord['source']
-  confidence?: number
-  pinned?: boolean
-  legacyKey?: string
-  now?: () => Date
-}
-
-export function upsertLtm(state: LtmState, input: UpsertLtmInput): {
-  state: LtmState
-  record: LtmRecord
-  op: 'create' | 'update' | 'same'
-}
-
-/** Обновление с сохранением истории: старая запись получает supersededBy. */
-export function replaceLtm(state: LtmState, input: UpsertLtmInput): {
-  state: LtmState
-  record: LtmRecord
-  supersededId: string | null
-}
-
-/*
- * Семантика:
- * - upsertLtm: create при отсутствии key, same при совпадении значения,
- *   при другом значении делегирует replaceLtm и возвращает op='update';
- * - replaceLtm: всегда создаёт новую активную версию, старая получает
- *   supersededBy; прямое обновление значения «на месте» запрещено.
- * - router R3 использует replaceLtm; миграция и UI — upsertLtm.
- */
-
-export function removeLtmRecord(state: LtmState, id: string): LtmState
-export function setLtmPinned(state: LtmState, id: string, pinned: boolean): LtmState
-export function renderLtmProfile(state: LtmState, maxTokens: number): RenderedBlock
+pub fn active_ltm(state: &LtmState) -> impl Iterator<Item = &LtmRecord>;
+pub fn find_active_ltm<'a>(state: &'a LtmState, key: &str) -> Option<&'a LtmRecord>;
+pub fn upsert_ltm(state: &mut LtmState, input: UpsertLtm, now: DateTime<Utc>) -> LtmChange;
+pub fn replace_ltm(state: &mut LtmState, input: UpsertLtm, now: DateTime<Utc>) -> LtmChange;
+pub fn remove_ltm(state: &mut LtmState, id: &str);
+pub fn render_ltm_profile(state: &LtmState, max_tokens: usize) -> RenderedBlock;
 ```
 
-`renderLtmProfile` берёт `profile`, `project`, `preference`, сортирует `pinned` →
-`kind` → `updatedAt`, усекает по бюджету.
+Семантика:
 
-### Кандидаты и router
+- `upsert_ltm`: create; при совпадении значения — `Same`; при другом —
+  делегирует `replace_ltm`;
+- `replace_ltm`: создаёт новую активную версию, старая получает
+  `superseded_by`; прямое изменение `value` запрещено;
+- `render_wm`: active + done-plan как `[x]`; порядок goal → plan → status →
+  entity → open-question → note; `ref_ltm_id`, уже включённый в LTM, пропускается;
+- `render_ltm_profile`: `profile/project/preference`, pinned выше.
 
-```ts
-export interface CandidateExtraction {
-  candidates: MemoryCandidate[]
-  requests: number
-  promptTokens: number
-  completionTokens: number
-  costUsd: number
-  mode: 'local' | 'llm'
-  error?: string
+### Router
+
+```rust
+pub struct RouteInput<'a> {
+    pub message: &'a ChatMessage,
+    pub message_index: usize,
+    pub wm: &'a WorkingMemoryState,
+    pub ltm: &'a LtmState,
+    pub pending: &'a [PendingWrite],
+    pub config: &'a MemoryConfig,
+    pub now: DateTime<Utc>,
 }
 
-export type CandidateExtractor = (input: {
-  message: ChatMessage
-  activeLtm: LtmRecord[]
-}) => Promise<CandidateExtraction>
-
-export function createLocalCandidateExtractor(): CandidateExtractor
-export function createLlmCandidateExtractor(options: {
-  settings: LlmSettings
-  profile: ModelProfile
-  signal?: AbortSignal
-  onExchangeStart?: (exchange: LlmExchange) => void
-  onExchangeEnd?: (exchange: LlmExchange) => void
-}): CandidateExtractor
-
-export interface RouteInput {
-  message: ChatMessage
-  messageIndex: number
-  wm: WorkingMemoryState
-  ltm: LtmState
-  pending: PendingWrite[]
-  config: MemoryConfig
-  extractor?: CandidateExtractor
-  now?: () => Date
+pub struct RouteOutcome {
+    pub wm: WorkingMemoryState,
+    pub ltm: LtmState,
+    pub pending: Vec<PendingWrite>,
+    pub audit: Vec<MemoryWriteEvent>,
+    pub rejected: Vec<RejectedCandidate>,
+    pub stats: RouteStats,
 }
 
-export interface RouteOutcome {
-  wm: WorkingMemoryState
-  ltm: LtmState
-  pending: PendingWrite[]
-  audit: MemoryWriteEvent[]
-  rejected: Array<{ candidate: MemoryCandidate; ruleId: 'R1'; reason: string }>
-  stats: {
-    candidates: number
-    wmWrites: number
-    ltmWrites: number
-    pendingWrites: number
-    rejected: number
-    requests: number
-    promptTokens: number
-    completionTokens: number
-    costUsd: number
-    mode: 'local' | 'llm'
-    error?: string
-  }
-}
+pub fn route_candidates(
+    input: RouteInput<'_>,
+    extractor: &dyn CandidateExtractor,
+) -> Result<RouteOutcome, RouteError>;
 
-export async function routeCandidates(input: RouteInput): Promise<RouteOutcome>
-```
-
-### Retrieval и промпт
-
-```ts
-export interface RetrievalResult {
-  included: LtmRecord[]
-  dropped: LtmRecord[]
-  tokens: number
-}
-
-export function selectRelevantLtm(input: {
-  records: LtmRecord[]
-  query: string
-  wm: WorkingMemoryState
-  maxTokens: number
-  topK: number
-}): RetrievalResult
-
-export interface LayerFlags { stm: boolean; wm: boolean; ltm: boolean }
-
-export interface AssembleInput {
-  systemPrompt: string
-  stm: StmState
-  wm: WorkingMemoryState
-  ltm: LtmState
-  config: MemoryConfig
-  tools: ToolSchema[]
-  layers?: LayerFlags     // по умолчанию все true; нужно для ablation
-  now?: () => Date
-}
-
-export interface AssembleResult {
-  messages: ChatMessage[]
-  breakdown: MemoryBreakdown
-  stmWindow: StmWindow
-  includedLtm: LtmRecord[]
-  droppedLtm: LtmRecord[]
-  notes: string[]
-}
-
-export function assembleMemoryPrompt(input: AssembleInput): AssembleResult
-```
-
-Текущая реплика пользователя (последняя в `stm.messages`) добавляется всегда,
-вне окна STM. При `layers.stm = false` в промпте остаются только системные
-блоки, схемы инструментов и эта реплика. Её токены учитываются в
-`currentTokens`.
-
-### MemoryService
-
-```ts
-export interface MemoryBundle {
-  stm: StmState
-  wm: WorkingMemoryState
-  ltm: LtmState
-  pending: PendingWrite[]
-  meta: MemoryMetaState
-}
-
-export class MemoryService {
-  constructor(config: MemoryConfig, options?: { extractor?: CandidateExtractor; now?: () => Date })
-
-  /** Маршрутизирует новые сообщения и собирает промпт. */
-  prepare(input: {
-    bundle: MemoryBundle
-    systemPrompt: string
-    tools: ToolSchema[]
-    layers?: LayerFlags
-    signal?: AbortSignal
-  }): Promise<{
-    bundle: MemoryBundle
-    assembled: AssembleResult
-    route: RouteOutcome | null
-  }>
-
-  /** Обрабатывает tool memory_write. bundle мутируется иммутабельно. */
-  applyToolWrite(bundle: MemoryBundle, args: MemoryWriteArgs): {
-    bundle: MemoryBundle
-    result: MemoryWriteResult
-    audit: MemoryWriteEvent
-  }
-
-  clearLayer(bundle: MemoryBundle, layer: MemoryLayer): MemoryBundle
+pub trait CandidateExtractor: Send + Sync {
+    fn extract(&self, message: &ChatMessage, ltm: &LtmState) -> Result<Extraction, ExtractError>;
 }
 ```
 
-`clearLayer('ltm')` также очищает `pending` (он относится только к LTM);
-`clearLayer('stm')` сбрасывает `meta.processedMessages`; остальные слои не
-меняются.
+`LocalExtractor` — 0 запросов; `LlmExtractor` — 1 запрос, при ошибке контроллер
+откатывается на локальный и пишет `stats.error`.
 
-`prepare` берёт `meta.processedMessages`, прогоняет router по новым сообщениям
-(начиная с курсора), обновляет `bundle.meta`. Если `approval === 'confirm'`,
-LTM-записи не применяются, а попадают в `pending`; WM применяются сразу.
-Промпт собирается **один раз перед первым запросом**.
+### Retrieval и prompt
 
-### Миграция и эксперимент
+```rust
+pub struct RetrievalInput<'a> {
+    pub records: &'a [LtmRecord],
+    pub query: &'a str,
+    pub wm: &'a WorkingMemoryState,
+    pub max_tokens: usize,
+    pub top_k: usize,
+}
 
-```ts
-export function migrateFactsToLtm(input: {
-  rawFacts: string | null
-  ltm: LtmState
-  now?: () => Date
-}): { ltm: LtmState; report: MigrationReport }
+pub fn select_relevant_ltm(input: RetrievalInput<'_>) -> RetrievalResult;
 
-export type ExperimentMode = 'none' | 'stm' | 'wm' | 'ltm' | 'stm+wm' | 'stm+wm+ltm' | 'full'
+pub struct AssembleInput<'a> {
+    pub system_prompt: &'a str,
+    pub stm: &'a StmState,
+    pub wm: &'a WorkingMemoryState,
+    pub ltm: &'a LtmState,
+    pub config: &'a MemoryConfig,
+    pub tools: &'a [ToolSchema],
+    pub layers: LayerFlags,          // для ablation
+    pub now: DateTime<Utc>,
+}
 
-export function runMemoryExperiment(input: {
-  modes: ExperimentMode[]
-  probes: Probe[]
-  settings: LlmSettings
-  profile: ModelProfile
-  config: MemoryConfig
-  signal?: AbortSignal
-  onProgress?: (event: ExperimentProgress) => void
-}): Promise<ExperimentReport>
+pub struct AssembleOutput {
+    pub messages: Vec<ChatMessage>,
+    pub breakdown: MemoryBreakdown,
+    pub stm_window: StmWindow,
+    pub included_ltm: Vec<LtmRecord>,
+    pub dropped_ltm: Vec<LtmRecord>,
+    pub notes: Vec<String>,
+}
 
-export function experimentToMarkdown(report: ExperimentReport): string
-export function experimentToJson(report: ExperimentReport): string
+pub fn assemble_prompt(input: AssembleInput<'_>) -> Result<AssembleOutput, PromptError>;
 ```
 
-`full` — вся история без слоёв (референс). `none` — system + tools + probe, без
-истории. Остальные — соответствующие `LayerFlags`.
+Текущая user-реплика (последняя в `stm.messages`) добавляется всегда, вне окна;
+при `layers.stm=false` в промпте остаются только системные блоки, tools и она.
 
-## 4. Интеграция с Agent
+### LLM и Agent
 
-`AgentConfig` (изменения):
+```rust
+pub trait ChatClient: Send + Sync {
+    fn complete(&self, request: &ChatRequest) -> Result<ChatResponse, LlmError>;
+}
 
-```ts
-export interface AgentConfig extends LlmSettings {
-  systemPrompt: string
-  memory: MemoryBundle
-  memoryConfig: MemoryConfig
-  memoryExtractor?: CandidateExtractor
-  /** legacy-поля contextStrategy/compression/facts удаляются */
+pub struct ReqwestClient { /* base_url, api_key, http */ }
+
+pub struct TurnInput<'a> {
+    pub user_text: &'a str,
+    pub memory: MemoryBundle,
+    pub settings: &'a Settings,
+    pub tools: &'a ToolRegistry,
+    pub client: &'a dyn ChatClient,
+    pub cancel: &'a AtomicBool,
+}
+
+pub struct TurnOutcome {
+    pub final_text: String,
+    pub memory: MemoryBundle,
+    pub messages: Vec<ChatMessage>,
+    pub breakdown: MemoryBreakdown,
+    pub token_stats: TokenStats,
+    pub audit: Vec<MemoryWriteEvent>,
+    pub route_stats: RouteStats,
+}
+
+pub fn run_turn(input: TurnInput<'_>, progress: &mut dyn FnMut(Progress)) -> Result<TurnOutcome, AgentError>;
+```
+
+`memory_write` перехватывается в tool-loop до `ToolRegistry`; запись действует
+со следующего хода, промпт текущего прогона не пересобирается (ADR-6).
+
+### Controller и jobs
+
+```rust
+pub struct AppRuntime {
+    pub paths: DataPaths,
+    pub settings: Settings,
+    pub client: Arc<dyn ChatClient>,
+}
+
+pub struct AppController {
+    runtime: AppRuntime,
+    bundle: MemoryBundle,
+}
+
+impl AppController {
+    pub fn load(runtime: AppRuntime) -> Result<Self, AppError>;
+    pub fn bundle(&self) -> &MemoryBundle;
+    pub fn send_user_message(&mut self, text: &str, progress: &mut dyn FnMut(Progress)) -> Result<TurnOutcome, AppError>;
+    pub fn accept_pending(&mut self, id: &str) -> Result<(), AppError>;
+    pub fn reject_pending(&mut self, id: &str) -> Result<(), AppError>;
+    pub fn change_pending_layer(&mut self, id: &str, layer: MemoryLayer) -> Result<(), AppError>;
+    pub fn clear_layer(&mut self, layer: MemoryLayer) -> Result<(), AppError>;
+    pub fn import_facts(&mut self, path: &Path) -> Result<MigrationReport, AppError>;
+    pub fn run_experiment(&mut self, opts: ExperimentOptions, progress: &mut dyn FnMut(ExperimentProgress)) -> Result<ExperimentReport, AppError>;
+    pub fn save_report(&self, report: &ExperimentReport, out: &Path, json: &Path) -> Result<(), AppError>;
 }
 ```
 
-`Agent.run()`:
+TUI job:
+
+```rust
+pub enum Job {
+    Chat(String),
+    AcceptPending(String),
+    RejectPending(String),
+    ChangePending { id: String, layer: MemoryLayer },
+    ClearLayer(MemoryLayer),
+    ImportFacts(PathBuf),
+    Experiment(ExperimentOptions),
+}
+
+pub enum AppEvent {
+    JobStarted(&'static str),
+    MemoryUpdated(MemoryBundle),
+    ChatFinished(TurnOutcome),
+    ExperimentProgress(ExperimentProgress),
+    ExperimentFinished(ExperimentReport),
+    MigrationFinished(MigrationReport),
+    Error(String),
+    JobFinished,
+}
+
+pub fn spawn_job(runtime: AppRuntime, job: Job, tx: Sender<AppEvent>, cancel: Arc<AtomicBool>);
+```
+
+TUI не вызывает сеть в главном потоке: job выполняется в отдельном
+`std::thread`, результат приходит `AppEvent`.
+
+## 4. TUI runtime
 
 ```text
-1. repairToolCallSequence(history), отфильтровать system.
-2. Синхронизировать bundle.stm.messages = history (history — источник истины;
-   второй копии STM быть не должно).
-3. Добавить новую user-реплику в STM (через callback в App).
-4. memoryService.prepare():
-   - router по новым сообщениям (включая новую реплику);
-   - собрать промпт и breakdown;
-   - вернуть обновлённый bundle.
-5. Отправить запрос; в tool-loop:
-   - memory_write обрабатывается до ToolRegistry;
-   - запись в память не пересобирает промпт текущего прогона (ADR-6).
-6. Вернуть полную STM, WM, LTM, pending, meta, breakdown, audit, route stats.
+main thread
+  ├─ crossterm event::poll(50ms) → KeyEvent
+  ├─ rx.try_recv() → AppEvent
+  ├─ update AppState
+  └─ terminal.draw(...)
+
+worker thread (one job at a time)
+  ├─ AppController method
+  ├─ progress callback → tx.send(...)
+  └─ tx.send(AppEvent::...)
 ```
 
-`AgentRunResult` дополняется:
+- `ratatui::Terminal<CrosstermBackend<Stdout>>`, alternate screen, raw mode.
+- Panic hook и `Drop` восстанавливают терминал.
+- При resize — пересчёт layout, без перезапуска.
+- Пока job активен, destructive-действия блокируются, в футере `[busy]`.
+- `q`/`Ctrl+C` отменяет job через `AtomicBool` и выходит после join.
+- Логи не идут в stdout: только панель «API» и файл (если включено).
 
-```ts
-memory: MemoryBundle
-memoryBreakdown: MemoryBreakdown | null
-memoryAudit: MemoryWriteEvent[]
-memoryRoute: RouteOutcome['stats'] | null
-```
+Клавиши и экраны — `06-ui-spec.md`.
 
-`memory_write` — не обычный инструмент реестра, а встроенный вызов агента:
-
-```json
-{
-  "name": "memory_write",
-  "parameters": {
-    "layer": { "enum": ["ltm", "wm"] },
-    "kind": { "type": "string" },
-    "key": { "type": "string" },
-    "value": { "type": "string" },
-    "scope": { "enum": ["task", "project", "global"] },
-    "ttlTurns": { "type": "number" }
-  },
-  "required": ["layer", "kind", "key", "value"]
-}
-```
-
-Результат:
-
-```ts
-export interface MemoryWriteResult {
-  ok: boolean
-  layer: 'ltm' | 'wm'
-  key: string
-  status: 'created' | 'updated' | 'pending' | 'rejected'
-  id?: string
-  reason?: string
-}
-```
-
-Схема добавляется в `tools` запроса, чтобы модель знала о возможности. При
-вызове Agent перехватывает имя до `ToolRegistry.invoke`.
-
-## 5. Поток данных
+## 5. CLI
 
 ```text
-App.vue
-  │  user text
+lab11 [--data-dir PATH] [--config PATH] <command>
+
+commands:
+  tui
+  chat <TEXT> [--json] [--no-stream]
+  memory show [--layer stm|wm|ltm] [--json]
+  memory add --layer <...> --key ... --value ... [--kind ...]
+  memory update --layer <...> --key ... --value ...
+  memory delete --layer <...> --key ...
+  memory move --from wm|ltm --key ... --to ltm|wm
+  memory pin --key ... [--off]
+  memory pending list|accept <ID>|reject <ID>
+  memory clear --layer <...> [--yes]
+  import-facts <PATH>
+  experiment [--quick|--full] [--out PATH] [--json PATH] [--check]
+  dump [--json]
+```
+
+Глобальные флаги: `--data-dir`, `--config`, `--verbose`.
+API-ключ: `DEEPSEEK_API_KEY`, `KIMI_API_KEY`, `--api-key-file`.
+CLI возвращает коды: `0` успех, `2` ошибка ввода, `3` ошибка API,
+`4` провал порогов `--check`.
+
+## 6. Поток данных
+
+```text
+TUI/CLI
+  │ user text
   ▼
-Agent.run
-  │
-  ├─ STM: append user message ──────────────► onMessageAppended
-  │
-  ├─ MemoryService.prepare
-  │    ├─ candidates: local | llm
-  │    ├─ router R1–R6 ──► WM (active)
-  │    │                 ├─► LTM (auto)
-  │    │                 └─► pending (confirm)
-  │    ├─ retrieval LTM (profile + topK)
-  │    └─ assembleMemoryPrompt ──► messages + breakdown
-  │
-  ├─ LLM tool-loop ──► memory_write ──► bundle
-  │
-  └─ result: messages, memory, breakdown, audit
-         │
-         ▼
-App.vue: save STM / WM / LTM / pending / meta separately
-         │
-         ▼
-UI: MemoryPanel, TokenPanel, ApiLogPanel
+AppController.send_user_message
+  ├─ STM: append user message
+  ├─ router: candidates → WM / LTM pending / reject
+  ├─ retrieval + assemble_prompt
+  ├─ LLM tool-loop (calculator/time/currency/memory_write)
+  └─ save STM/WM/LTM/pending/meta отдельными файлами
+        │
+        ▼
+AppEvent / CLI output: final text, tokens, breakdown, audit
 ```
 
-Сохранение — после каждого завершённого запуска и после ручных операций.
-Отдельные ключи сохраняются независимо: сбой записи LTM не мешает сохранить STM.
-
-## 6. Обработка ошибок
+## 7. Обработка ошибок
 
 | Ситуация | Поведение |
 |---|---|
-| LLM-извлечение вернуло мусор | откат на `local`, `stats.error`, запись в журнал API с `kind='memory'` |
-| LTM/WM/STM JSON повреждён | слой пустой, баннер с текстом ошибки, данные не перезаписываются до действия пользователя |
-| `localStorage` переполнен | сохранение возвращает `{ok:false}`; приложение работает в памяти, баннер с советом очистить слой |
-| pending содержит невалидный кандидат | запись отбрасывается, причина в аудите |
-| секрет в кандидате | `R1`, запись отклонена, значение маскировано |
-| ветка ссылается на удалённую LTM | `refLtmId` игнорируется, WM-пункт рендерится своим текстом, в UI бейдж «ссылка потеряна» |
-| experiment отменён | частичный отчёт не сохраняется, прогресс сбрасывается |
+| LLM вернул мусор при извлечении | откат на Local, `stats.error`, запись в API-лог |
+| JSON слоя повреждён | `LoadError::Corrupt`; слой пустой, баннер, файл не перезаписывается |
+| Нет прав на запись | `SaveError::Io`; TUI-баннер, CLI код 2 |
+| Нет API-ключа | TUI: модалка; CLI: код 2, без сетевого запроса |
+| Lock занят | вторая копия завершается с подсказкой |
+| Ветка ссылается на удалённую LTM | `ref_ltm_id` игнорируется, в UI бейдж «ссылка потеряна» |
+| Эксперимент отменён | частичный отчёт не сохраняется |
+| Паника в worker | `AppEvent::Error`, TUI жив; паника логируется в файл |
 
-## 7. Настройки
+## 8. Настройки и ветки
 
-`AppSettings` дополняется `memory: MemoryConfig`; удаляются
-`contextStrategy`, `factsMode`, `compressionEnabled` (заменяются полями STM).
-Загрузка старых настроек:
+`settings.json` — `Settings` без ключа. При первом запуске создаются defaults.
+Опционально `import-settings <path>` (P2) читает экспорт Дня 10 и маппит
+`factsMode → extraction_mode`, `keepRecentMessages → stm.window`.
 
-```text
-lab11.settings.v1 отсутствует → прочитать lab10.settings.v1
-  factsMode → memory.extractionMode
-  keepRecentMessages → memory.stm.window
-  summarizeEveryMessages → memory.stm.summarizeEveryMessages
-  summaryMode → memory.stm.summaryEnabled (llm только если явно включено)
-  остальное → DEFAULT_MEMORY_CONFIG
-```
+`branches/branches.json`:
 
-Ключ API по-прежнему хранится только в `lab11.apiKey.v1` при явном согласии.
-
-## 8. Ветки
-
-Снимок ветки:
-
-```ts
-export interface BranchSnapshot {
-  id: string
-  label: string
-  createdAt: string
-  stm: StmState
-  wm: WorkingMemoryState
-  ltm: LtmState
-  pending: PendingWrite[]
-  meta: MemoryMetaState
+```rust
+pub struct BranchSnapshot {
+    pub id: String,
+    pub label: String,
+    pub created_at: DateTime<Utc>,
+    pub stm: StmState,
+    pub wm: WorkingMemoryState,
+    pub ltm: LtmState,
+    pub pending: Vec<PendingWrite>,
+    pub meta: MemoryMetaState,
 }
 ```
 
-При переключении все пять частей заменяются целиком. LTM не делится между
-ветками: продолжение ветки A не меняет LTM ветки B. `checkpoint` хранит снимок
-всех слоёв и позволяет создать две ветки от одной точки.
+Переключение заменяет все пять частей целиком; ветки не делят векторы.

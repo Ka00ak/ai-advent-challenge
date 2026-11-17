@@ -2,272 +2,286 @@
 
 ## 1. Пирамида
 
-| Уровень | Что проверяет | Скорость | Сеть |
+| Уровень | Что проверяет | Сеть | Терминал |
 |---|---|---|---|
-| unit | слои, router, retrieval, сборка, storage, миграция | быстрый | нет |
-| integration | Agent + память, experiment на моке, ветки | средний | мок fetch |
-| manual | UI, реальный API, отчёт | медленный | реальный |
+| unit | слои, router, retrieval, prompt, storage, migration | нет | нет |
+| integration | controller + fake LLM, experiment, импорт facts | нет (fake) | нет |
+| CLI | clap-команды, коды выхода, файлы | нет (fake/env) | нет |
+| TUI | view-model, TestBackend-рендер | нет | виртуальный |
 
-Цель: **≥ 90 unit/integration тестов**, все детерминированы, без реального
-ключа. Тесты Дня 10 сохраняются и адаптируются.
+Цель: **≥ 90 тестов**, детерминированы, без реального ключа.
 
-## 2. Файлы и зоны ответственности
+## 2. Структура тестов
 
 ```text
 11/tests/
-  memory-stm.test.ts          # окно, границы, summary, токены
-  memory-working.test.ts      # upsert, status, prune, render
-  memory-ltm.test.ts          # upsert, supersede, pinned, render profile
-  memory-router.test.ts       # R1–R6, pending, audit, секреты
-  memory-retrieval.test.ts    # score, topK, бюджеты, shadowed-by-wm
-  memory-prompt.test.ts       # порядок блоков, усечение, dedupe, breakdown
-  memory-migration.test.ts    # facts Дня 10 → LTM, идемпотентность
-  memory-fixtures.test.ts     # 34 сообщения, 18 probe, изоляция
-  memory-experiment.test.ts   # 7 конфигураций, очистка, отчёт (мок)
-  memory-storage.test.ts      # parse/save/load/clear каждого ключа
-  agent-memory.test.ts        # Agent + MemoryService + memory_write
-  branches.test.ts            # снимок трёх слоёв (обновить)
-  calculator.test.ts          # регресс Дня 10
-  tokens.test.ts              # регресс оценки токенов
-  tools.test.ts               # регресс tool-loop
+  storage.rs          # атомарность, битый JSON, изоляция, lock, права
+  router.rs           # R1–R6, pending, audit, секреты
+  prompt.rs           # порядок блоков, лимиты, dedupe, breakdown
+  migration.rs        # facts → LTM, идемпотентность
+  experiment.rs       # 7 конфигураций, очистка, отчёт (fake)
+  controller.rs       # send_user_message, memory_write, clear
+  cli.rs              # assert_cmd: memory/import/experiment --check
 ```
+
+Unit-тесты модулей — в `#[cfg(test)] mod tests` рядом с кодом:
+
+- `memory/tokens.rs` — эвристика;
+- `memory/retrieval.rs` — score/top-K;
+- `memory/candidates.rs` — локальное извлечение;
+- `experiment/probes.rs` — `probe_matches`;
+- `tui/app.rs` — reducer клавиш (без терминала).
 
 ## 3. Unit-тесты
 
-### STM (`memory-stm.test.ts`)
+### STM
 
 | ID | Проверка | FR |
 |---|---|---|
-| T-STM-1 | `selectStmWindow` возвращает последние 8 сообщений | FR-24 |
-| T-STM-2 | граница сдвигается к `user`, окно не начинается с `assistant` | FR-24 |
-| T-STM-3 | пара `assistant(tool_calls) → tool` не разрывается | FR-24 |
-| T-STM-4 | текущая user-реплика включается всегда, даже при `layers.stm=false` | FR-22, FR-24 |
-| T-STM-5 | при превышении удаляются самые старые пары, не последняя | FR-22 |
-| T-STM-6 | summary рендерится только при `coveredMessages > 0` | FR-24 |
+| T-STM-1 | `select_stm_window` берёт последние 8 истории | FR-27 |
+| T-STM-2 | граница сдвигается к `User` | FR-27 |
+| T-STM-3 | пара `Assistant(tool_calls) → Tool` не рвётся | FR-27 |
+| T-STM-4 | текущая реплика включается при `layers.stm=false` | FR-25, FR-27 |
+| T-STM-5 | при превышении удаляются старые пары | FR-25 |
+| T-STM-6 | summary только при `covered_messages > 0` | FR-27 |
 | T-STM-7 | полная история не мутирует при усечении | FR-7 |
 
-### WM (`memory-working.test.ts`)
+### WM
 
 | ID | Проверка | FR |
 |---|---|---|
-| T-WM-1 | `upsertWmItem` создаёт пункт с id и таймстемпами | FR-2 |
-| T-WM-2 | повторный key обновляет значение, а не дублирует | FR-13 |
-| T-WM-3 | `done`-пункт плана рендерится как `[x]`, остальные `done`/`dropped` — нет | FR-21 |
-| T-WM-4 | порядок: goal → plan(order) → status → entity → open-question → note | FR-21 |
-| T-WM-5 | усечение: сначала note, goal и активный plan остаются | FR-22 |
-| T-WM-6 | `refLtmId` рендерится ссылкой, если LTM не включена | FR-25 |
-| T-WM-7 | `pruneWm` удаляет старые done, не трогает active | FR-2 |
+| T-WM-1 | `upsert_wm_item` создаёт id/таймстемпы | FR-2 |
+| T-WM-2 | повторный key обновляет, не дублирует | FR-15 |
+| T-WM-3 | done-plan → `[x]`, прочие done/dropped нет | FR-24 |
+| T-WM-4 | порядок goal → plan(order) → status → entity → question → note | FR-24 |
+| T-WM-5 | усечение: note первыми, goal/plan остаются | FR-25 |
+| T-WM-6 | `ref_ltm_id` рендерится ссылкой, если LTM не включена | FR-28 |
+| T-WM-7 | `prune_wm` удаляет старые done, не трогает active | FR-2 |
 
-### LTM (`memory-ltm.test.ts`)
-
-| ID | Проверка | FR |
-|---|---|---|
-| T-LTM-1 | `upsertLtm` создаёт запись, key уникален | FR-3 |
-| T-LTM-2 | одинаковое значение → `same`, без изменений | FR-13 |
-| T-LTM-3 | `replaceLtm` ставит старой версии `supersededBy` | FR-13 |
-| T-LTM-4 | `activeLtmRecords` исключает superseded | FR-13 |
-| T-LTM-5 | `renderLtmProfile` берёт profile/project/preference, pinned выше | FR-23 |
-| T-LTM-6 | профиль усекается по бюджету, pinned сохраняется | FR-22 |
-| T-LTM-7 | key/value ограничиваются 64/500 символами | FR-29 |
-
-### Router (`memory-router.test.ts`)
+### LTM
 
 | ID | Проверка | FR |
 |---|---|---|
-| T-R-1 | R1: `sk-…`, `Bearer …`, `password=…` отклоняются и маскируются | FR-14 |
-| T-R-2 | R2: «для этой задачи» → WM, даже если key есть в LTM | FR-9 |
-| T-R-3 | R3: обновление key в LTM → pending в режиме `confirm` | FR-10 |
-| T-R-4 | R3 в режиме `auto` → supersede, pending пуст | FR-10 |
-| T-R-5 | R4: имя проекта/дедлайн/решение → LTM pending | FR-9 |
-| T-R-6 | R5: «вариант B рабочий» → WM entity | FR-9 |
-| T-R-7 | R6: «привет», «спасибо», вопрос без данных → нет записи | FR-9 |
-| T-R-8 | несколько кандидатов из одной реплики маршрутизируются независимо | FR-9 |
-| T-R-9 | аудит содержит layer, ruleId, reason, source | FR-15 |
-| T-R-10 | pending по одному key заменяется, oldValue сохраняется | FR-10 |
-| T-R-11 | LLM-извлечение: ошибка → откат на local, `stats.error` | FR-8 |
-| T-R-12 | `memory_write` с неверным layer → `rejected` | FR-11 |
+| T-LTM-1 | create, key уникален | FR-3 |
+| T-LTM-2 | одинаковое значение → `Same` | FR-15 |
+| T-LTM-3 | `replace_ltm` ставит `superseded_by` | FR-15 |
+| T-LTM-4 | `active_ltm` исключает superseded | FR-15 |
+| T-LTM-5 | profile: profile/project/preference, pinned выше | FR-26 |
+| T-LTM-6 | профиль усекается, pinned сохраняется | FR-25 |
+| T-LTM-7 | key/value 64/500, tags ≤ 8 | FR-32 |
 
-### Retrieval (`memory-retrieval.test.ts`)
+### Router
 
 | ID | Проверка | FR |
 |---|---|---|
-| T-RET-1 | совпадение в key весит больше, чем в value | FR-23 |
-| T-RET-2 | `pinned` попадает в выборку первым | FR-23 |
-| T-RET-3 | topK соблюдается | FR-23 |
-| T-RET-4 | бюджет токенов соблюдается | FR-22 |
-| T-RET-5 | superseded не выбирается | FR-13 |
-| T-RET-6 | запись, теневая WM-пунктом, попадает в dropped | FR-25 |
-| T-RET-7 | пустой запрос → выбираются pinned/свежие, не падает | FR-23 |
-| T-RET-8 | детерминированный порядок при равных score | NFR-5 |
+| T-R-1 | R1: `sk-…`, `Bearer …`, `password=…` → reject, `***` | FR-16 |
+| T-R-2 | R2: «для этой задачи» → WM, даже если key есть в LTM | FR-11 |
+| T-R-3 | R3: update LTM → pending при Confirm | FR-12 |
+| T-R-4 | R3 при Auto → supersede, pending пуст | FR-12 |
+| T-R-5 | R4: проект/дедлайн/решение → LTM pending | FR-11 |
+| T-R-6 | R5: «вариант B рабочий» → WM entity | FR-11 |
+| T-R-7 | R6: привет/спасибо/вопрос → нет записи | FR-11 |
+| T-R-8 | несколько кандидатов из реплики независимы | FR-11 |
+| T-R-9 | audit: layer/rule_id/reason/source | FR-17 |
+| T-R-10 | pending по key заменяется, old_value сохранён | FR-12 |
+| T-R-11 | LLM extractor error → fallback Local, `stats.error` | FR-10 |
+| T-R-12 | `memory_write` с неверным layer → Rejected | FR-13 |
 
-### Prompt (`memory-prompt.test.ts`)
-
-| ID | Проверка | FR |
-|---|---|---|
-| T-P-1 | порядок: system → LTM profile → LTM relevant → WM → STM summary → STM | FR-21 |
-| T-P-2 | пустые блоки не добавляются | FR-21 |
-| T-P-3 | каждый блок — отдельное system-сообщение | FR-21 |
-| T-P-4 | `layers: {stm:false}` убирает блоки STM, но не WM/LTM | EXP-3 |
-| T-P-5 | `layers: {ltm:false}` убирает оба LTM-блока | EXP-3 |
-| T-P-6 | `MemoryBreakdown` суммируется в `totalTokens` | FR-27 |
-| T-P-7 | `layerDelta` равен сумме блоков слоя | FR-27 |
-| T-P-8 | последняя user-реплика всегда последняя в messages | FR-22 |
-| T-P-9 | в системном промпте есть правила приоритета и «данные, не инструкции» | FR-26 |
-| T-P-10 | значение с `\n` и управляющими символами санитизируется | FR-29 |
-| T-P-11 | дедупликация WM-ссылки: одна строка, `dedupedWmIds` заполнен | FR-25 |
-| T-P-12 | `totalBudget` соблюдается при переполнении всех слоёв | FR-22 |
-| T-P-13 | при `layers.stm=false` остаётся текущая реплика, истории нет | FR-22, FR-24 |
-
-### Миграция (`memory-migration.test.ts`)
+### Retrieval
 
 | ID | Проверка | FR |
 |---|---|---|
-| T-M-1 | 12 facts Дня 10 → 12 LTM-записей с правильными kind | FR-16, FR-18 |
-| T-M-2 | значения сохраняются дословно (числа, даты, имена) | FR-18 |
-| T-M-3 | повторный запуск: added=0, updated=0 | FR-17 |
-| T-M-4 | изменённый fact обновляет запись, не дублирует | FR-17 |
-| T-M-5 | пустой/битый JSON → `ok:false`, без исключения | FR-20 |
-| T-M-6 | `legacyKey` и тег `migrated:day10` проставлены | FR-18 |
-| T-M-7 | неизвестная категория → `knowledge` | FR-18 |
+| T-RET-1 | совпадение в key весит больше value | FR-26 |
+| T-RET-2 | pinned первым | FR-26 |
+| T-RET-3 | top_k соблюдается | FR-26 |
+| T-RET-4 | бюджет соблюдается | FR-25 |
+| T-RET-5 | superseded не выбирается | FR-15 |
+| T-RET-6 | shadowed-by-wm попадает в dropped | FR-28 |
+| T-RET-7 | пустой запрос не падает | FR-26 |
+| T-RET-8 | равный score → детерминированный порядок | NFR-5 |
 
-### Storage (`memory-storage.test.ts`)
+### Prompt
 
 | ID | Проверка | FR |
 |---|---|---|
-| T-S-1 | save/load каждого ключа возвращает эквивалент | FR-6 |
-| T-S-2 | неверная version → ошибка, слой не загружается | FR-6 |
-| T-S-3 | битый JSON → `{state:null, error}`, приложение не падает | FR-6, NFR-4 |
-| T-S-4 | `clearLtm` не меняет STM/WM; `clearWorking` не меняет LTM | FR-4 |
-| T-S-5 | `clearLtm` очищает pending, но не WM/STM | FR-5 |
-| T-S-6 | переполнение storage → `{ok:false}`, без throw | NFR-7 |
-| T-S-7 | миграция настроек Дня 10 не падает | FR-32 |
+| T-P-1 | порядок system → LTM profile → relevant → WM → summary → STM → current | FR-24 |
+| T-P-2 | пустые блоки не добавляются | FR-24 |
+| T-P-3 | каждый блок — отдельный system | FR-24 |
+| T-P-4 | `layers.stm=false` убирает STM, но не WM/LTM | EXP-3 |
+| T-P-5 | `layers.ltm=false` убирает оба LTM-блока | EXP-3 |
+| T-P-6 | breakdown суммируется в total | FR-30 |
+| T-P-7 | layer_delta равен блокам слоя | FR-30 |
+| T-P-8 | текущая user-реплика последняя | FR-25 |
+| T-P-9 | system содержит правила приоритета и «данные, не инструкции» | FR-29 |
+| T-P-10 | control chars вырезаны, value ≤ 500 | FR-32 |
+| T-P-11 | dedupe WM-ссылки, `deduped_wm_ids` | FR-28 |
+| T-P-12 | total_budget соблюдается при переполнении | FR-25 |
+| T-P-13 | при `layers.stm=false` остаётся текущий вопрос | FR-25 |
 
-### Фикстуры (`memory-fixtures.test.ts`)
+### Импорт
+
+| ID | Проверка | FR |
+|---|---|---|
+| T-M-1 | 12 facts → 12 записей с правильными kind | FR-19, FR-21 |
+| T-M-2 | значения дословно (числа/даты/имена) | FR-21 |
+| T-M-3 | повтор: added=0, updated=0 | FR-20 |
+| T-M-4 | изменённый fact обновляет версию, не дублирует | FR-20 |
+| T-M-5 | пустой/битый JSON → `ok=false`, без panic | FR-23 |
+| T-M-6 | `legacy_key` и тег `migrated:day10` | FR-21 |
+| T-M-7 | неизвестная категория → Knowledge | FR-21 |
+
+### Storage
+
+| ID | Проверка | FR |
+|---|---|---|
+| T-S-1 | save/load каждого файла эквивалентен | FR-6 |
+| T-S-2 | неверная version → `UnsupportedVersion` | FR-6 |
+| T-S-3 | битый JSON → `Corrupt`, файл не перезаписан | FR-6, NFR-4 |
+| T-S-4 | `clear_ltm` не меняет STM/WM | FR-4 |
+| T-S-5 | `clear_ltm` очищает pending, не WM/STM | FR-5 |
+| T-S-6 | нет прав/диска → `SaveError`, без panic | NFR-9 |
+| T-S-7 | `atomic_write_json` оставляет `.bak` | FR-6 |
+| T-S-8 | lock: второй `acquire_lock` → ошибка | FR-9 |
+| T-S-9 | permissions settings/secrets = 0600 (Unix) | NFR-9 |
+
+### Фикстуры
 
 | ID | Проверка | FR |
 |---|---|---|
 | T-F-1 | 34 сообщения, 18 probe, 6 на слой | EXP-1 |
-| T-F-2 | S1–S6 не отвечаются по сообщениям 1–26 | EXP-1 |
-| T-F-3 | W1–W6 не отвечаются по сообщениям 27–34 | EXP-1 |
-| T-F-4 | L1–L6 не отвечаются по сообщениям 27–34 | EXP-1 |
-| T-F-5 | seeded WM/LTM совпадает с таблицами раздела 3 | EXP-1 |
-| T-F-6 | `probeMatches` нормализует `ё`, регистр и пунктуацию | EXP-2 |
-| T-F-7 | router из тех же сообщений даёт то же состояние (кроме pending) | FR-9 |
+| T-F-2 | S1–S6 не отвечаются по 1–26 | EXP-1 |
+| T-F-3 | W1–W6 не отвечаются по 27–34 | EXP-1 |
+| T-F-4 | L1–L6 не отвечаются по 27–34 | EXP-1 |
+| T-F-5 | seeded WM/LTM совпадает с `07`, раздел 3 | EXP-1 |
+| T-F-6 | `probe_matches` нормализует `ё`, регистр, пунктуацию | EXP-2 |
+| T-F-7 | router из тех же сообщений даёт то же состояние (кроме pending) | FR-11 |
 
-## 4. Integration-тесты
+## 4. Integration
 
-### Agent (`agent-memory.test.ts`)
-
-| ID | Проверка | FR |
-|---|---|---|
-| T-A-1 | запрос содержит system + блоки памяти + окно STM | FR-21 |
-| T-A-2 | `memory_write` в tool-call пишет в WM и возвращает `created` | FR-11 |
-| T-A-3 | `memory_write` в LTM в режиме confirm → `pending` | FR-10 |
-| T-A-4 | после ответа `AgentRunResult.memory` содержит обновлённые слои | FR-3 |
-| T-A-5 | `memoryAudit` и `memoryRoute.stats` заполнены | FR-15 |
-| T-A-6 | ошибка модели не теряет уже записанные слои | FR-6 |
-| T-A-7 | в режиме `local` дополнительных запросов нет | NFR-1 |
-| T-A-8 | в режиме `llm` создаётся запрос `kind='memory'` | FR-8 |
-| T-A-9 | очистка STM перед запуском не ломает WM/LTM | FR-5 |
-
-### Эксперимент (`memory-experiment.test.ts`)
+### Controller
 
 | ID | Проверка | FR |
 |---|---|---|
-| T-E-1 | 7 конфигураций, 18 вопросов, 126 запросов на моке | EXP-3 |
-| T-E-2 | матрица ответов совпадает с ожидаемой | EXP-3 |
-| T-E-3 | очистка STM/WM/LTM даёт 12/18 и падение своих вопросов | EXP-4 |
-| T-E-4 | токены по слоям заполнены, Δ положительны | EXP-6 |
-| T-E-5 | `experimentToMarkdown` содержит все таблицы | EXP-5 |
-| T-E-6 | `experimentToJson` валиден и парсится обратно | EXP-5 |
-| T-E-7 | отмена прерывает прогон без сохранения частичного отчёта | EXP-3 |
-| T-E-8 | `quick` использует 9 вопросов | EXP-7 |
+| T-A-1 | запрос = system + блоки + окно + current | FR-24 |
+| T-A-2 | `memory_write` в WM → `Created` | FR-13 |
+| T-A-3 | `memory_write` в LTM при Confirm → `Pending` | FR-12 |
+| T-A-4 | `TurnOutcome.memory` содержит обновления | FR-3 |
+| T-A-5 | audit и route_stats заполнены | FR-17 |
+| T-A-6 | ошибка модели не теряет уже записанное | FR-6 |
+| T-A-7 | Local — 0 доп. запросов | NFR-1 |
+| T-A-8 | Llm extractor создаёт запрос `kind=memory` | FR-10 |
+| T-A-9 | очистка STM перед turn не ломает WM/LTM | FR-5 |
+| T-A-10 | `chat --json` отдаёт final/tokens/breakdown | FR-18 |
 
-### Ветки (`branches.test.ts`)
+### Эксперимент
 
 | ID | Проверка | FR |
 |---|---|---|
-| T-B-1 | checkpoint хранит STM/WM/LTM/pending/meta | FR-31 |
-| T-B-2 | две ветки независимы по всем слоям | FR-31 |
-| T-B-3 | переключение восстанавливает все части | FR-31 |
-| T-B-4 | битый снимок ветки отбрасывается с ошибкой | FR-31 |
+| T-E-1 | 7 конфигураций × 18 = 126 запросов на fake | EXP-3 |
+| T-E-2 | матрица ответов соответствует ожидаемой | EXP-3 |
+| T-E-3 | очистка даёт 12/18 и падение своих | EXP-4 |
+| T-E-4 | токены/дельты положительны | EXP-6 |
+| T-E-5 | Markdown содержит все таблицы | EXP-5 |
+| T-E-6 | JSON валиден и парсится обратно | EXP-5 |
+| T-E-7 | отмена не сохраняет частичный отчёт | EXP-3 |
+| T-E-8 | `quick` = 9 вопросов | EXP-7 |
+| T-E-9 | `--check` → код 4 при провале порогов | EXP-8 |
 
-### Регресс Дня 10
+### Ветки
+
+| ID | Проверка | FR |
+|---|---|---|
+| T-B-1 | checkpoint: STM/WM/LTM/pending/meta | FR-34 |
+| T-B-2 | две ветки независимы | FR-34 |
+| T-B-3 | переключение восстанавливает всё | FR-34 |
+| T-B-4 | битый снимок → ошибка | FR-34 |
+
+### TUI
+
+| ID | Проверка | FR |
+|---|---|---|
+| T-UI-1 | reducer: `Tab` меняет фокус, `1..8` экраны | UX-1 |
+| T-UI-2 | `y/n` меняют состояние pending | UX-3 |
+| T-UI-3 | `c` открывает модалку, без confirm не очищает | UX-4 |
+| T-UI-4 | `TestBackend` 80×24 рендерит без panic | NFR-8 |
+| T-UI-5 | resize 120×36 → layout валиден | NFR-8 |
+| T-UI-6 | ошибка job показывается баннером | UX-8 |
+| T-UI-7 | busy блокирует destructive-команды | UX-5 |
+
+### Регресс инструментов
 
 | ID | Проверка |
 |---|---|
-| T-REG-1 | calculator/time/currency работают |
-| T-REG-2 | tool-loop: несколько итераций, ошибки инструмента |
-| T-REG-3 | estimateTextTokens/estimateCost не изменились |
-| T-REG-4 | summary STM обновляется порциями |
-| T-REG-5 | журнал API суммирует chat/summary/memory |
-| T-REG-6 | localStorage истории и настроек |
+| T-REG-1 | calculator/time/currency |
+| T-REG-2 | tool-loop: несколько итераций, ошибки |
+| T-REG-3 | token estimator и cost |
+| T-REG-4 | API-лог суммирует chat/memory |
+| T-REG-5 | settings defaults/миграция |
 
-## 5. Моки и детерминизм
+## 5. Моки
 
-```ts
-class MemoryStorage implements KeyValueStorage {
-  private readonly data = new Map<string, string>()
-  getItem(key: string) { return this.data.get(key) ?? null }
-  setItem(key: string, value: string) { this.data.set(key, value) }
-  removeItem(key: string) { this.data.delete(key) }
+```rust
+struct FakeClient { answers: HashMap<String, String>, calls: Mutex<Vec<ChatRequest>> }
+
+impl ChatClient for FakeClient {
+    fn complete(&self, req: &ChatRequest) -> Result<ChatResponse, LlmError> {
+        self.calls.lock().unwrap().push(req.clone());
+        // ответ по наличию нужного блока/слова в prompt
+        Ok(ChatResponse::assistant("..."))
+    }
 }
-
-function jsonResponse(body: unknown): Response { /* ... */ }
-
-const now = () => new Date('2026-11-17T10:00:00.000Z')
 ```
 
 Правила:
 
-- `vi.stubGlobal('fetch', mock)` в каждом тесте с API; `afterEach` —
-  `vi.unstubAllGlobals()`.
-- Время передаётся через `now`, не берётся из `Date.now()` внутри тестов.
-- Порядок массивов проверяется явно, не через `toEqual` на объектах с
-  нестабильным порядком ключей.
-- Для эксперимента мок отвечает по наличию нужного блока в промпте:
-  `promptContains(layer) ? expected : 'не знаю'`.
-- Реальные токены не используются; проверяются оценки и суммы.
+- `tempfile::TempDir` для data-dir;
+- фиксированное время: `TestClock::at("2026-11-17T10:00:00Z")` или передача
+  `now` параметром;
+- никаких `std::env::set_var` в параллельных тестах: конфиг передаётся явно;
+- TUI — `ratatui::backend::TestBackend` + `Terminal::draw`;
+- CLI — `assert_cmd` с `--data-dir` tempdir, без API key (ошибка/локальные
+  команды) и fake через `LAB11_FAKE_LLM=1` (только для тестов);
+- сеть запрещена: `reqwest` не должен вызываться в тестах.
 
 ## 6. Команды
 
 ```sh
-npm test -w 11                 # все тесты
-npm test -w 11 -- memory       # только память
-npm run build -w 11            # vue-tsc + vite build
-npm run dev -w 11              # ручная проверка
+cargo test
+cargo test --test prompt
+cargo build
+cargo clippy --all-targets -- -D warnings
+cargo fmt --check
 ```
 
-CI-гейт (локально перед сдачей): build + test + отсутствие `console.log` с
-ключом.
+CI-гейт: fmt + clippy + build + test.
 
 ## 7. Ручной чек-лист
 
-- [ ] Открыть «Память»: три колонки, счётчики и токены видны.
-- [ ] Импорт facts Дня 10: отчёт, повторный импорт не дублирует.
-- [ ] Отправить «Запускаем проект «Тест»» → pending → принять → запись в LTM.
-- [ ] Отклонить pending → записи нет, аудит содержит reject.
-- [ ] «Отвечай коротко» → preference в LTM (pending).
-- [ ] «Текущая задача: …» → WM, сразу без pending.
-- [ ] «Запомни: только российские ЦОД» через tool → LTM/pending, ответ агента
-      подтверждает запись.
-- [ ] Перенести WM → LTM, проверить `refLtmId` и отсутствие дубля в промпте.
-- [ ] Очистить STM → WM/LTM на месте, вопросы LTM отвечаются.
+- [ ] `cargo run -- --data-dir ./data tui` открывается в 80×24.
+- [ ] Экран «Память»: три колонки, счётчики и токены.
+- [ ] Импорт facts: отчёт, повтор не дублирует.
+- [ ] «Запускаем проект «Тест»» → pending → accept → LTM.
+- [ ] Reject pending → записи нет, аудит.
+- [ ] «Отвечай коротко» → preference pending.
+- [ ] «Текущая задача: …» → WM сразу.
+- [ ] `memory_write` через чат → LTM pending.
+- [ ] WM → LTM: `ref_ltm_id`, нет дубля в промпте.
+- [ ] Очистить STM → WM/LTM на месте.
 - [ ] Очистить WM → STM/LTM на месте.
 - [ ] Очистить LTM → pending пуст, WM/STM на месте.
-- [ ] «Проверка» → фикстура → quick → полный прогон → отчёт скачивается.
-- [ ] «Токены»: разбивка по слоям для последнего запроса.
-- [ ] «API»: запрос `memory` с режимом и результатом.
-- [ ] Ветки: checkpoint → 2 ветки → разные LTM → переключение.
-- [ ] Перезагрузка страницы: все слои и pending восстановлены.
-- [ ] Битый JSON в LTM: баннер, приложение работает.
+- [ ] «Проверка» quick/full, отчёт сохраняется.
+- [ ] «Токены»: breakdown последнего запроса.
+- [ ] «API»: запрос `memory` с режимом.
+- [ ] Ветки: checkpoint → 2 ветки → разные LTM.
+- [ ] Перезапуск: слои и pending восстановлены.
+- [ ] Битый JSON: баннер, приложение работает.
+- [ ] Resize 120×36 и обратно.
 
 ## 8. Definition of Done тестов
 
-- [ ] Все T-* из этого документа реализованы или явно отмечены `P2/skip` с
-      причиной.
-- [ ] `npm test -w 11` зелёный, без сети.
-- [ ] `npm run build -w 11` без ошибок TypeScript.
-- [ ] Нет тестов, которые «подгоняют» фикстуру под ожидаемый ответ.
-- [ ] Покрыты: изоляция слоёв, маршрутизация, сборка, миграция, очистка,
-      эксперимент, ветки, регресс.
+- [ ] Все T-* реализованы или помечены `P2/skip` с причиной.
+- [ ] `cargo test` зелёный, без сети.
+- [ ] `cargo build` и `cargo clippy` чистые.
+- [ ] Нет тестов, подгоняющих фикстуру под ответ.
+- [ ] Покрыты изоляция слоёв, router, prompt, импорт, очистка, эксперимент,
+      CLI, TUI-reducer.

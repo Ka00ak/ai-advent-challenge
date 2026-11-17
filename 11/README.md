@@ -1,11 +1,10 @@
-# День 11 — Модель памяти ассистента (Kotlin TUI, SDD)
+# День 11 — Модель памяти ассистента (Rust TUI, SDD)
 
 **Статус:** спецификация готова, реализация не начата.
-**Стек:** Kotlin/JVM 21, Gradle Kotlin DSL, Lanterna (TUI), Clikt (CLI),
-Ktor Client, kotlinx.serialization, kotlinx.coroutines, JUnit 5.
-**База данных Дня 10:** `facts` — это **артефакт данных**, а не код. Код Дня 11
-пишется с нуля на Kotlin; из Дня 10 переносятся только facts и контрольные
-детали.
+**Стек:** Rust 2024 edition (1.85+), Cargo, ratatui + crossterm (TUI),
+clap (CLI), serde/serde_json, reqwest (blocking, rustls), chrono, uuid.
+**База данных Дня 10:** `facts` — **артефакт данных**, а не код. День 11
+пишется с нуля на Rust; из Дня 10 переносятся facts и контрольные детали.
 
 ## ТЗ
 
@@ -35,27 +34,27 @@ Ktor Client, kotlinx.serialization, kotlinx.coroutines, JUnit 5.
 
 | Слой | Что хранит | Горизонт | Файлы в data-dir |
 |---|---|---|---|
-| **STM** — краткосрочная | сообщения текущего диалога + сводка вытесненной части | сессия / окно | `stm/conversation.json`, `stm/summary.json` |
-| **WM** — рабочая | цель, план, статус, выбранные варианты, открытые вопросы задачи | одна задача | `wm/working.json` |
+| **STM** — краткосрочная | сообщения диалога + сводка вытесненной части | сессия / окно | `stm/conversation.json`, `stm/summary.json` |
+| **WM** — рабочая | цель, план, статус, выбранные варианты, открытые вопросы | одна задача | `wm/working.json` |
 | **LTM** — долговременная | профиль, проект, предпочтения, решения, знания, глоссарий | постоянно | `ltm/ltm.json` |
 
 Поверх слоёв:
 
-- **MemoryRouter** — правила R1–R6: что, куда и почему сохраняется;
-- **pending** — LTM по умолчанию пишется только после подтверждения;
+- **MemoryRouter** — правила R1–R6: что, куда и почему;
+- **pending** — LTM по умолчанию пишется после подтверждения;
 - **импорт facts Дня 10** из JSON-файла (CLI и TUI);
-- **PromptAssembler** — отдельные блоки, лимиты и учёт токенов по слоям;
-- **эксперимент** — 7 конфигураций, 3 очистки, 18 probe-вопросов, отчёт MD/JSON;
+- **PromptAssembler** — блоки, лимиты, учёт токенов по слоям;
+- **эксперимент** — 7 конфигураций, 3 очистки, 18 probe, отчёт MD/JSON;
 - **TUI + CLI** — один `AppController`: интерактивный экран и headless-команды.
 
-## Почему Kotlin TUI
+## Почему Rust TUI
 
-- День 11 не обязан повторять веб-стек Дня 10: важна модель памяти, а не UI.
-- TUI даёт быстрый, детерминированный и демонстрируемый интерфейс без браузера.
-- Kotlin/JVM — строгая типизация, корутины, хорошая тестируемость.
-- CLI-режим делает эксперимент воспроизводимым и пригодным для агентов/CI.
+- День 11 не обязан повторять веб-стек: важна модель памяти, а не браузер.
+- TUI быстро запускается, детерминирован и удобен для демонстрации.
+- Rust даёт строгие типы, предсказуемую работу с файлами и хороший `cargo test`.
+- CLI-режим делает эксперимент воспроизводимым для агентов и CI.
 
-Полные обоснования — в [docs/10-risks-adr.md](docs/10-risks-adr.md).
+Обоснования — в [docs/10-risks-adr.md](docs/10-risks-adr.md).
 
 ## Документы
 
@@ -63,13 +62,13 @@ Ktor Client, kotlinx.serialization, kotlinx.coroutines, JUnit 5.
 |---|---|
 | [docs/00-brief.md](docs/00-brief.md) | контекст, цели, границы, глоссарий, критерии успеха |
 | [docs/01-requirements.md](docs/01-requirements.md) | FR / UX / NFR / EXP с приоритетами и приёмкой |
-| [docs/02-domain-model.md](docs/02-domain-model.md) | Kotlin-модели, инварианты, файлы, миграция facts |
+| [docs/02-domain-model.md](docs/02-domain-model.md) | Rust-модели, инварианты, файлы, миграция facts |
 | [docs/03-architecture.md](docs/03-architecture.md) | модули, контракты, TUI/CLI, потоки, хранение |
 | [docs/04-memory-policy.md](docs/04-memory-policy.md) | правила записи, маршрутизация, конфликты |
 | [docs/05-prompt-assembly.md](docs/05-prompt-assembly.md) | что из каждого слоя попадает в промпт |
 | [docs/06-ui-spec.md](docs/06-ui-spec.md) | TUI-экраны, клавиши, модалки, CLI-эквиваленты |
 | [docs/07-verification.md](docs/07-verification.md) | фикстура 34 сообщения, 18 probe, матрица прогонов |
-| [docs/08-test-plan.md](docs/08-test-plan.md) | JUnit 5: unit / integration / CLI / TUI |
+| [docs/08-test-plan.md](docs/08-test-plan.md) | cargo test: unit / integration / CLI / TUI |
 | [docs/09-tasks.md](docs/09-tasks.md) | T0–T14 для агентов: зависимости и DoD |
 | [docs/10-risks-adr.md](docs/10-risks-adr.md) | ADR, риски, дефолты |
 | [docs/11-traceability.md](docs/11-traceability.md) | требование → задача → тест → статус |
@@ -79,8 +78,8 @@ Ktor Client, kotlinx.serialization, kotlinx.coroutines, JUnit 5.
 
 1. **Ровно три слоя.** Summary — атрибут STM, не четвёртый слой.
 2. **Раздельные файлы.** Ни один слой не пишет в файл другого.
-3. **Запись только через router / tool / UI.** У каждой записи есть слой,
-   правило и причина; LTM — через pending.
+3. **Запись только через router / tool / UI.** Слой, правило и причина в аудите;
+   LTM — через pending.
 4. **Facts Дня 10 — импортируемый JSON.** `import-facts` читает
    `lab10.facts.v1` или массив facts; миграция идемпотентна.
 5. **Свой блок промпта у каждого слоя.** Бюджеты, дедупликация, breakdown.
@@ -92,21 +91,21 @@ Ktor Client, kotlinx.serialization, kotlinx.coroutines, JUnit 5.
 
 ```sh
 cd 11
-./gradlew run --args="--data-dir ./data tui"
+cargo run -- --data-dir ./data tui
 ```
 
 Отдельные команды:
 
 ```sh
-./gradlew run --args="--data-dir ./data chat 'Привет'"
-./gradlew run --args="--data-dir ./data import-facts fixtures/day10-facts.json"
-./gradlew run --args="--data-dir ./data experiment --quick"
-./gradlew build
-./gradlew test
+cargo run -- --data-dir ./data chat "Привет"
+cargo run -- --data-dir ./data import-facts fixtures/day10-facts.json
+cargo run -- --data-dir ./data experiment --quick
+cargo build
+cargo test
 ```
 
-API-ключ задаётся переменной окружения `DEEPSEEK_API_KEY` (или `KIMI_API_KEY`),
-в настройки и слои памяти не сохраняется.
+API-ключ — переменная `DEEPSEEK_API_KEY` (или `KIMI_API_KEY`); в настройки и
+слои памяти не сохраняется.
 
 ## TUI: быстрые клавиши
 
@@ -126,10 +125,10 @@ s         сохранить отчёт/настройки
 
 ## Definition of Done
 
-- [ ] `./gradlew build` и `./gradlew test` проходят без сети.
+- [ ] `cargo build` и `cargo test` проходят без сети.
 - [ ] Все FR закрыты и отмечены в `11-traceability.md`.
-- [ ] TUI запускается в терминале 80×24 и не падает при resize.
-- [ ] CLI-команды `chat`, `memory`, `import-facts`, `experiment` работают.
+- [ ] TUI запускается в 80×24 и не падает при resize.
+- [ ] CLI `chat`, `memory`, `import-facts`, `experiment` работают.
 - [ ] Три слоя лежат в разных файлах; UI показывает состав и токены.
 - [ ] LTM подтверждается, причина записи видна в аудите.
 - [ ] Facts Дня 10 импортируются одной командой с отчётом.

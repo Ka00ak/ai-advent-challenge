@@ -2,22 +2,23 @@
 
 ## 1. Правила исполнения
 
-1. **Сначала прочитать** `00` → `09` (этот файл). Не начинать код до T1.
-2. **Контракты неприкосновенны.** Типы и сигнатуры из `02` и `03` фиксируются в
-   T1. Менять их можно только вместе с правкой спецификации и отметкой в
-   `11-traceability.md`.
-3. **Не трогать `10/`.** День 11 — отдельный workspace; День 10 остаётся
-   рабочим референсом.
-4. **Одна задача — один логический коммит.** После каждой задачи:
-   `npm run build -w 11 && npm test -w 11`.
-5. **Тесты вместе с кодом.** Не откладывать unit-тесты на T12.
-6. **Никаких фейковых результатов.** Эксперимент заполняется реальным прогоном
-   или явно помечается `mock`.
-7. **Русский UI и сообщения.** Код и комментарии — по стилю Дня 10.
-8. **Не расширять scope.** Векторный поиск, сервер, авторизация — вне задачи.
-9. **Сомнение → дефолт из docs.** Если дефолта нет, выбрать минимальный вариант,
-   записать в `10-risks-adr.md` и продолжить.
-10. **Definition of Done задачи** — раздел 4; без него задача не закрыта.
+1. **Сначала прочитать** `00` → `09`. Не начинать код до T1.
+2. **Контракты неприкосновенны.** Типы и сигнатуры из `02`/`03` фиксируются
+   в T1; менять — только с правкой спецификации и `11-traceability.md`.
+3. **Не трогать `10/`.** День 11 — отдельный Cargo-проект.
+4. **Одна задача — один коммит.** После каждой:
+   `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`.
+5. **Тесты вместе с кодом.** Не откладывать на T12.
+6. **Никаких фейковых результатов.** Отчёт — реальный прогон или явная
+   пометка `mock`.
+7. **Русский UI**, код и комментарии — по стилю проекта.
+8. **Не расширять scope.** Сервер, БД, embeddings, веб — вне задачи.
+9. **Сомнение → дефолт из docs.** Иначе минимальный вариант + запись в
+   `10-risks-adr.md`.
+10. **Никаких `unwrap()`/`expect()` в production-коде** без доказанной
+    невозможности ошибки; ошибки — `Result` + `thiserror`.
+11. **TUI-поток не блокировать** сетевыми вызовами: только job thread.
+12. **Ключ API** не логировать и не сохранять в слои/настройки.
 
 ## 2. Граф зависимостей
 
@@ -29,308 +30,275 @@ T0 ──► T1 ──► T2 ──► T3 ──► T4 ──► T5 ──► T6
                 └──────────────────────────────► T12
 ```
 
-Параллельно после T1:
+Потоки после T1:
 
-- **Поток Core:** T2 → T3 → T4 → T5 → T6.
-- **Поток Data:** T7 (после T2), T8 (после T3/T5).
-- **Поток UI:** T9, T10, T11 (после T6/T8).
-- **Поток QA/Docs:** T12 (с T4), T13 (после T11).
+- **Core:** T2 → T3 → T4 → T5 → T6.
+- **Data:** T7 (после T2), T8 (после T3/T5).
+- **UI:** T9, T10, T11 (после T6/T8).
+- **QA/Docs:** T12 (с T4), T13 (после T11).
 
-Рекомендуемое распределение:
-
-| Роль агента | Задачи |
+| Роль | Задачи |
 |---|---|
-| Core / память | T1, T2, T3, T4, T5, T6 |
+| Core / память | T1–T6 |
 | Data / эксперимент | T7, T8 |
-| UI | T9, T10, T11 |
-| QA | T12 (+ тесты в каждой задаче) |
+| TUI | T9, T10, T11 |
+| QA | T12 + тесты в каждой задаче |
 | Docs / release | T13, T14 |
 
 ## 3. Задачи
 
-### T0. Scaffold workspace 11
+### T0. Cargo-проект и каркас
 
 **Зависимости:** нет. **Размер:** S.
+**FR:** FR-36, FR-37.
 
 Шаги:
 
-1. Скопировать `10/` в `11/`, исключив `node_modules`, `dist`, `*.mp4`.
-2. `package.json`: `name: "lab-11"`, скрипты `dev/build/preview/test` как в 10.
-3. Заменить префикс ключей `lab10.` → `lab11.` в `src/` и `tests/` (пока
-   механически; осмысленная миграция — T2/T7). Исключение: код чтения
-   `lab10.facts.v1` и `lab10.settings.v1` для миграции сохраняет старые ключи.
-4. Корневой `package.json`: добавить `dev:11`, `preview:11`; убедиться, что
-   workspace `1*` подхватывает `11`.
-5. Корневой `README.md`: строка Дня 11 (стек, `npm run dev -w 11`).
-6. Удалить из `11/src` файлы, которые будут заменены, только после T1 (иначе
-   сборка сломается раньше времени). На T0 достаточно, чтобы `build` и `test`
-   проходили на старом коде.
+1. `cargo init --name lab11` в `11/`; `edition = "2024"`, `rust-version = "1.85"`.
+2. `Cargo.toml` с зависимостями из `03`, dev-deps.
+3. `rust-toolchain.toml` (stable, rustfmt, clippy).
+4. `.gitignore`: `target/`, `data/`, `*.log`, `.lab11/`.
+5. `git mv`/удалить старые Vue/TS остатки, если они есть; в `11/` не должно
+   быть `package.json`, `src/*.vue`, `node_modules`.
+6. `fixtures/day10-facts.json` — sample facts Дня 10 (15 записей из `07`).
+7. Корневой `README.md`: строка Дня 11 (Rust, TUI,
+   `cd 11 && cargo run -- --data-dir ./data tui`).
+8. Корневой `package.json`: опционально скрипты `dev:11`/`test:11` через
+   `cd 11 && cargo …`; workspace `11` не должен ломать npm.
+9. `src/main.rs` — clap-каркас: `tui`, `chat`, `memory`, `import-facts`,
+   `experiment`, `dump`; команды возвращают `unimplemented`, но `--help`
+   работает.
+10. `cargo build`, `cargo test` (хотя бы smoke).
 
-**DoD:** `npm run build -w 11`, `npm test -w 11` зелёные; `npm run dev -w 11`
-запускается; в корневом README есть День 11.
+**DoD:** проект собирается; `cargo run -- --help`; root README обновлён;
+`git status` не содержит `target/`.
 
 ---
 
-### T1. Контракты и конфигурация
+### T1. Доменные типы, настройки, токены
 
 **Зависимости:** T0. **Размер:** M.
-**FR:** FR-1…FR-3, FR-21, FR-27; NFR-6.
+**FR:** FR-1…FR-3, FR-24, FR-30; NFR-6.
 
 Шаги:
 
-1. Создать `src/memory/types.ts` со всеми типами из `02-domain-model.md`.
-2. Создать `src/memory/config.ts`: `DEFAULT_MEMORY_CONFIG`,
-   `normalizeMemoryConfig`, `LayerFlags`.
-3. Расширить `AppSettings`: `memory: MemoryConfig`; удалить
-   `contextStrategy/factsMode/compressionEnabled` (пока можно оставить поля
-   deprecated, чтобы не ломать UI — удаление в T10).
-4. Создать `src/memory/audit.ts`: `makeAuditEvent`, `maskSecret`, `sanitizeValue`.
-5. Заготовки пустых модулей с экспортами из `03-architecture.md` (без логики),
-   чтобы остальные задачи не блокировались.
-6. Тесты: `normalizeMemoryConfig` (границы), `sanitizeValue`, `maskSecret`.
+1. `domain/memory.rs` — все типы из `02` с serde.
+2. `domain/settings.rs` — `Settings`, `MemoryConfig`, defaults,
+   `load_or_default`.
+3. `domain/chat.rs` — `ChatMessage`, `TurnOutcome`, `TokenStats`.
+4. `memory/tokens.rs` — эвристика Дня 10 (кириллица/латиница/пунктуация/
+   пробелы/wide), тесты на границы.
+5. `memory/audit.rs` — `mask_secret`, `sanitize_value`, события.
+6. Тесты: serde round-trip, defaults, sanitizer, маскирование.
 
-**DoD:** типы компилируются; `build` зелёный; тесты конфига и санитайзера;
-`11-traceability.md` обновлён.
+**DoD:** типы компилируются; serde JSON совпадает со схемой `02`;
+`cargo test` зелёный.
 
 ---
 
-### T2. Хранилища слоёв
+### T2. Файловое хранилище
 
 **Зависимости:** T1. **Размер:** M.
-**FR:** FR-1…FR-6, FR-14; NFR-4, NFR-7.
+**FR:** FR-1…FR-9; NFR-4, NFR-9.
 
 Шаги:
 
-1. `src/storage/working.ts`: `lab11.working.v1`, parse/save/load/clear,
-   валидация `WmItem`, статусов и дат.
-2. `src/storage/ltm.ts`: `lab11.ltm.v1`, parse/save/load/clear, валидация
-   `LtmRecord`, версий, `kind`, `confidence`, `supersededBy`.
-3. `src/storage/pending.ts`: `lab11.pending.v1`.
-4. `src/storage/meta.ts`: `lab11.meta.v1`.
-5. `src/storage/migration.ts`: `lab11.migration.v1`.
-6. `src/storage/conversation.ts` и `summary.ts`: перевести на `lab11.*`,
-   добавить fallback-чтение `lab10.*` (для миграции).
-7. Общий помощник `asRecord`, `clampInt`, `normalizeDate` — переиспользовать из
-   Дня 10, не дублировать в каждом файле.
-8. Тесты T-S-1…T-S-3, T-S-6.
+1. `storage/paths.rs` — data-dir (CLI → `LAB11_HOME` → XDG → home), создание
+   каталогов.
+2. `storage/atomic.rs` — tmp + `sync_all` + rename, `.bak`, права 0600.
+3. `storage/stm.rs`, `working.rs`, `ltm.rs`, `pending.rs`, `meta.rs`,
+   `settings.rs`, `branches.rs`.
+4. `storage/lock.rs` — `fs2::try_lock_exclusive`, guard.
+5. `load_bundle`/`save_bundle`; `LoadError::{NotFound,Corrupt,UnsupportedVersion,Io}`.
+6. Битый JSON не перезаписывается; `.corrupt-<ts>` — только по команде reset.
+7. Тесты T-S-1…9.
 
-**DoD:** каждый слой сохраняется/читается отдельно; битый JSON не роняет
-приложение; тесты storage зелёные.
+**DoD:** каждый слой в своём файле; atomic; lock; тесты.
 
 ---
 
 ### T3. Логика слоёв
 
 **Зависимости:** T2. **Размер:** L.
-**FR:** FR-1…FR-3, FR-13, FR-21…FR-25.
+**FR:** FR-1…FR-3, FR-15, FR-24…FR-28.
 
 Шаги:
 
-1. `src/memory/stm.ts`: `emptyStm`, `stmFromConversation`,
-   `selectStmWindow` (переиспользовать `findRecentStart` и
-   `repairToolCallSequence`), `stmSummaryTokens`.
-2. `src/memory/working.ts`: `emptyWorkingMemory`, `upsertWmItem`,
-   `setWmItemStatus`, `removeWmItem`, `archiveTask`, `pruneWm`,
-   `renderWorkingMemory`.
-3. `src/memory/ltm.ts`: `emptyLtm`, `activeLtmRecords`, `findActiveLtm`,
-   `upsertLtm`, `replaceLtm`, `removeLtmRecord`, `setLtmPinned`,
-   `renderLtmProfile`.
-4. Сохранить обратную совместимость `facts.ts` до T7 (экспорт старых функций).
-5. Тесты T-STM-1…7, T-WM-1…7, T-LTM-1…7.
+1. `memory/stm.rs` — `select_stm_window`, границы, tool-пары, summary.
+2. `memory/working.rs` — upsert/status/remove/archive/prune/render.
+3. `memory/ltm.rs` — active/find/upsert/replace/remove/pin/render.
+4. Правила усечения и приоритеты из `05`.
+5. Тесты T-STM/WM/LTM.
 
-**DoD:** слои работают независимо; рендер-функции возвращают
-`{text, tokens, includedIds, dedupedIds}`; unit-тесты зелёные.
+**DoD:** рендер возвращает `RenderedBlock { text, tokens, included, deduped }`;
+unit-тесты зелёные.
 
 ---
 
 ### T4. Кандидаты, router, pending, аудит
 
 **Зависимости:** T3. **Размер:** L.
-**FR:** FR-8…FR-15; NFR-1.
+**FR:** FR-10…FR-17; NFR-1.
 
 Шаги:
 
-1. Перенести `agent/facts.ts` → `memory/candidates.ts`; добавить маркеры
-   задачи/области и поле `scope`; сохранить извлечение 12 деталей Дня 10.
-2. Перенести `agent/factExtractor.ts` → `memory/candidateExtractor.ts`;
-   изменить промпт: модель возвращает `key/value/kind/scope/tags/confidence`,
-   **не выбирает слой**.
-3. `src/memory/router.ts`: R1–R6 строго в порядке из `04-memory-policy.md`;
-   `approval`, pending, audit, stats; дедупликация pending по key.
-4. `applyToolWrite` (пока функция, без Agent): валидация layer/kind/key/value,
-   секреты, лимиты; результат `created/updated/pending/rejected`.
-5. Тесты T-R-1…T-R-12.
+1. `memory/candidates.rs` — локальная эвристика Дня 10 + маркеры задачи/scope.
+2. `memory/extractor.rs` — LLM-извлечение, JSON-парсинг, fallback.
+3. `memory/router.rs` — R1–R6 строго по порядку; Confirm/Auto; pending;
+   audit; stats.
+4. `memory/tool_write.rs` — валидация `memory_write`.
+5. Тесты T-R-1…12.
 
-**DoD:** любая реплика из таблицы примеров `04` даёт ожидаемый слой; секреты
-отклоняются; pending переживает save/load; тесты зелёные.
+**DoD:** таблица примеров `04` даёт ожидаемый слой; секреты отклоняются;
+pending сохраняется.
 
 ---
 
 ### T5. Retrieval и сборка промпта
 
 **Зависимости:** T3, T4. **Размер:** L.
-**FR:** FR-21…FR-29.
+**FR:** FR-24…FR-32.
 
 Шаги:
 
-1. `src/memory/retrieval.ts`: нормализация, стоп-слова, score, topK, бюджет,
+1. `memory/retrieval.rs` — нормализация, стоп-слова, score, top-K, бюджет,
    `dropped` с причинами.
-2. `src/memory/prompt.ts`: `assembleMemoryPrompt`, шаблоны блоков, порядок,
-   усечение, дедупликация, `MemoryBreakdown`, `notes`.
-3. Расширить `tokens.ts` (или новый `memory/tokenStats.ts`) расчётом блоков;
-   переиспользовать `estimateMessageTokens`.
-4. Добавить в `SYSTEM_PROMPT` правила слоёв (текст из `05`, раздел 3).
-5. Тесты T-RET-1…8, T-P-1…12. Обязательно: последняя user-реплика, пустые
-   блоки, бюджеты, dedupe.
+2. `memory/prompt.rs` — `assemble_prompt`, шаблоны, порядок, усечение, dedupe,
+   breakdown, notes.
+3. `llm/dto.rs` — `ChatRequest`/`ChatResponse`, tools.
+4. System prompt — текст из `05`, раздел 3.
+5. Golden-тесты T-P-1…13, T-RET-1…8.
 
-**DoD:** собранный промпт совпадает с примером `05` по структуре; breakdown
-сходится; тесты зелёные.
+**DoD:** промпт структурно совпадает с `05`; breakdown сходится; тесты.
 
 ---
 
-### T6. MemoryService и интеграция с Agent
+### T6. LLM-клиент, Agent, Controller, CLI chat
 
 **Зависимости:** T4, T5. **Размер:** L.
-**FR:** FR-11, FR-27, FR-28, FR-30.
+**FR:** FR-13, FR-18, FR-30, FR-31, FR-33.
 
 Шаги:
 
-1. `src/memory/service.ts`: `MemoryBundle`, `prepare`, `applyToolWrite`,
-   `clearLayer`; маршрутизация только новых сообщений по курсору.
-2. `Agent.ts`: заменить `contextStrategy/compression/facts` на `memory` +
-   `memoryConfig`; вызывать `prepare` перед первым запросом; собирать промпт;
-   возвращать `memory`, `memoryBreakdown`, `memoryAudit`, `memoryRoute`.
-3. Перехват `memory_write` до `ToolRegistry`; добавить схему в `tools`.
-4. Не пересобирать промпт внутри tool-loop (ADR-6); запись действует со
-   следующего хода.
-5. Обновить `AgentRunResult`, `LlmExchange.kind` → `'chat' | 'summary' |
-   'memory'`, `LlmExchange.memory`.
-6. Адаптировать `App.vue` под новый результат (минимально, без UI-панелей).
-7. Тесты T-A-1…T-A-9.
+1. `llm/client.rs` — `ChatClient` trait, `ReqwestClient` (blocking, rustls),
+   таймауты, ретрай 429/5xx (1 раз).
+2. `llm/tools.rs` — calculator/time/currency + схемы.
+3. `llm/agent.rs` — tool-loop, `memory_write` до registry, token stats, cost.
+4. `app/controller.rs` — `AppRuntime`, `AppController`, load/save bundle.
+5. `cli` — `chat`, `dump`; `--json`.
+6. Fake-клиент для тестов; T-A-1…10.
+7. Проверить: Local-режим не делает доп. запросов.
 
-**DoD:** агент отвечает с учётом трёх слоёв; `memory_write` работает; в
-`local`-режиме 0 дополнительных запросов; регресс инструментов зелёный.
+**DoD:** CLI `chat` отвечает и сохраняет слои; tool-loop работает; тесты.
 
 ---
 
-### T7. Миграция facts Дня 10
+### T7. Импорт facts Дня 10
 
 **Зависимости:** T2, T4. **Размер:** M.
-**FR:** FR-16…FR-20.
+**FR:** FR-19…FR-23.
 
 Шаги:
 
-1. `src/memory/migration.ts`: `migrateFactsToLtm` по алгоритму `02`, раздел 6.
-2. Маппинг категорий и ключей; `legacyKey`, теги, `confidence = 0.9`.
-3. `src/storage/migration.ts`: save/load отчёта.
-4. UI-хук: функция для кнопки (сама кнопка — T9).
-5. Тесты T-M-1…T-M-7, включая идемпотентность и битый JSON.
+1. `memory/migration.rs` — парсинг `lab10.facts.v1`/массива, маппинг категорий,
+   upsert, отчёт.
+2. `storage/migration.rs` — `migration/report.json`.
+3. CLI `import-facts`, TUI-хук (кнопка — T9).
+4. Sample `fixtures/day10-facts.json` (15 записей).
+5. Тесты T-M-1…7.
 
-**DoD:** 12 деталей Дня 10 оказываются в LTM с правильными типами; повторный
-импорт ничего не дублирует; отчёт сохраняется.
+**DoD:** 12 деталей Дня 10 в LTM; повтор не дублирует; битый вход — код 2.
 
 ---
 
-### T8. Фикстура, probe и движок эксперимента
+### T8. Фикстура, probe, движок эксперимента
 
 **Зависимости:** T3, T5. **Размер:** L.
-**FR:** EXP-1…EXP-7.
+**FR:** EXP-1…EXP-8.
 
 Шаги:
 
-1. `src/memory/fixtures.ts`: 34 сообщения дословно из `07`, `buildFixture()`
-   с seeded WM/LTM/pending/meta.
-2. `src/memory/probes.ts`: 18 probe, `probeMatches`, `quick`-подмножество (9).
-3. `src/memory/experiment.ts`:
-   - `ExperimentMode`, `runMemoryExperiment`;
-   - 7 конфигураций, `LayerFlags`, `full` — вся история;
-   - сбор `MemoryBreakdown`, `usage`, стоимости;
-   - очистка на копии baseline (3 прогона);
-   - `ExperimentReport`, `experimentToMarkdown`, `experimentToJson`;
-   - прогресс/отмена.
-4. Мок-тесты T-E-1…T-E-8; T-F-1…T-F-7.
-5. Проверить, что seeded-состояние совпадает с router-состоянием (T-F-7).
+1. `experiment/fixtures.rs` — 34 сообщения из `07`, seeded bundle.
+2. `experiment/probes.rs` — 18 probe, `probe_matches`, quick-набор.
+3. `experiment/runner.rs` — 7 конфигураций, `LayerFlags`, full, очистка на
+   копиях, прогресс/отмена, fake-friendly.
+4. `experiment/report.rs` — Markdown/JSON, дельты, пороги.
+5. CLI `experiment --quick/--full --out --json --check`.
+6. Тесты T-F-1…7, T-E-1…9.
 
-**DoD:** на моке получается матрица 6/6/6 → 18/18 и 12/18 после очистки;
-отчёт содержит все таблицы; тесты зелёные.
+**DoD:** fake-прогон даёт 18/18 и 12/18 после очистки; `--check` работает.
 
 ---
 
-### T9. UI: панель «Память»
+### T9. TUI: каркас, «Память», «Подтверждения»
 
 **Зависимости:** T6, T7. **Размер:** L.
-**FR:** UX-1…UX-4; FR-12, FR-15.
+**FR:** UX-1…UX-4, UX-7, UX-8; FR-14.
 
 Шаги:
 
-1. `MemoryPanel.vue`: 3 колонки, счётчики, токены, кнопки очистки.
-2. `MemoryItemCard.vue`: key/value, бейджи, меню действий.
-3. `PendingPanel.vue`: diff, принять/отклонить/изменить/сменить слой, stale.
-4. Аудит: модалка/дровер, фильтры, экспорт JSON, маскирование.
-5. Диалоги подтверждения очистки с последствиями.
-6. Кнопка «Импортировать facts Дня 10» + отчёт миграции.
-7. Подключить в `App.vue`, убрать вкладку «Стратегии».
+1. `tui/app.rs` — terminal init/restore, panic hook, event loop (50 ms),
+   `AppState`, `mpsc` событий, job thread.
+2. `tui/keymap.rs` — `1..8`, Tab, arrows, Enter, Esc, `?`, `q`.
+3. `tui/widgets/memory.rs` — 3 колонки, фокус, прокрутка, счётчики/токены.
+4. `tui/widgets/pending.rs` — список + diff + y/n/e/l.
+5. `tui/widgets/modal.rs` — confirm, edit, error, help.
+6. `tui/widgets/input.rs` — однострочный редактор.
+7. Тесты T-UI-1…3, T-UI-6…7.
 
-**DoD:** все действия из `06-ui-spec.md` работают; ручной чек-лист T9 пройден;
-пустые состояния и ошибки отображаются.
+**DoD:** TUI запускается, импорт и принятие pending работают, 80×24 ок.
 
 ---
 
-### T10. UI: настройки, токены, API, история, ветки
+### T10. TUI: настройки, токены, история, API, ветки
 
 **Зависимости:** T6, T9. **Размер:** M.
-**FR:** UX-5; FR-28, FR-31, FR-32.
+**FR:** UX-5, UX-6; FR-31, FR-34, FR-35.
 
 Шаги:
 
-1. `SettingsPanel.vue`: секция «Память» (режим, approval, окна, бюджеты),
-   опасная зона.
-2. `TokenPanel.vue`: разбивка по слоям для последнего запроса и таблица сессии.
-3. `ApiLogPanel.vue`: бейдж `memory`, детали режима и результата.
-4. `HistoryPanel.vue`: подпись «STM», предупреждение при импорте, кнопка очистки.
-5. `BranchPanel.vue`: снимок всех слоёв, счётчики, переключение.
-6. Тесты T-B-1…T-B-4; ручная проверка.
+1. `settings.rs` — форма, валидация, `s` сохранить; ключ API только env.
+2. `tokens.rs` — breakdown, таблица сессии, стоимость.
+3. `history.rs` — сообщения, экспорт/импорт, предупреждение о cursor.
+4. `api_log.rs` — таблица chat/memory, фильтр, детали.
+5. `branches.rs` — checkpoint/ветки/переключение (P1).
+6. Тесты T-B-1…4, T-UI-4…5.
 
-**DoD:** токены по слоям видны; настройки сохраняются и применяются; ветки
-восстанавливают все слои.
+**DoD:** все экраны читаемы, resize, данные сохраняются.
 
 ---
 
-### T11. UI: вкладка «Проверка»
+### T11. TUI: экран «Проверка»
 
 **Зависимости:** T8, T9. **Размер:** M.
-**FR:** EXP-3…EXP-7.
+**FR:** EXP-3…EXP-8.
 
 Шаги:
 
-1. `ExperimentPanel.vue`: фикстура, quick/full, выбор конфигураций, запуск,
-   прогресс, отмена.
-2. Таблицы: ablation, вклад слоёв, матрица очистки, неотвеченные вопросы.
-3. Кнопки скачивания Markdown/JSON; копирование.
-4. Предупреждение о стоимости и запросах.
-5. Подключить в `App.vue` вместо старого benchmark.
+1. Конфигурации, quick/full, чекбокс очистки.
+2. Прогресс через `AppEvent::ExperimentProgress`, отмена.
+3. Таблицы ablation, вклад слоёв, матрица очистки, неотвеченные.
+4. `s` — сохранить MD/JSON по путям.
+5. Тесты T-E + T-UI-5.
 
-**DoD:** полный прогон на моке/реальном API завершается, отчёт скачивается;
-отмена не оставляет мусора.
+**DoD:** полный прогон на fake/реальном API, отчёт сохраняется, отмена чистая.
 
 ---
 
 ### T12. Тесты: полнота и регресс
 
 **Зависимости:** T4, T5, T6, T8. **Размер:** M.
-**FR:** NFR-5, FR-30.
+**FR:** NFR-5, FR-33.
 
 Шаги:
 
-1. Свести все T-* из `08-test-plan.md`; отметить реализованные.
-2. Добавить недостающие edge-cases: пустые слои, переполнение, битые данные,
-   секреты, конкурентные pending.
-3. Обновить тесты Дня 10 под новые ключи и Agent API.
-4. Прогнать `npm test -w 11`, устранить флаки.
-5. Проверить, что тесты не ходят в сеть.
+1. Свести все T-* из `08`; отметить реализованные.
+2. Edge-cases: пустые слои, переполнение, битые файлы, секреты, pending.
+3. CLI-тесты `assert_cmd`: коды 0/2/3/4.
+4. `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`.
+5. Проверить отсутствие сети в тестах.
 
-**DoD:** все тесты из `08` реализованы или помечены `P2` с причиной; зелёный
-прогон; нет реальных ключей в коде.
+**DoD:** все тесты реализованы/помечены; clippy чистый; нет флаков.
 
 ---
 
@@ -340,15 +308,15 @@ T0 ──► T1 ──► T2 ──► T3 ──► T4 ──► T5 ──► T6
 
 Шаги:
 
-1. Переписать `11/README.md` под пользователя: запуск, сценарии, память,
-   результаты эксперимента, ограничения, выводы.
-2. Заполнить `docs/results/experiment-YYYY-MM-DD.md` по шаблону.
-3. Обновить `docs/11-traceability.md`: все FR → задачи → тесты → статус.
-4. Зафиксировать отклонения от спецификации в `10-risks-adr.md`.
-5. Проверить ссылки между документами.
+1. Переписать `11/README.md` под пользователя: запуск, клавиши, сценарий,
+   результаты, ограничения, выводы.
+2. Заполнить `docs/results/experiment-YYYY-MM-DD.md` (+ `.json`).
+3. Обновить `docs/11-traceability.md`.
+4. Отметить отклонения в `10-risks-adr.md`.
+5. Проверить ссылки.
 
-**DoD:** README понятен без чтения SDD; отчёт заполнен реальными или явно
-помеченными mock-данными; трассировка полная.
+**DoD:** README понятен без SDD; отчёт заполнен (или явно mock); трассировка
+полная.
 
 ---
 
@@ -356,78 +324,75 @@ T0 ──► T1 ──► T2 ──► T3 ──► T4 ──► T5 ──► T6
 
 **Зависимости:** все. **Размер:** S.
 
-Чек-лист:
-
-- [ ] `npm run build -w 11` — успех.
-- [ ] `npm test -w 11` — успех, сеть не используется.
-- [ ] `npm run dev -w 11` — приложение открывается.
-- [ ] Definition of Done из корневого `README.md` выполнен.
-- [ ] Ручной чек-лист `08`, раздел 7 пройден.
+- [ ] `cargo build` — успех.
+- [ ] `cargo test` — успех, без сети.
+- [ ] `cargo clippy --all-targets -- -D warnings` — чисто.
+- [ ] `cargo fmt --check` — чисто.
+- [ ] TUI в 80×24 и 120×36.
+- [ ] Ручной чек-лист `08`, раздел 7.
 - [ ] Отчёт эксперимента приложен.
-- [ ] В `10/` ничего не сломано (по возможности прогнать его тесты).
+- [ ] В `10/` ничего не сломано.
 
 ## 4. Definition of Done задачи
 
-Задача закрыта, если:
-
 1. Код реализует пункты задачи и не нарушает контракты.
-2. Добавлены/обновлены тесты, они зелёные.
-3. `npm run build -w 11` проходит.
-4. Обновлён `11-traceability.md` (статус и ссылки).
-5. Нет `TODO`, `any` без причины, `console.log` с секретами.
-6. Ручное поведение проверено, если задача UI.
-7. Коммит содержит только эту задачу (без случайных файлов).
+2. Тесты добавлены/обновлены, зелёные.
+3. `cargo build` + `cargo clippy` + `cargo fmt --check` проходят.
+4. Обновлён `11-traceability.md`.
+5. Нет `TODO`, `unwrap()` в prod без причины, логов с секретами.
+6. UI-задача проверена вручную.
+7. Коммит содержит только эту задачу.
 
 ## 5. Порядок сдачи и минимальный срез
 
 ```text
-T0 → T1 → (T2 ∥ T7-подготовка) → T3 → T4 → T5 → T6
+T0 → T1 → T2 → T3 → T4 → T5 → T6
    → (T9 ∥ T10 ∥ T8) → T11 → T12 → T13 → T14
 ```
 
-Если время ограничено, минимальный срез:
+Минимальный срез:
 
-1. T0–T6 + T8 (core + эксперимент на моке).
-2. T9 (панель памяти) + T11 (проверка).
+1. T0–T6 + T8 (core + эксперимент на fake).
+2. T9 + T11 (память и проверка в TUI).
 3. T13 (README + отчёт).
 
-T7 (миграция facts) и T10 (ветки/токены) — следующие по важности. T12 можно
-частично закрыть тестами внутри задач.
+T7 (импорт facts) и T10 — следующие по важности. T12 частично закрывается
+тестами внутри задач.
 
-## 6. Стартовый промпт для агента-исполнителя
+## 6. Стартовый промпт для агента
 
 ```text
-Ты реализуешь День 11 в /11 (Vue 3 + TypeScript + Vitest), база — /10.
+Ты реализуешь День 11 в /11 (Rust + ratatui + clap), база — только facts /10.
 
-1. Прочитай по порядку: 11/README.md, docs/00, 01, 02, 03, 04, 05, 07, 09.
-2. Возьми первую незакрытую задачу из docs/09-tasks.md (начни с T1, если T0 готов).
+1. Прочитай 11/README.md и docs/00..09.
+2. Возьми первую незакрытую задачу из docs/09-tasks.md (начни с T0/T1).
 3. Не меняй контракты из docs/02 и docs/03 без правки спецификации.
 4. Пиши тесты вместе с кодом по docs/08-test-plan.md.
-5. После задачи: npm run build -w 11 && npm test -w 11.
-6. Обнови docs/11-traceability.md: статус и фактические пути тестов.
-7. Не трогай /10 и не добавляй сервер, embeddings, авторизацию.
-8. Если требование неоднозначно — бери дефолт из docs/10-risks-adr.md
-   (раздел «Открытые вопросы») и зафиксируй решение.
-9. В конце отчитайся: какие FR закрыты, какие тесты добавлены, что осталось.
+5. После задачи: cargo fmt --check && cargo clippy --all-targets -- -D warnings
+   && cargo test.
+6. Обнови docs/11-traceability.md.
+7. Не трогай /10, не добавляй сервер, БД, embeddings, веб.
+8. Не блокируй TUI-поток сетью; используй job thread.
+9. Не сохраняй API-ключ нигде, кроме env/0600 secrets.
+10. В конце отчитайся: FR закрыты, тесты, что осталось.
 ```
 
-## 7. Приёмка по задачам (сводка)
+## 7. Приёмка по задачам
 
-| Задача | Ключевой артефакт | Проверка |
+| Задача | Артефакт | Проверка |
 |---|---|---|
-| T0 | workspace 11 | build/test/dev из корня |
-| T1 | `memory/types.ts`, `config.ts` | компиляция, тесты конфига |
-| T2 | `storage/{working,ltm,pending,meta}.ts` | T-S-* |
-| T3 | `memory/{stm,working,ltm}.ts` | T-STM/WM/LTM-* |
-| T4 | `memory/router.ts` | T-R-* |
-| T5 | `memory/{retrieval,prompt}.ts` | T-RET-*, T-P-* |
-| T6 | `memory/service.ts`, Agent | T-A-* |
-| T7 | `memory/migration.ts` | T-M-* |
-| T8 | `memory/{fixtures,probes,experiment}.ts` | T-F-*, T-E-* |
-| T9 | `MemoryPanel.vue`, `PendingPanel.vue` | ручной чек-лист |
-| T10 | Settings/Token/Api/Branch | T-B-*, ручной |
-| T11 | `ExperimentPanel.vue` | прогон + отчёт |
-| T12 | полный набор тестов | build + test |
-| T13 | README + отчёт + трассировка | ревью |
-| T14 | приёмка | чек-лист `08`, раздел 7 |
-
+| T0 | Cargo-проект | build/test/help |
+| T1 | `domain/*`, `memory/tokens.rs` | serde, тесты |
+| T2 | `storage/*` | T-S-* |
+| T3 | `memory/{stm,working,ltm}.rs` | T-STM/WM/LTM |
+| T4 | `memory/router.rs` | T-R-* |
+| T5 | `memory/{retrieval,prompt}.rs` | T-RET/P-* |
+| T6 | `llm/*`, `app/controller.rs` | T-A-* |
+| T7 | `memory/migration.rs` | T-M-* |
+| T8 | `experiment/*` | T-F/E-* |
+| T9 | `tui/app.rs`, memory/pending | T-UI-*, ручной |
+| T10 | settings/tokens/history/api/branches | T-B/UI, ручной |
+| T11 | `tui/widgets/experiment.rs` | прогон + отчёт |
+| T12 | тесты | fmt/clippy/test |
+| T13 | README/отчёт/трассировка | ревью |
+| T14 | приёмка | чек-лист `08` |
