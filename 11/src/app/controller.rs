@@ -606,15 +606,15 @@ impl AppController {
         if std::env::var("LAB11_FAKE_LLM").as_deref() == Ok("1") {
             report.source = "fake (LAB11_FAKE_LLM=1)".into();
         }
+        let (prompt_tokens, completion_tokens, cost_usd) = report.usage_totals();
         self.record_exchange(
             ExchangeKind::Experiment,
             &TokenStats {
-                prompt_tokens: report
-                    .configs
-                    .iter()
-                    .map(|config| config.usage_prompt_tokens)
-                    .sum(),
-                ..TokenStats::default()
+                prompt_tokens,
+                completion_tokens,
+                total_tokens: prompt_tokens + completion_tokens,
+                cost_usd,
+                reported: true,
             },
             None,
             None,

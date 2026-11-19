@@ -12,7 +12,7 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &AppState) {
     let chunks = Layout::default()
         .direction(ratatui::layout::Direction::Vertical)
         .constraints([
-            Constraint::Length(8),
+            Constraint::Length(9),
             Constraint::Length(3),
             Constraint::Min(6),
         ])
@@ -52,9 +52,29 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &AppState) {
         ),
     ];
     if let Some(progress) = &state.experiment_progress {
+        let last = match (&progress.last_probe, progress.last_matched) {
+            (Some(id), Some(true)) => format!(" · {id} ✓"),
+            (Some(id), Some(false)) => format!(" · {id} ✗"),
+            _ => String::new(),
+        };
+        let elapsed = if progress.elapsed_ms >= 1000 {
+            format!(" · {} с", progress.elapsed_ms / 1000)
+        } else {
+            String::new()
+        };
         options.push(Line::from(format!(
-            "Прогресс: {} · вопрос {}/{} · {}/{}",
-            progress.config, progress.probe, progress.probes_total, progress.done, progress.total
+            "Прогресс: {} · вопрос {}/{} · {}/{}{}{}",
+            progress.config,
+            progress.probe,
+            progress.probes_total,
+            progress.done,
+            progress.total,
+            last,
+            elapsed
+        )));
+        options.push(Line::from(Span::styled(
+            progress.usage_brief(),
+            theme::muted(),
         )));
     }
     let options_block = Paragraph::new(options)

@@ -84,7 +84,9 @@ fn experiment_quick_check_passes_with_fake() {
         .args(["experiment", "--quick", "--check"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("пороги пройдены"));
+        .stdout(predicate::str::contains("пороги пройдены"))
+        .stderr(predicate::str::contains("prompt"))
+        .stderr(predicate::str::contains("completion"));
 }
 
 #[test]

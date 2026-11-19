@@ -216,6 +216,7 @@ pub struct AppState {
     pub exchanges: Vec<LlmExchange>,
     pub experiment: Option<ExperimentReport>,
     pub experiment_progress: Option<ExperimentProgress>,
+    experiment_exchange_id: Option<String>,
     pub experiment_quick: bool,
     pub experiment_cleanup: bool,
     pub migration: Option<MigrationReport>,
@@ -260,6 +261,7 @@ impl AppState {
             exchanges: Vec::new(),
             experiment: None,
             experiment_progress: None,
+            experiment_exchange_id: None,
             experiment_quick: false,
             experiment_cleanup: false,
             migration: None,
@@ -308,18 +310,61 @@ impl AppState {
         }
     }
 
-    pub fn record_experiment(&mut self, report: &ExperimentReport) {
-        let mut exchange = LlmExchange::new(
-            ExchangeKind::Experiment,
-            &self.settings.model,
-            &self.settings.base_url,
-        );
-        exchange.status = if report.errors.is_empty() {
-            "ok".into()
-        } else {
-            "partial".into()
+    /// Живая запись эксперимента в журнале API/Токенов: обновляется на каждом
+    /// завершённом запросе, чтобы вкладки 4 и 7 не ждали конца прогона.
+    pub fn record_experiment_progress(&mut self, progress: &ExperimentProgress) {
+        if let Some(breakdown) = &progress.breakdown {
+            self.last_breakdown = breakdown.clone();
+        }
+        let id = match &self.experiment_exchange_id {
+            Some(id) => id.clone(),
+            None => {
+                let exchange = LlmExchange::new(
+                    ExchangeKind::Experiment,
+                    &self.settings.model,
+                    &self.settings.base_url,
+                );
+                let id = exchange.id.clone();
+                self.exchanges.push(exchange);
+                self.experiment_exchange_id = Some(id.clone());
+                self.trim_exchanges();
+                id
+            }
         };
-        exchange.response_preview = Some(format!(
+        if let Some(exchange) = self.exchanges.iter_mut().find(|exchange| exchange.id == id) {
+            exchange.prompt_tokens = progress.prompt_tokens;
+            exchange.completion_tokens = progress.completion_tokens;
+            exchange.total_tokens = progress.total_tokens();
+            exchange.cost_usd = progress.cost_usd;
+            exchange.memory = progress.breakdown.clone();
+            exchange.status = if progress.errors > 0 {
+                "partial".into()
+            } else {
+                "running".into()
+            };
+            exchange.response_preview =
+                Some(format!("{} из {} запросов", progress.done, progress.total));
+        }
+    }
+
+    /// Отмена/ошибка прогона: закрываем живую запись, чтобы следующий запуск
+    /// начал новую, а не перезаписывал отменённую.
+    pub fn fail_experiment_progress(&mut self) {
+        if let Some(id) = self.experiment_exchange_id.take() {
+            if let Some(exchange) = self.exchanges.iter_mut().find(|exchange| exchange.id == id) {
+                exchange.status = "error".into();
+            }
+        }
+    }
+
+    pub fn record_experiment(&mut self, report: &ExperimentReport) {
+        let (prompt_tokens, completion_tokens, cost_usd) = report.usage_totals();
+        let status = if report.errors.is_empty() {
+            "ok"
+        } else {
+            "partial"
+        };
+        let preview = format!(
             "{} запросов, {}/{}",
             report.total_requests,
             report
@@ -327,8 +372,37 @@ impl AppState {
                 .map(|config| config.total)
                 .unwrap_or(0),
             18
-        ));
+        );
+        if let Some(id) = self.experiment_exchange_id.take() {
+            if let Some(exchange) = self.exchanges.iter_mut().find(|exchange| exchange.id == id) {
+                exchange.prompt_tokens = prompt_tokens;
+                exchange.completion_tokens = completion_tokens;
+                exchange.total_tokens = prompt_tokens + completion_tokens;
+                exchange.cost_usd = cost_usd;
+                exchange.status = status.into();
+                exchange.response_preview = Some(preview);
+                return;
+            }
+        }
+        let mut exchange = LlmExchange::new(
+            ExchangeKind::Experiment,
+            &self.settings.model,
+            &self.settings.base_url,
+        );
+        exchange.prompt_tokens = prompt_tokens;
+        exchange.completion_tokens = completion_tokens;
+        exchange.total_tokens = prompt_tokens + completion_tokens;
+        exchange.cost_usd = cost_usd;
+        exchange.status = status.into();
+        exchange.response_preview = Some(preview);
         self.exchanges.push(exchange);
+        self.trim_exchanges();
+    }
+
+    fn trim_exchanges(&mut self) {
+        if self.exchanges.len() > 200 {
+            self.exchanges.remove(0);
+        }
     }
 
     pub fn set_banner(&mut self, message: impl Into<String>) {

@@ -143,6 +143,14 @@ pub fn print_experiment(report: &ExperimentReport) {
         report.model,
         report.total_requests
     );
+    let (prompt_tokens, completion_tokens, cost_usd) = report.usage_totals();
+    println!(
+        "API: prompt {} · completion {} · всего {} · ${:.6}",
+        format_tokens(prompt_tokens),
+        format_tokens(completion_tokens),
+        format_tokens(prompt_tokens + completion_tokens),
+        cost_usd
+    );
     println!();
     println!("Конфигурация   LTM   WM  STM  System Tools  Total   S W L  Всего");
     for config in &report.configs {

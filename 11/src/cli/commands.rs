@@ -1,5 +1,6 @@
 //! Разбор clap-команд и их выполнение.
 
+use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -399,18 +400,57 @@ fn execute(cli: Cli) -> Result<i32, AppError> {
                 },
                 include_cleanup: cleanup,
             };
-            let report = controller.run_experiment(options, &mut |progress| {
+            let interactive = std::io::stderr().is_terminal();
+            let mut last_config = String::new();
+            let result = controller.run_experiment(options, &mut |progress| {
                 if cli.verbose {
                     eprintln!(
-                        "{} · {}/{} · {}/{}",
+                        "{} · вопрос {}/{} · {}",
+                        progress.config,
+                        progress.probe,
+                        progress.probes_total,
+                        progress.usage_line()
+                    );
+                    return;
+                }
+                if interactive {
+                    let errors = if progress.errors > 0 {
+                        format!(" · ошибок {}", progress.errors)
+                    } else {
+                        String::new()
+                    };
+                    eprint!(
+                        "\r\x1b[K[{}] вопрос {}/{} · запросов {}/{} · prompt {} · completion {} · ${:.6}{}",
                         progress.config,
                         progress.probe,
                         progress.probes_total,
                         progress.done,
-                        progress.total
+                        progress.total,
+                        crate::memory::tokens::format_tokens(progress.prompt_tokens),
+                        crate::memory::tokens::format_tokens(progress.completion_tokens),
+                        progress.cost_usd,
+                        errors
                     );
+                    let _ = std::io::stderr().flush();
+                    return;
                 }
-            })?;
+                // В файл/пайп пишем строку на каждый завершённый запрос,
+                // чтобы расход API был виден и без TTY.
+                if progress.last_matched.is_some() || progress.config != last_config {
+                    eprintln!(
+                        "[{}] вопрос {}/{} · {}",
+                        progress.config,
+                        progress.probe,
+                        progress.probes_total,
+                        progress.usage_line()
+                    );
+                    last_config = progress.config.clone();
+                }
+            });
+            if interactive {
+                eprintln!();
+            }
+            let report = result?;
             output::print_experiment(&report);
             if let Some(out) = &out {
                 let json_path = json.clone().unwrap_or_else(|| out.with_extension("json"));

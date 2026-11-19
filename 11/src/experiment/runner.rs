@@ -1,6 +1,7 @@
 //! Движок эксперимента: 7 конфигураций ablation + 3 очистки.
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -11,10 +12,10 @@ use crate::domain::memory::{
 };
 use crate::domain::settings::Settings;
 use crate::experiment::probes::{Probe, probe_matches, selected_probes};
-use crate::llm::dto::{ChatClient, ChatRequest};
+use crate::llm::dto::{ChatClient, ChatRequest, model_profile};
 use crate::llm::tools::ToolRegistry;
 use crate::memory::prompt::{AssembleInput, SYSTEM_PROMPT, assemble_prompt};
-use crate::memory::tokens::estimate_text_tokens;
+use crate::memory::tokens::{estimate_text_tokens, format_tokens};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -134,6 +135,10 @@ pub struct ConfigResult {
     pub tools_tokens: usize,
     pub total_tokens: usize,
     pub usage_prompt_tokens: usize,
+    #[serde(default)]
+    pub usage_completion_tokens: usize,
+    #[serde(default)]
+    pub usage_cost_usd: f64,
     pub errors: Vec<String>,
 }
 
@@ -205,6 +210,19 @@ impl ExperimentReport {
     pub fn config(&self, id: &str) -> Option<&ConfigResult> {
         self.configs.iter().find(|config| config.id == id)
     }
+
+    /// Суммарный расход API за прогон: (prompt, completion, стоимость).
+    pub fn usage_totals(&self) -> (usize, usize, f64) {
+        let mut prompt = 0;
+        let mut completion = 0;
+        let mut cost = 0.0;
+        for config in self.configs.iter().chain(self.cleanup.iter()) {
+            prompt += config.usage_prompt_tokens;
+            completion += config.usage_completion_tokens;
+            cost += config.usage_cost_usd;
+        }
+        (prompt, completion, cost)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -214,6 +232,137 @@ pub struct ExperimentProgress {
     pub probes_total: usize,
     pub done: usize,
     pub total: usize,
+    /// Накопленный расход по всем завершённым запросам прогона.
+    #[serde(default)]
+    pub prompt_tokens: usize,
+    #[serde(default)]
+    pub completion_tokens: usize,
+    #[serde(default)]
+    pub cost_usd: f64,
+    /// true, если хотя бы один ответ содержал `usage` провайдера.
+    #[serde(default)]
+    pub usage_reported: bool,
+    #[serde(default)]
+    pub errors: usize,
+    #[serde(default)]
+    pub last_probe: Option<String>,
+    #[serde(default)]
+    pub last_matched: Option<bool>,
+    #[serde(default)]
+    pub elapsed_ms: u64,
+    /// Breakdown промпта текущего запроса — для экрана «Токены».
+    #[serde(default)]
+    pub breakdown: Option<crate::domain::memory::MemoryBreakdown>,
+}
+
+impl ExperimentProgress {
+    pub fn total_tokens(&self) -> usize {
+        self.prompt_tokens + self.completion_tokens
+    }
+
+    /// Строка живого расхода API для логов CLI.
+    pub fn usage_line(&self) -> String {
+        let mut line = format!(
+            "API: {}/{} · prompt {} · completion {} · всего {} · ${:.6} · {}",
+            self.done,
+            self.total,
+            format_tokens(self.prompt_tokens),
+            format_tokens(self.completion_tokens),
+            format_tokens(self.total_tokens()),
+            self.cost_usd,
+            if self.usage_reported {
+                "usage"
+            } else {
+                "оценка"
+            }
+        );
+        if self.errors > 0 {
+            line.push_str(&format!(" · ошибок {}", self.errors));
+        }
+        if self.elapsed_ms > 0 {
+            line.push_str(&format!(" · {}", format_elapsed(self.elapsed_ms)));
+        }
+        line
+    }
+
+    /// Короткая строка для узкого TUI-блока (без «всего» и таймера).
+    pub fn usage_brief(&self) -> String {
+        let mut line = format!(
+            "API {}/{} · prompt {} · completion {} · ${:.6} · {}",
+            self.done,
+            self.total,
+            format_tokens(self.prompt_tokens),
+            format_tokens(self.completion_tokens),
+            self.cost_usd,
+            if self.usage_reported {
+                "usage"
+            } else {
+                "оценка"
+            }
+        );
+        if self.errors > 0 {
+            line.push_str(&format!(" · ошибок {}", self.errors));
+        }
+        line
+    }
+}
+
+fn format_elapsed(elapsed_ms: u64) -> String {
+    let seconds = elapsed_ms / 1000;
+    if seconds < 60 {
+        format!("{seconds} с")
+    } else {
+        format!("{} мин {:02} с", seconds / 60, seconds % 60)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct LiveUsage {
+    prompt_tokens: usize,
+    completion_tokens: usize,
+    cost_usd: f64,
+    usage_reported: bool,
+    errors: usize,
+}
+
+impl LiveUsage {
+    fn add(&mut self, prompt: usize, completion: usize, reported: bool, cost_usd: f64) {
+        self.prompt_tokens += prompt;
+        self.completion_tokens += completion;
+        self.cost_usd += cost_usd;
+        self.usage_reported |= reported;
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn snapshot(
+        &self,
+        spec: &ConfigSpec,
+        probe: usize,
+        probes_total: usize,
+        done: usize,
+        total: usize,
+        started: Instant,
+        last_probe: Option<String>,
+        last_matched: Option<bool>,
+        breakdown: Option<crate::domain::memory::MemoryBreakdown>,
+    ) -> ExperimentProgress {
+        ExperimentProgress {
+            config: spec.label.to_string(),
+            probe,
+            probes_total,
+            done,
+            total,
+            prompt_tokens: self.prompt_tokens,
+            completion_tokens: self.completion_tokens,
+            cost_usd: self.cost_usd,
+            usage_reported: self.usage_reported,
+            errors: self.errors,
+            last_probe,
+            last_matched,
+            elapsed_ms: started.elapsed().as_millis() as u64,
+            breakdown,
+        }
+    }
 }
 
 #[derive(Debug, Error)]
@@ -233,6 +382,7 @@ pub fn run_experiment(
     progress: &mut dyn FnMut(ExperimentProgress),
 ) -> Result<ExperimentReport, ExperimentError> {
     let started_at = Utc::now();
+    let started = Instant::now();
     let probes = selected_probes(options.mode.is_quick());
     let specs = configs();
     let cleanup_runs = if options.include_cleanup { 3 } else { 0 };
@@ -240,6 +390,7 @@ pub fn run_experiment(
     let mut done = 0;
     let mut configs_out = Vec::new();
     let mut errors = Vec::new();
+    let mut usage = LiveUsage::default();
 
     for spec in &specs {
         if cancel.load(Ordering::Relaxed) {
@@ -252,6 +403,7 @@ pub fn run_experiment(
         };
         let result = run_config(
             bundle, spec, &probes, settings, window, client, cancel, progress, &mut done, total,
+            &mut usage, started,
         )?;
         if !result.errors.is_empty() {
             errors.extend(result.errors.clone());
@@ -283,6 +435,8 @@ pub fn run_experiment(
                 progress,
                 &mut done,
                 total,
+                &mut usage,
+                started,
             )?;
             result.id = format!("clear-{}", layer.as_str());
             result.label = format!("очистить {}", layer.as_str());
@@ -355,6 +509,8 @@ fn run_config(
     progress: &mut dyn FnMut(ExperimentProgress),
     done: &mut usize,
     total: usize,
+    usage: &mut LiveUsage,
+    started: Instant,
 ) -> Result<ConfigResult, ExperimentError> {
     let tools = ToolRegistry::default_registry();
     let schemas = tools.schemas();
@@ -365,22 +521,18 @@ fn run_config(
     let mut tools_tokens = 0;
     let mut total_tokens = 0;
     let mut usage_prompt_tokens = 0;
+    let mut usage_completion_tokens = 0;
+    let mut usage_cost_usd = 0.0;
     let mut config_settings = settings.clone();
     config_settings.memory.stm.window = window;
     config_settings.temperature = 0.0;
     config_settings.max_tokens = Some(settings.max_tokens.unwrap_or(80));
+    let (input_cost, output_cost) = model_profile(&config_settings.model);
 
     for (index, probe) in probes.iter().enumerate() {
         if cancel.load(Ordering::Relaxed) {
             return Err(ExperimentError::Cancelled);
         }
-        progress(ExperimentProgress {
-            config: spec.label.to_string(),
-            probe: index + 1,
-            probes_total: probes.len(),
-            done: *done,
-            total,
-        });
         let mut stm = bundle.stm.clone();
         stm.messages.push(ChatMessage::user(probe.question.clone()));
         let assembly = assemble_prompt(AssembleInput {
@@ -400,6 +552,18 @@ fn run_config(
             tools_tokens = assembly.breakdown.tools_tokens;
             total_tokens = assembly.breakdown.total_tokens;
         }
+        let breakdown = assembly.breakdown.clone();
+        progress(usage.snapshot(
+            spec,
+            index + 1,
+            probes.len(),
+            *done,
+            total,
+            started,
+            None,
+            None,
+            Some(breakdown.clone()),
+        ));
         let request = ChatRequest {
             model: config_settings.model.clone(),
             messages: assembly.messages,
@@ -410,6 +574,7 @@ fn run_config(
         let (answer, prompt_tokens, completion_tokens) = match client.complete(&request) {
             Ok(response) => {
                 let answer = response.content.unwrap_or_default();
+                let reported = response.usage.is_some();
                 let prompt = response
                     .usage
                     .map(|usage| usage.prompt_tokens)
@@ -418,10 +583,16 @@ fn run_config(
                     .usage
                     .map(|usage| usage.completion_tokens)
                     .unwrap_or_else(|| estimate_text_tokens(&answer));
+                let cost = (prompt as f64 / 1_000_000.0) * input_cost
+                    + (completion as f64 / 1_000_000.0) * output_cost;
                 usage_prompt_tokens += prompt;
+                usage_completion_tokens += completion;
+                usage_cost_usd += cost;
+                usage.add(prompt, completion, reported, cost);
                 (answer, prompt, completion)
             }
             Err(error) => {
+                usage.errors += 1;
                 errors.push(format!("{} / {}: {error}", spec.label, probe.id));
                 (
                     "ошибка запроса".to_string(),
@@ -442,6 +613,17 @@ fn run_config(
             completion_tokens,
         });
         *done += 1;
+        progress(usage.snapshot(
+            spec,
+            index + 1,
+            probes.len(),
+            *done,
+            total,
+            started,
+            Some(probe.id.clone()),
+            Some(matched),
+            Some(breakdown),
+        ));
     }
 
     let matched_stm = results
@@ -480,6 +662,8 @@ fn run_config(
         tools_tokens,
         total_tokens,
         usage_prompt_tokens,
+        usage_completion_tokens,
+        usage_cost_usd,
         errors,
     })
 }
@@ -688,6 +872,46 @@ mod tests {
         .unwrap();
         assert_eq!(report.total_requests, 63);
         assert_eq!(report.configs[0].results.len(), 9);
+    }
+
+    #[test]
+    fn progress_reports_live_api_usage() {
+        let bundle = seeded_bundle(Utc::now());
+        let settings = Settings::experiment_defaults();
+        let cancel = AtomicBool::new(false);
+        let mut samples = Vec::new();
+        let report = run_experiment(
+            &bundle,
+            ExperimentOptions {
+                mode: ExperimentMode::Quick,
+                include_cleanup: false,
+            },
+            &settings,
+            &FakeChatClient,
+            &cancel,
+            &mut |progress| samples.push(progress),
+        )
+        .unwrap();
+
+        assert_eq!(samples.len(), 63 * 2);
+        let last = samples.last().unwrap();
+        assert_eq!(last.done, 63);
+        assert_eq!(last.total, 63);
+        assert!(last.prompt_tokens > 0);
+        assert!(last.completion_tokens > 0);
+        assert!(last.total_tokens() > 0);
+        assert!(last.cost_usd > 0.0);
+        assert!(!last.usage_reported, "fake-клиент не возвращает usage");
+        assert!(last.usage_line().contains("prompt"));
+        assert_eq!(last.errors, 0);
+        assert!(samples.windows(2).all(|pair| {
+            pair[1].prompt_tokens >= pair[0].prompt_tokens
+                && pair[1].completion_tokens >= pair[0].completion_tokens
+        }));
+        let (prompt, completion, cost) = report.usage_totals();
+        assert_eq!(prompt, last.prompt_tokens);
+        assert_eq!(completion, last.completion_tokens);
+        assert!((cost - last.cost_usd).abs() < 1e-12);
     }
 
     #[test]

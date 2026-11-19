@@ -103,17 +103,17 @@
 
 | Файл | Что покрывает |
 |---|---|
-| `src/**/tests` | 158 unit: типы, токены, audit, STM/WM/LTM, router R1–R6, retrieval, prompt, migration, storage, tools, agent, report |
+| `src/**/tests` | 159 unit: типы, токены, audit, STM/WM/LTM, router R1–R6, retrieval, prompt, migration, storage, tools, agent, report, живой расход API |
 | `tests/storage.rs` | атомарность, `.bak`, битый JSON, lock, 0600, изоляция очистки |
 | `tests/router.rs` | R1–R6, pending, audit, несколько кандидатов |
 | `tests/prompt.rs` | порядок блоков, breakdown, ablation-флаги, budget, dedupe, NFR-2 benchmark |
 | `tests/migration.rs` | 15 facts, идемпотентность, дословность, битый вход |
-| `tests/experiment.rs` | 7×18, очистка 12/18, дельты, отчёты, отмена |
+| `tests/experiment.rs` | 7×18, очистка 12/18, дельты, отчёты, отмена, usage-поля |
 | `tests/controller.rs` | send_user_message, memory_write, fallback Local, секреты, ветки, API-лог |
-| `tests/cli.rs` | коды 0/2/4, import-facts, experiment --check, отчёты |
-| `tests/tui.rs` | reducer, 80×24/120×36, все экраны, NFR-7, busy-блокировка |
+| `tests/cli.rs` | коды 0/2/4, import-facts, experiment --check, отчёты, живой прогресс API |
+| `tests/tui.rs` | reducer, 80×24/120×36, все экраны, живой журнал эксперимента, NFR-7, busy-блокировка |
 
-Итог: **228 тестов** (`cargo test`), `cargo clippy --all-targets -- -D warnings`
+Итог: **230 тестов** (`cargo test`), `cargo clippy --all-targets -- -D warnings`
 и `cargo fmt --check` чистые.
 
 ## Правило обновления

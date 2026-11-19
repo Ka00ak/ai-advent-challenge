@@ -2,7 +2,8 @@ mod common;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use lab11::app::state::Screen;
-use lab11::domain::memory::MemoryLayer;
+use lab11::domain::memory::{MemoryBreakdown, MemoryLayer};
+use lab11::experiment::ExperimentProgress;
 use lab11::tui::keymap::{UiAction, handle_key};
 use lab11::tui::state::{AppState, Modal};
 use ratatui::Terminal;
@@ -122,6 +123,62 @@ fn every_screen_renders_without_panic() {
             .draw(|frame| lab11::tui::render_for_test(frame, &mut state))
             .unwrap();
     }
+}
+
+fn experiment_progress(done: usize, prompt_tokens: usize) -> ExperimentProgress {
+    ExperimentProgress {
+        config: "stm".into(),
+        probe: done,
+        probes_total: 18,
+        done,
+        total: 126,
+        prompt_tokens,
+        completion_tokens: 10,
+        cost_usd: 0.001,
+        usage_reported: true,
+        errors: 0,
+        last_probe: None,
+        last_matched: None,
+        elapsed_ms: 0,
+        breakdown: Some(MemoryBreakdown {
+            system_tokens: 10,
+            total_tokens: 20,
+            ..MemoryBreakdown::default()
+        }),
+    }
+}
+
+#[test]
+fn experiment_progress_updates_tokens_tab_live() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::Tokens;
+    state.record_experiment_progress(&experiment_progress(1, 100));
+    assert_eq!(state.exchanges.len(), 1);
+    let id = state.exchanges[0].id.clone();
+    assert_eq!(state.exchanges[0].status, "running");
+    assert_eq!(state.exchanges[0].total_tokens, 110);
+    assert_eq!(state.last_breakdown.system_tokens, 10);
+
+    state.record_experiment_progress(&experiment_progress(2, 200));
+    assert_eq!(
+        state.exchanges.len(),
+        1,
+        "живая запись обновляется, а не дублируется"
+    );
+    assert_eq!(state.exchanges[0].id, id);
+    assert_eq!(state.exchanges[0].prompt_tokens, 200);
+    assert_eq!(state.exchanges[0].total_tokens, 210);
+
+    state.fail_experiment_progress();
+    assert_eq!(state.exchanges[0].status, "error");
+    state.record_experiment_progress(&experiment_progress(1, 50));
+    assert_eq!(state.exchanges.len(), 2, "новый прогон — новая запись");
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal
+        .draw(|frame| lab11::tui::render_for_test(frame, &mut state))
+        .unwrap();
 }
 
 #[test]

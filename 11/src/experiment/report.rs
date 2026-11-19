@@ -3,6 +3,7 @@
 use std::path::Path;
 
 use crate::experiment::runner::{ConfigResult, ExperimentReport};
+use crate::memory::tokens::format_tokens;
 use crate::storage::atomic::{SaveError, atomic_write_bytes, atomic_write_json};
 
 pub fn render_markdown(report: &ExperimentReport) -> String {
@@ -47,7 +48,15 @@ pub fn render_markdown(report: &ExperimentReport) -> String {
         report.finished_at.to_rfc3339()
     ));
     out.push_str(&format!("| Режим | {} |\n", report.mode.as_str()));
-    out.push_str(&format!("| Запросов | {} |\n\n", report.total_requests));
+    out.push_str(&format!("| Запросов | {} |\n", report.total_requests));
+    let (prompt_tokens, completion_tokens, cost_usd) = report.usage_totals();
+    out.push_str(&format!(
+        "| Токены API | prompt {} · completion {} · всего {} |\n",
+        format_tokens(prompt_tokens),
+        format_tokens(completion_tokens),
+        format_tokens(prompt_tokens + completion_tokens)
+    ));
+    out.push_str(&format!("| Стоимость API (оценка) | ${cost_usd:.6} |\n\n"));
 
     out.push_str("## Состав слоёв\n\n");
     out.push_str("| Слой | Записей | В промпте | Токенов |\n|---|---:|---:|---:|\n");
@@ -305,6 +314,8 @@ mod tests {
             "## Выводы",
             "| Конфигурация |",
             "| Слой | Блок |",
+            "| Токены API |",
+            "| Стоимость API (оценка) |",
         ] {
             assert!(markdown.contains(needle), "нет {needle}");
         }

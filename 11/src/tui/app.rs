@@ -361,8 +361,16 @@ fn handle_app_event(
             state.banner = Some((outcome.final_text.clone(), false));
         }
         AppEvent::ExperimentProgress(progress) => {
+            state.record_experiment_progress(&progress);
             state.experiment_progress = Some(progress.clone());
-            state.status = format!("{} · {}/{}", progress.config, progress.done, progress.total);
+            state.status = format!(
+                "{} · {}/{} · {} ток. · ${:.6}",
+                progress.config,
+                progress.done,
+                progress.total,
+                crate::memory::tokens::format_tokens(progress.total_tokens()),
+                progress.cost_usd
+            );
         }
         AppEvent::ExperimentFinished(report) => {
             state.record_experiment(&report);
@@ -384,6 +392,7 @@ fn handle_app_event(
         }
         AppEvent::Error(message) => {
             state.busy = None;
+            state.fail_experiment_progress();
             state.error_modal(message);
         }
         AppEvent::JobFinished => {
