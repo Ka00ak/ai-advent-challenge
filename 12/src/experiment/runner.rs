@@ -543,6 +543,7 @@ fn run_config(
             config: &config_settings.memory,
             tools: &schemas,
             layers: spec.layers,
+            profile: None,
             now: Utc::now(),
         })
         .map_err(|error| ExperimentError::Prompt(error.to_string()))?;

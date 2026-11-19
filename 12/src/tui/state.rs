@@ -8,6 +8,7 @@ use crate::domain::chat::{ExchangeKind, LlmExchange, TurnOutcome};
 use crate::domain::memory::{
     LtmRecord, MemoryBreakdown, MemoryBundle, MemoryLayer, MemoryWriteEvent, WmItem,
 };
+use crate::domain::profile::ProfileState;
 use crate::domain::settings::{Approval, ExtractionMode, Settings};
 use crate::experiment::runner::{ExperimentProgress, ExperimentReport};
 use crate::memory::migration::MigrationReport;
@@ -209,7 +210,9 @@ pub struct AppState {
     pub api_selection: usize,
     pub branch_selection: usize,
     pub settings_selection: usize,
+    pub profile_selection: usize,
     pub bundle: MemoryBundle,
+    pub profiles: ProfileState,
     pub settings: Settings,
     pub last_turn: Option<TurnOutcome>,
     pub last_breakdown: MemoryBreakdown,
@@ -249,7 +252,9 @@ impl AppState {
             api_selection: 0,
             branch_selection: 0,
             settings_selection: 0,
+            profile_selection: 0,
             bundle: controller.bundle().clone(),
+            profiles: controller.profiles().clone(),
             settings: controller.settings().clone(),
             last_turn: None,
             last_breakdown: controller
@@ -283,6 +288,7 @@ impl AppState {
 
     pub fn refresh(&mut self, controller: &AppController) {
         self.bundle = controller.bundle().clone();
+        self.profiles = controller.profiles().clone();
         self.settings = controller.settings().clone();
         self.audit = controller.audit.events.clone();
         if let Ok(file) = controller.branch_file() {
@@ -482,6 +488,9 @@ impl AppState {
         self.branch_selection = self
             .branch_selection
             .min(self.branch_file.branches.len().saturating_sub(1));
+        self.profile_selection = self
+            .profile_selection
+            .min(self.profiles.profiles.len().saturating_sub(1));
         self.api_selection = self
             .api_selection
             .min(self.filtered_exchanges().len().saturating_sub(1));
@@ -854,6 +863,17 @@ impl AppState {
             .branches
             .get(self.branch_selection)
             .map(|branch| branch.id.clone())
+    }
+
+    pub fn selected_profile_id(&self) -> Option<String> {
+        self.profiles
+            .profiles
+            .get(self.profile_selection)
+            .map(|profile| profile.id.clone())
+    }
+
+    pub fn active_profile(&self) -> Option<&crate::domain::profile::UserProfile> {
+        self.profiles.active_profile()
     }
 
     pub fn report_paths(&self) -> (PathBuf, PathBuf) {

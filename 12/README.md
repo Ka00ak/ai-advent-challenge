@@ -1,44 +1,62 @@
-# День 11 — модель памяти ассистента (Rust + TUI)
+# День 12 — персонализация ассистента поверх памяти (Rust + TUI)
 
-Агент с **тремя явными слоями памяти**: STM (диалог), WM (текущая задача) и
-LTM (профиль, проект, решения, знания). Каждый слой живёт в своих файлах,
-пишется по своим правилам и попадает в промпт отдельным блоком. Поверх —
-router R1–R6, очередь подтверждений, импорт facts Дня 10, измеримый
-ablation-эксперимент и TUI + CLI на одном контроллере.
+Агент с **тремя явными слоями памяти** (STM, WM, LTM) и **профилем
+пользователя** поверх них. Профиль задаёт стиль, формат и ограничения,
+передаётся отдельным системным блоком в каждый запрос, пополняется вручную и
+из диалога. В комплекте — TUI, CLI и воспроизводимая проверка: один вопрос
+под полярными профилями и серия из 10 вопросов на устойчивость.
 
-**Статус:** реализовано, тесты и гейт зелёные.
+**Статус:** реализовано, тесты и гейт зелёные; реальный прогон персонализации
+приложен в `docs/results/`.
 **Стек:** Rust 2024 (1.85+), ratatui + crossterm, clap, serde, chrono,
 reqwest (blocking, rustls), fs2.
 
 ## Быстрый старт
 
 ```sh
-cd 11
+cd 12
 cargo build
 
 # Демо-каталог данных (в .gitignore)
 cargo run -- --data-dir ./data tui
 
-# Импорт facts Дня 10
+# Профили: список, переключение, обучение из текста
+cargo run -- --data-dir ./data profile list
+cargo run -- --data-dir ./data profile use brief
+cargo run -- --data-dir ./data profile learn "Отвечай кратко, без кода, неформально"
+
+# Импорт facts Дня 10 (по желанию)
 cargo run -- --data-dir ./data import-facts fixtures/day10-facts.json
 
 # Один запрос (нужен ключ)
 export DEEPSEEK_API_KEY=...
 cargo run -- --data-dir ./data chat "Привет"
 
-# Эксперимент без сети (детерминированный fake-клиент)
-LAB11_FAKE_LLM=1 cargo run -- --data-dir ./data experiment --quick --check
+# Проверка персонализации (2 профиля + 10 вопросов устойчивости)
+cargo run -- --data-dir ./data personalize --check \
+  --out docs/results/personalization-$(date +%F).md \
+  --json docs/results/personalization-$(date +%F).json
+
+# Офлайн-проверка механики без сети
+LAB12_FAKE_LLM=1 cargo run -- --data-dir ./data personalize --check
+
+# Старый эксперимент с памятью тоже работает
+LAB12_FAKE_LLM=1 cargo run -- --data-dir ./data experiment --quick --check
 ```
 
 Ключ читается из `DEEPSEEK_API_KEY` или `KIMI_API_KEY` (либо
-`--api-key-file` с правами `0600`). В настройки, слои, pending и аудит ключ
-не попадает.
+`--api-key-file` с правами `0600`). В настройки, слои, профиль, pending и
+аудит ключ не попадает.
 
 ## Что умеет
 
 | Возможность | Где |
 |---|---|
 | Три слоя с раздельными JSON-файлами | `stm/`, `wm/`, `ltm/` |
+| Профиль пользователя: стиль, формат, ограничения | `profiles/profiles.json`, CLI `profile`, TUI экран 9 |
+| Профиль в каждом запросе отдельным system-блоком | `src/memory/personalization.rs`, `src/memory/prompt.rs` |
+| Пополнение профиля из диалога с историей изменений | `learn_from_message`, `profile learn`, `chat` |
+| Проверка: 2 профиля на один вопрос + 10 вопросов устойчивости | CLI `personalize`, `src/experiment/personalization.rs` |
 | Роутинг R1–R6: секрет / задача / обновление LTM / новый факт / WM / отказ | `src/memory/router.rs` |
 | LTM через pending (`accept/reject/edit/change layer`) | TUI экран 2, CLI `memory pending` |
 | Tool `memory_write` в tool-loop | `src/memory/tool_write.rs` |
@@ -58,15 +76,15 @@ cargo run -- --data-dir ./data tui
 ```
 
 Экраны: `1` Память · `2` Подтверждения · `3` Проверка · `4` Токены ·
-`5` История · `6` Настройки · `7` API · `8` Ветки.
+`5` История · `6` Настройки · `7` API · `8` Ветки · `9` Профиль.
 
 Основные клавиши:
 
 ```text
-1..8        переключение экранов
+1..9        переключение экранов
 Tab         фокус между колонками/полями
 ↑ ↓ PgUp PgDn g G   навигация
-Enter       карточка записи / редактирование / переключить
+Enter       карточка записи / редактирование / активировать профиль
 i           написать агенту
 ?           помощь, q / Ctrl+C — выход
 ```
@@ -78,6 +96,10 @@ i           написать агенту
 «Подтверждения»: `y` принять, `n` отклонить, `e` изменить, `l` сменить слой.
 Показан diff «Было → Станет», правило (`R3`) и stale-бейдж после 7 дней.
 
+«Профиль»: список профилей, предпочтения и история обучения; `Enter`/`u`
+делает выбранный профиль активным. Новые профили и точная настройка — через
+CLI `profile add/set`.
+
 «Проверка»: `r` запустить, `m` quick/full, `Space` включить очистку,
 `s` сохранить MD/JSON, `d` детали probe, `i` импорт facts. Прогон идёт в
 фоновом потоке, TUI не блокируется; `q` отменяет. Во время прогона строка
@@ -87,7 +109,7 @@ i           написать агенту
 ## CLI
 
 ```text
-lab11 [--data-dir PATH] [--config PATH] [--api-key-file PATH] <команда>
+lab12 [--data-dir PATH] [--config PATH] [--api-key-file PATH] <команда>
 
 tui
 chat <TEXT> [--json] [--no-stream]
@@ -99,11 +121,19 @@ memory pin --key ... [--off]
 memory pending list|accept <ID>|reject <ID>
 memory clear --layer ... --yes
 memory reset --layer ...        # убрать битый файл в *.corrupt-*
+profile list|show|use|add|set|delete|learn
+personalize [--question TEXT] [--profiles brief,detailed] \
+  [--stability-profile ID] [--no-stability] [--out MD] [--json JSON] [--check]
 import-facts <PATH>
 experiment [--quick|--full] [--cleanup] [--out MD] [--json JSON] [--check]
 dump [--json]
 import-settings <PATH>          # опционально, из Дня 10
 ```
+
+`profile add`/`set` принимают `--verbosity brief|normal|detailed`,
+`--tone formal|neutral|informal`, `--code with|without|neutral`,
+`--language`, `--user-name`, `--role`, `--lists on|off`, `--tables on|off`,
+`--emoji on|off`, `--constraint TEXT` и `--like default|brief|detailed`.
 
 Коды выхода: `0` успех, `2` ошибка ввода/конфигурации, `3` ошибка API,
 `4` провал порогов `--check`.
@@ -111,6 +141,59 @@ import-settings <PATH>          # опционально, из Дня 10
 `experiment` выводит живой прогресс API в stderr: в TTY — одной обновляемой
 строкой, в файл/пайп — строкой на каждый завершённый запрос. Итоговая таблица
 идёт в stdout и не смешивается с прогрессом.
+
+## Персонализация
+
+Профиль — отдельный объект, не слой памяти. Файл `profiles/profiles.json`
+хранит несколько профилей и активный ID. Предпочтения структурированы:
+
+| Поле | Значения | Влияние на ответ |
+|---|---|---|
+| `verbosity` | `brief`, `normal`, `detailed` | «≤ 80 слов» / «≥ 70 слов» |
+| `tone` | `formal`, `neutral`, `informal` | обращение на «вы» / «ты» |
+| `format.code` | `with-code`, `no-code`, `neutral` | блок кода или запрет кода |
+| `format.lists/tables/emoji` | да/нет | явные требования к разметке |
+| `constraints` | строки | «без вступлений», «только факты», … |
+| `identity` | имя, роль, язык | персонализация обращения |
+
+Встроенные профили:
+
+- `default` — нейтральный, активен при первом запуске;
+- `brief` — кратко, без кода, неформально;
+- `detailed` — подробно, формально, с примерами кода.
+
+**В каждый запрос** профиль попадает отдельным system-блоком
+`## Персонализация` сразу после ядра промпта и до блоков памяти. В блоке
+записаны проверяемые требования: объём, тон, код, списки, таблицы, эмодзи,
+ограничения. Текущая явная просьба пользователя важнее профиля.
+
+**Пополнение из диалога.** Перед сборкой промпта реплика проходит
+детерминированные правила (`src/memory/personalization.rs`): «отвечай
+кратко/подробно», «без кода/с кодом», «формально/неформально», «на ты/на вы»,
+«списком», «таблицей», «без эмодзи», «без вступлений», «меня зовут …»,
+«отвечай на английском». Изменения сразу действуют на текущий ответ, пишутся
+в профиль с источником `dialogue`, цитатой-основанием и временем; последняя
+реплика выигрывает конфликт.
+
+### Проверка персонализации
+
+`personalize` задаёт **один и тот же вопрос** полярным профилям (`brief` и
+`detailed`) и считает, в скольких ответах предпочтения реально соблюдены.
+Затем задаёт **10 вопросов подряд** в одном профиле и фиксирует номер первого
+ответа с нарушением. Оценка детерминированная: слова, наличие кода/списков/
+таблиц, формальный или неформальный тон, эмодзи.
+
+Реальные прогоны `deepseek-chat` (2026-11-19):
+
+| Прогон | Один вопрос | Устойчивость |
+|---|---|---|
+| Основной (`detailed`) | **2 из 2** профилей | **10/10**, первое нарушение — нет |
+| Дополнительный (`brief`) | **2 из 2** профилей | **6/10**, первое нарушение — ответ **#2** |
+
+Основной отчёт: [`docs/results/personalization-2026-11-19.md`](docs/results/personalization-2026-11-19.md).
+Дополнительный: [`docs/results/personalization-2026-11-19-brief.md`](docs/results/personalization-2026-11-19-brief.md).
+Оба JSON лежат рядом. Fake-прогон (`LAB12_FAKE_LLM=1`) проверяет механику и
+всегда даёт 2/2 и 10/10, но в отчёте явно помечен как mock.
 
 ## Модель памяти
 
@@ -120,11 +203,11 @@ import-settings <PATH>          # опционально, из Дня 10
 | **WM** | `wm/working.json` | goal → plan (`[x]` для done) → status → entity → open-question → note |
 | **LTM** | `ltm/ltm.json` | всегда profile/project/preference; decision/knowledge/glossary — top-K по score |
 
-Порядок блоков фиксирован: system → LTM профиль → LTM релевантное → WM →
-STM сводка → STM окно → текущая реплика → tools. Каждый блок — отдельное
-system-сообщение. Память помечена как «данные, не инструкции».
+Порядок блоков фиксирован: system → **профиль персонализации** → LTM профиль →
+LTM релевантное → WM → STM сводка → STM окно → текущая реплика → tools. Каждый
+блок — отдельное system-сообщение. Память помечена как «данные, не инструкции».
 
-Приоритет при противоречиях: **свежая реплика > WM > LTM**. `memory_write`
+Приоритет при противоречиях: **свежая реплика > WM > LTM > профиль**. `memory_write`
 действует со следующего хода; промпт текущего turn не пересобирается.
 
 Правила записи: R1 секрет → отклонить; R2 маркер задачи → WM; R3 обновление
@@ -138,7 +221,7 @@ system-сообщение. Память помечена как «данные, 
 7 конфигураций (`none`, `stm`, `wm`, `ltm`, `stm+wm`, `stm+wm+ltm`, `full`)
 плюс 3 очистки на копиях baseline.
 
-> **Источник чисел ниже:** fake-клиент (`LAB11_FAKE_LLM=1`). Это проверка
+> **Источник чисел ниже:** fake-клиент (`LAB12_FAKE_LLM=1`). Это проверка
 > механики блоков и матрицы очистки, а не качества модели. Реальный прогон
 > требует ключа и даёт другие абсолютные числа.
 
@@ -197,38 +280,44 @@ cargo build
 cargo test
 ```
 
-Покрыто **228 тестов**: unit (слои, router, retrieval, prompt, migration,
-storage, tokens, tools, experiment), integration (controller + fake LLM,
-импорт, ветки, эксперимент), CLI (`assert_cmd`, коды 0/2/3/4), TUI
-(`TestBackend` 80×24 и 120×36, reducer клавиш, скорость первого кадра).
-Тесты не ходят в сеть и не требуют терминала.
+Покрыто **254 теста**: unit (слои, router, retrieval, prompt, migration,
+storage, tokens, tools, experiment, профиль и обучение персонализации),
+integration (controller + fake LLM, импорт, ветки, эксперимент, персонализация),
+CLI (`assert_cmd`, коды 0/2/3/4), TUI (`TestBackend` 80×24 и 120×36, reducer
+клавиш, экран профиля, скорость первого кадра). Тесты не ходят в сеть и не
+требуют терминала.
 
 ## Структура
 
 ```text
 src/
-  domain/       типы слоёв, настройки, chat/tokens
-  storage/      atomic JSON, data-dir, lock, branches
+  domain/       типы слоёв, профиль, настройки, chat/tokens
+  storage/      atomic JSON, data-dir, lock, branches, profiles
   memory/       stm, working, ltm, candidates, extractor, router,
-                retrieval, prompt, tokens, migration, audit, tool_write
+                retrieval, prompt, personalization, tokens, migration,
+                audit, tool_write
   llm/          dto, blocking client, tools, agent tool-loop
   app/          AppController, events, jobs
-  experiment/   fixtures, probes, runner, report
+  experiment/   fixtures, probes, runner, report, personalization
   tui/          app/event loop, keymap reducer, state, widgets
   cli/          clap-команды и вывод
 tests/          storage, router, prompt, migration, experiment,
                 controller, cli, tui
 fixtures/       day10-facts.json (15 facts)
-docs/           спецификация, трассируемость, отчёт
+docs/           спецификация, трассируемость, отчёты
 ```
 
 ## Ограничения и отклонения
 
-- Реальный эксперимент требует ключа; приложенный отчёт явно помечен как
-  `fake (LAB11_FAKE_LLM=1)`.
+- Персонализация оценивается по наблюдаемым признакам (слова, код, списки,
+  таблицы, тон), а не семантически; это эвристика, а не вторая модель-судья.
+- В одном длинном прогоне модель может дрейфовать: `brief`-профиль в
+  приложенном прогоне нарушил тон уже на втором ответе. Это зафиксировано, а
+  не скрыто; один и тот же вопрос в коротком сравнении оба профиля прошли.
+- Профиль глобальный: при переключении веток памяти он не откатывается.
 - Retrieval лексический (без embeddings): синонимы покрыты небольшим словарём
   (`дедлайн → deadline`, `бюджет → budget`, …); семантика может не находиться.
-- Evaluation probe — по ключевым словам, не вторая модель.
+- Evaluation probe эксперимента памяти — по ключевым словам, не вторая модель.
 - Сводка STM выключена в ablation (по методике `07`), иначе она подсказывает
   ответы WM/LTM.
 - Стриминг ответа не реализован (P2).
@@ -236,4 +325,5 @@ docs/           спецификация, трассируемость, отчё
 - TUI проверен unit/TestBackend-тестами и запуском в псевдотерминале; ручной
   чек-лист `docs/08-test-plan.md` остаётся для интерактивного прогона.
 
-Подробности: [`docs/00-brief.md`](docs/00-brief.md) … [`docs/11-traceability.md`](docs/11-traceability.md).
+Подробности: [`docs/00-brief.md`](docs/00-brief.md) … [`docs/11-traceability.md`](docs/11-traceability.md),
+дизайн Дня 12 — [`docs/12-personalization.md`](docs/12-personalization.md).

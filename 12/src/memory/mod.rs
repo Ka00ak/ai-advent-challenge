@@ -7,6 +7,7 @@ pub mod candidates;
 pub mod extractor;
 pub mod ltm;
 pub mod migration;
+pub mod personalization;
 pub mod prompt;
 pub mod retrieval;
 pub mod router;

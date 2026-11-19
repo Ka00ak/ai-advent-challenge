@@ -12,10 +12,11 @@ pub enum Screen {
     Settings,
     ApiLog,
     Branches,
+    Profile,
 }
 
 impl Screen {
-    pub const ALL: [Screen; 8] = [
+    pub const ALL: [Screen; 9] = [
         Screen::Memory,
         Screen::Pending,
         Screen::Experiment,
@@ -24,6 +25,7 @@ impl Screen {
         Screen::Settings,
         Screen::ApiLog,
         Screen::Branches,
+        Screen::Profile,
     ];
 
     pub fn index(self) -> usize {
@@ -47,6 +49,7 @@ impl Screen {
             Screen::Settings => "Настройки",
             Screen::ApiLog => "API",
             Screen::Branches => "Ветки",
+            Screen::Profile => "Профиль",
         }
     }
 }

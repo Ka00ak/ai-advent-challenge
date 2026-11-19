@@ -54,6 +54,10 @@ impl DataPaths {
         self.root.join("migration").join("report.json")
     }
 
+    pub fn profiles(&self) -> PathBuf {
+        self.root.join("profiles").join("profiles.json")
+    }
+
     pub fn settings(&self) -> PathBuf {
         self.root.join("settings.json")
     }
@@ -83,6 +87,7 @@ impl DataPaths {
             self.root.join("pending"),
             self.root.join("meta"),
             self.root.join("migration"),
+            self.root.join("profiles"),
             self.root.join("branches"),
             self.root.join("logs"),
         ] {
@@ -95,29 +100,32 @@ impl DataPaths {
     }
 }
 
-/// CLI → `LAB11_HOME` → `XDG_DATA_HOME/lab11` → `~/.local/share/lab11`.
+/// CLI → `LAB12_HOME` (или совместимый `LAB11_HOME`) → `XDG_DATA_HOME/lab12`
+/// → `~/.local/share/lab12`.
 pub fn resolve_data_dir(cli: Option<&Path>) -> Result<DataPaths, PathError> {
     if let Some(path) = cli {
         return Ok(DataPaths::new(path));
     }
-    if let Ok(value) = std::env::var("LAB11_HOME") {
-        if !value.trim().is_empty() {
-            return Ok(DataPaths::new(PathBuf::from(value)));
+    for variable in ["LAB12_HOME", "LAB11_HOME"] {
+        if let Ok(value) = std::env::var(variable) {
+            if !value.trim().is_empty() {
+                return Ok(DataPaths::new(PathBuf::from(value)));
+            }
         }
     }
     if let Ok(value) = std::env::var("XDG_DATA_HOME") {
         if !value.trim().is_empty() {
-            return Ok(DataPaths::new(PathBuf::from(value).join("lab11")));
+            return Ok(DataPaths::new(PathBuf::from(value).join("lab12")));
         }
     }
     if let Some(base) = directories::BaseDirs::new() {
-        return Ok(DataPaths::new(base.data_dir().join("lab11")));
+        return Ok(DataPaths::new(base.data_dir().join("lab12")));
     }
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
         .ok_or(PathError::NoHome)?;
     Ok(DataPaths::new(
-        home.join(".local").join("share").join("lab11"),
+        home.join(".local").join("share").join("lab12"),
     ))
 }
 
@@ -136,7 +144,7 @@ mod tests {
 
     #[test]
     fn paths_are_separated_by_layer() {
-        let paths = DataPaths::new("/tmp/lab11-test");
+        let paths = DataPaths::new("/tmp/lab12-test");
         assert!(paths.stm_conversation().ends_with("stm/conversation.json"));
         assert!(paths.working().ends_with("wm/working.json"));
         assert!(paths.ltm().ends_with("ltm/ltm.json"));
@@ -146,8 +154,8 @@ mod tests {
 
     #[test]
     fn cli_path_wins() {
-        let paths = resolve_data_dir(Some(Path::new("/tmp/custom-lab11"))).unwrap();
-        assert_eq!(paths.root, PathBuf::from("/tmp/custom-lab11"));
+        let paths = resolve_data_dir(Some(Path::new("/tmp/custom-lab12"))).unwrap();
+        assert_eq!(paths.root, PathBuf::from("/tmp/custom-lab12"));
     }
 
     #[test]

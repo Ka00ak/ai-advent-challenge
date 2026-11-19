@@ -123,6 +123,10 @@ pub struct TurnOutcome {
     pub breakdown: MemoryBreakdown,
     pub token_stats: TokenStats,
     pub audit: Vec<crate::domain::memory::MemoryWriteEvent>,
+    /// Активный профиль, с которым собран запрос.
+    pub profile_id: Option<String>,
+    /// Изменения профиля, извлечённые из текущей реплики.
+    pub profile_changes: Vec<crate::memory::personalization::ProfileChange>,
 }
 
 #[cfg(test)]

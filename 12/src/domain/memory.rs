@@ -540,6 +540,8 @@ pub struct MemoryCounts {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct MemoryBreakdown {
     pub system_tokens: usize,
+    #[serde(default)]
+    pub profile_tokens: usize,
     pub ltm_profile_tokens: usize,
     pub ltm_relevant_tokens: usize,
     pub wm_tokens: usize,
@@ -558,6 +560,7 @@ pub struct MemoryBreakdown {
 impl MemoryBreakdown {
     pub fn recompute_total(&mut self) {
         self.total_tokens = self.system_tokens
+            + self.profile_tokens
             + self.ltm_profile_tokens
             + self.ltm_relevant_tokens
             + self.wm_tokens

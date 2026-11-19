@@ -1,9 +1,9 @@
 [package]
-name = "lab11"
+name = "lab12"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "День 11 — модель памяти ассистента (Rust TUI + CLI)"
+description = "День 12 — персонализация ассистента поверх модели памяти (Rust TUI + CLI)"
 
 [dependencies]
 ratatui = "0.29"

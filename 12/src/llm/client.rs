@@ -240,6 +240,13 @@ impl ChatClient for FakeChatClient {
             .map(|message| message.text())
             .collect::<Vec<_>>()
             .join("\n");
+        if let Some(style) = detect_profile_style(&context) {
+            return Ok(ChatResponse {
+                content: Some(fake_personalized_answer(&style)),
+                tool_calls: Vec::new(),
+                usage: None,
+            });
+        }
         let answer = fake_experiment_answer(&current, &context).unwrap_or_else(|| {
             if request.tools.is_empty() {
                 "Не знаю.".to_string()
@@ -253,6 +260,101 @@ impl ChatClient for FakeChatClient {
             usage: None,
         })
     }
+}
+
+#[derive(Debug, Clone, Default)]
+struct DetectedProfileStyle {
+    verbosity: String,
+    tone: String,
+    code: String,
+    lists: bool,
+    tables: bool,
+    emoji: bool,
+}
+
+fn detect_profile_style(context: &str) -> Option<DetectedProfileStyle> {
+    if !context.contains("## Персонализация") {
+        return None;
+    }
+    let mut style = DetectedProfileStyle::default();
+    for line in context.lines() {
+        let line = line.trim();
+        let lower = line.to_lowercase();
+        let value = lower
+            .split_once(':')
+            .map(|(_, value)| value.trim().to_string())
+            .unwrap_or_default();
+        if lower.starts_with("- объём:") {
+            style.verbosity = value;
+        } else if lower.starts_with("- тон:") {
+            style.tone = value;
+        } else if lower.starts_with("- код:") {
+            style.code = value;
+        } else if lower.starts_with("- списки:") {
+            style.lists = value.starts_with("да") || value.starts_with("использовать");
+        } else if lower.starts_with("- таблицы:") {
+            style.tables = value.starts_with("да") || value.starts_with("использовать");
+        } else if lower.starts_with("- эмодзи:") {
+            style.emoji = value.starts_with("да") || value.starts_with("использовать");
+        }
+    }
+    Some(style)
+}
+
+/// Детерминированный ответ, соблюдающий профиль. Нужен только для
+/// offline-проверки механики персонализации; в отчёте такой прогон помечен
+/// как fake.
+fn fake_personalized_answer(style: &DetectedProfileStyle) -> String {
+    let brief = style.verbosity.contains("кратко");
+    let detailed = style.verbosity.contains("подробно");
+    let formal = style.tone.contains("формальный");
+    let informal = style.tone.contains("неформальный");
+    let with_code = style.code.contains("с примерами") || style.code.contains("с кодом");
+    let no_code = style.code.contains("без кода");
+
+    if brief && no_code && informal && !style.lists && !style.tables {
+        return "Слушай, просто прочитай файл через std::fs::read_to_string, потом разбери через serde_json::from_str::<Value>. Ошибки возвращай через Result, не паникуй. Коротко и по делу.".to_string();
+    }
+
+    if detailed && with_code && formal {
+        let mut answer = "Для безопасного чтения JSON в Rust рекомендуется разделить ввод-вывод и разбор данных, а ошибки возвращать вызывающему коду через Result. Такой подход позволяет избежать паники и корректно обработать отсутствующий файл или некорректный JSON. Сначала файл читается функцией std::fs::read_to_string, затем содержимое разбирается через serde_json::from_str::<serde_json::Value>. Если файла нет или JSON повреждён, функция возвращает ошибку, а вызывающий код сам решает, как её показать пользователю.\n\n```rust\nuse std::fs;\nuse serde_json::Value;\n\nfn read_json(path: &str) -> Result<Value, Box<dyn std::error::Error>> {\n    let data = fs::read_to_string(path)?;\n    let value = serde_json::from_str(&data)?;\n    Ok(value)\n}\n```\n\nОграничения: для больших файлов используйте потоковый парсер, а для сетевых источников — таймауты. Такой вариант подходит для учебного примера и небольшого сервиса.".to_string();
+        if style.tables {
+            answer.push_str("\n\n| Шаг | Что проверяем |\n|---|---|\n| 1 | файл существует и доступен |\n| 2 | JSON синтаксически корректен |\n| 3 | ошибка обработана без паники |");
+        }
+        return answer;
+    }
+
+    let mut parts = Vec::new();
+    if informal {
+        parts.push("Слушай, тут всё просто: читай файл и возвращай Result.".to_string());
+    } else if formal {
+        parts.push(
+            "Для решения этой задачи рекомендуется вернуть ошибку вызывающему коду.".to_string(),
+        );
+    } else {
+        parts.push("Прочитайте файл и обработайте ошибку через Result.".to_string());
+    }
+    if detailed {
+        parts.push("Сначала отделите ввод-вывод от разбора JSON, затем проверьте корректность данных и только после этого используйте результат. Явная обработка ошибок делает поведение программы предсказуемым и упрощает тестирование.".to_string());
+    }
+    if with_code {
+        parts.push("```rust\nuse std::fs;\nfn read(path: &str) -> std::io::Result<String> {\n    fs::read_to_string(path)\n}\n```".to_string());
+    } else if no_code {
+        parts.push(
+            "Код не привожу: используйте std::fs::read_to_string и serde_json::from_str."
+                .to_string(),
+        );
+    }
+    if style.lists {
+        parts.push("1. Прочитайте файл.\n2. Разберите JSON.\n3. Обработайте ошибку.".to_string());
+    }
+    if style.tables {
+        parts.push("| Шаг | Действие |\n|---|---|\n| 1 | чтение |\n| 2 | разбор |".to_string());
+    }
+    if style.emoji {
+        parts.push("🙂".to_string());
+    }
+    parts.join("\n\n")
 }
 
 /// Ответы по 18 probe из `docs/07-verification.md`.

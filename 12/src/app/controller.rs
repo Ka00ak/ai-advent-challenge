@@ -12,7 +12,12 @@ use crate::domain::memory::{
     ChatMessage, LtmKind, LtmState, MemoryBreakdown, MemoryBundle, MemoryLayer, MemorySource,
     PendingWrite, StmState, WmKind, WmStatus, WorkingMemoryState, WriteOp,
 };
+use crate::domain::profile::{ProfileState, UserProfile};
 use crate::domain::settings::{Approval, ExtractionMode, Settings};
+use crate::experiment::personalization::{
+    PersonalizationError, PersonalizationOptions, PersonalizationProgress, PersonalizationReport,
+    run_personalization, save_personalization_report,
+};
 use crate::experiment::report::save_report;
 use crate::experiment::runner::{
     ExperimentError, ExperimentOptions, ExperimentProgress, ExperimentReport, run_experiment,
@@ -32,6 +37,7 @@ use crate::memory::ltm::{
 use crate::memory::migration::{
     MigrationError, MigrationReport, run_import, save_report as save_migration_report,
 };
+use crate::memory::personalization::{ProfileChange, learn_from_message};
 use crate::memory::prompt::PromptError;
 use crate::memory::router::{RouteError, RouteInput, queue_pending, route_candidates};
 use crate::memory::stm::select_stm_window;
@@ -46,8 +52,8 @@ use crate::storage::atomic::{SaveError, atomic_write_json};
 use crate::storage::branches::{BranchFile, BranchSnapshot};
 use crate::storage::paths::DataPaths;
 use crate::storage::{
-    LoadError, acquire_lock, load_branch_file, load_bundle, save_branch_file, save_bundle,
-    save_settings, save_stm,
+    LoadError, acquire_lock, load_branch_file, load_bundle, load_profiles, save_branch_file,
+    save_bundle, save_profiles, save_settings, save_stm,
 };
 
 #[derive(Clone)]
@@ -93,6 +99,8 @@ pub enum AppError {
     Migration(#[from] MigrationError),
     #[error("ошибка эксперимента: {0}")]
     Experiment(#[from] ExperimentError),
+    #[error("ошибка персонализации: {0}")]
+    Personalization(#[from] PersonalizationError),
     #[error("неверный ввод: {0}")]
     Invalid(String),
     #[error("не найдено: {0}")]
@@ -104,9 +112,11 @@ pub enum AppError {
 pub struct AppController {
     runtime: AppRuntime,
     bundle: MemoryBundle,
+    profiles: ProfileState,
     pub audit: SessionAudit,
     pub exchanges: Vec<LlmExchange>,
     pub last_breakdown: MemoryBreakdown,
+    pub last_profile_changes: Vec<ProfileChange>,
 }
 
 impl AppController {
@@ -115,15 +125,27 @@ impl AppController {
             .paths
             .ensure()
             .map_err(|error| AppError::Io(error.to_string()))?;
+        let now = Utc::now();
         let mut bundle = load_bundle(&runtime.paths)?;
-        prune_wm(&mut bundle.wm, &runtime.settings.memory.wm, Utc::now());
+        prune_wm(&mut bundle.wm, &runtime.settings.memory.wm, now);
         crate::memory::ltm::prune_ltm(&mut bundle.ltm, &runtime.settings.memory.ltm);
+        let (mut profiles, profiles_missing) = match load_profiles(&runtime.paths) {
+            Ok(profiles) => (profiles, false),
+            Err(error) if error.is_not_found() => (ProfileState::with_presets(now), true),
+            Err(error) => return Err(AppError::Load(error)),
+        };
+        let profiles_changed = profiles.ensure_defaults(now);
+        if profiles_changed || profiles_missing {
+            save_profiles(&runtime.paths, &profiles)?;
+        }
         Ok(Self {
             runtime,
             bundle,
+            profiles,
             audit: SessionAudit::default(),
             exchanges: Vec::new(),
             last_breakdown: MemoryBreakdown::default(),
+            last_profile_changes: Vec::new(),
         })
     }
 
@@ -141,6 +163,86 @@ impl AppController {
 
     pub fn settings_mut(&mut self) -> &mut Settings {
         &mut self.runtime.settings
+    }
+
+    pub fn profiles(&self) -> &ProfileState {
+        &self.profiles
+    }
+
+    pub fn active_profile(&self) -> Option<&UserProfile> {
+        self.profiles.active_profile()
+    }
+
+    pub fn profile(&self, id: Option<&str>) -> Option<&UserProfile> {
+        match id {
+            Some(id) => self.profiles.find(id),
+            None => self.profiles.active_profile(),
+        }
+    }
+
+    pub fn save_profiles_state(&self) -> Result<(), AppError> {
+        save_profiles(&self.runtime.paths, &self.profiles)?;
+        Ok(())
+    }
+
+    pub fn set_active_profile(&mut self, id: &str) -> Result<(), AppError> {
+        if !self.profiles.set_active(id, Utc::now()) {
+            return Err(AppError::NotFound(format!("профиль {id}")));
+        }
+        self.save_profiles_state()
+    }
+
+    pub fn upsert_profile(&mut self, mut profile: UserProfile) -> Result<(), AppError> {
+        if profile.id.trim().is_empty() {
+            return Err(AppError::Invalid("id профиля не может быть пустым".into()));
+        }
+        let mut fields = vec![
+            profile.id.clone(),
+            profile.title.clone(),
+            profile.identity.name.clone().unwrap_or_default(),
+            profile.identity.role.clone().unwrap_or_default(),
+            profile.identity.language.clone(),
+        ];
+        fields.extend(profile.constraints.iter().cloned());
+        if fields.iter().any(|value| contains_secret(value)) {
+            return Err(AppError::Invalid(
+                "секрет нельзя сохранить в профиль".into(),
+            ));
+        }
+        let existing = self.profiles.find(&profile.id).is_some();
+        if existing {
+            profile.revision = profile.revision.saturating_add(1);
+        }
+        profile.updated_at = Utc::now();
+        if profile.created_at > profile.updated_at {
+            profile.created_at = profile.updated_at;
+        }
+        self.profiles.upsert(profile, Utc::now());
+        self.save_profiles_state()
+    }
+
+    pub fn delete_profile(&mut self, id: &str) -> Result<(), AppError> {
+        if self.profiles.profiles.len() <= 1 {
+            return Err(AppError::Invalid(
+                "нельзя удалить единственный профиль".into(),
+            ));
+        }
+        if !self.profiles.remove(id, Utc::now()) {
+            return Err(AppError::NotFound(format!("профиль {id}")));
+        }
+        self.save_profiles_state()
+    }
+
+    pub fn learn_profile_from_text(&mut self, text: &str) -> Result<Vec<ProfileChange>, AppError> {
+        let now = Utc::now();
+        let Some(profile) = self.profiles.active_profile_mut() else {
+            return Err(AppError::Invalid("нет активного профиля".into()));
+        };
+        let changes = learn_from_message(profile, text, now);
+        if !changes.is_empty() {
+            self.save_profiles_state()?;
+        }
+        Ok(changes)
     }
 
     pub fn save_settings(&self) -> Result<(), AppError> {
@@ -201,6 +303,18 @@ impl AppController {
         self.bundle.stm.messages.push(user_message.clone());
         self.bundle.stm.updated_at = now;
 
+        // Профиль пополняется из диалога до сборки промпта: новое
+        // предпочтение действует уже на этот ответ.
+        let profile_changes = match self.profiles.active_profile_mut() {
+            Some(profile) => learn_from_message(profile, &safe_text, now),
+            None => Vec::new(),
+        };
+        if !profile_changes.is_empty() {
+            self.save_profiles_state()?;
+        }
+        self.last_profile_changes = profile_changes.clone();
+        let profile_snapshot = self.profiles.active_profile().cloned();
+
         let mode = self.runtime.settings.memory.extraction_mode;
         let result = match mode {
             ExtractionMode::Local => self.route_with(&LocalCandidateExtractor, now),
@@ -239,11 +353,14 @@ impl AppController {
                 tools: &tools,
                 client: self.runtime.client.as_ref(),
                 cancel: &cancel,
+                profile: profile_snapshot.as_ref(),
             },
             progress,
         );
         match turn {
-            Ok(outcome) => {
+            Ok(mut outcome) => {
+                outcome.profile_id = profile_snapshot.as_ref().map(|profile| profile.id.clone());
+                outcome.profile_changes = profile_changes.clone();
                 self.bundle = outcome.memory.clone();
                 self.push_audit_events(outcome.audit.clone());
                 self.last_breakdown = outcome.breakdown.clone();
@@ -637,9 +754,71 @@ impl AppController {
         Ok(())
     }
 
+    pub fn run_personalization(
+        &mut self,
+        options: PersonalizationOptions,
+        progress: &mut dyn FnMut(PersonalizationProgress),
+    ) -> Result<PersonalizationReport, AppError> {
+        self.run_personalization_cancellable(options, &AtomicBool::new(false), progress)
+    }
+
+    pub fn run_personalization_cancellable(
+        &mut self,
+        options: PersonalizationOptions,
+        cancel: &AtomicBool,
+        progress: &mut dyn FnMut(PersonalizationProgress),
+    ) -> Result<PersonalizationReport, AppError> {
+        let mut report = run_personalization(
+            &self.profiles,
+            &self.runtime.settings,
+            self.runtime.client.as_ref(),
+            &options,
+            cancel,
+            progress,
+        )?;
+        report.data_dir = Some(self.runtime.paths.root.display().to_string());
+        if fake_llm_enabled() {
+            report.source = "fake (LAB12_FAKE_LLM=1)".into();
+        }
+        let (prompt_tokens, completion_tokens, cost_usd) = report.usage_totals();
+        self.record_exchange(
+            ExchangeKind::Experiment,
+            &TokenStats {
+                prompt_tokens,
+                completion_tokens,
+                total_tokens: prompt_tokens + completion_tokens,
+                cost_usd,
+                reported: true,
+            },
+            None,
+            None,
+            if report.errors.is_empty() {
+                "ok"
+            } else {
+                "partial"
+            },
+        );
+        Ok(report)
+    }
+
+    pub fn save_personalization_report(
+        &self,
+        report: &PersonalizationReport,
+        out: &Path,
+        json: &Path,
+    ) -> Result<(), AppError> {
+        save_personalization_report(report, out, json)?;
+        Ok(())
+    }
+
     pub fn preview_breakdown(&self) -> MemoryBreakdown {
         let tools = ToolRegistry::default_registry();
-        estimate_breakdown(&self.bundle, &self.runtime.settings, &tools)
+        estimate_breakdown(
+            &self.bundle,
+            &self.runtime.settings,
+            &tools,
+            self.profiles.active_profile(),
+        )
     }
 
     pub fn branch_file(&self) -> Result<BranchFile, AppError> {
@@ -1058,8 +1237,14 @@ impl AppController {
     pub fn estimate_prompt_tokens(&self) -> usize {
         let tools = ToolRegistry::default_registry();
         let schemas = tools.schemas();
-        let _ = &schemas;
-        estimate_messages_tokens(&self.bundle.stm.messages) + estimate_tools_tokens(&schemas)
+        let profile_tokens = self
+            .profiles
+            .active_profile()
+            .map(|profile| crate::memory::personalization::render_profile_block(profile).tokens)
+            .unwrap_or(0);
+        estimate_messages_tokens(&self.bundle.stm.messages)
+            + estimate_tools_tokens(&schemas)
+            + profile_tokens
     }
 
     pub fn stm_window(&self) -> crate::domain::memory::StmWindow {
@@ -1131,4 +1316,10 @@ fn wm_kind_for_key(key: &str) -> WmKind {
 
 pub fn working_is_empty(state: &WorkingMemoryState) -> bool {
     state.items.is_empty()
+}
+
+pub fn fake_llm_enabled() -> bool {
+    ["LAB12_FAKE_LLM", "LAB11_FAKE_LLM"]
+        .iter()
+        .any(|name| std::env::var(name).as_deref() == Ok("1"))
 }

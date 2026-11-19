@@ -325,6 +325,13 @@ fn execute_action(
                 Err(error) => state.error_modal(error.to_string()),
             }
         }
+        UiAction::UseProfile(id) => match controller.set_active_profile(&id) {
+            Ok(()) => {
+                state.refresh(controller);
+                state.set_banner(format!("активный профиль: {id}"));
+            }
+            Err(error) => state.error_modal(error.to_string()),
+        },
         UiAction::Error(message) => {
             state.error_modal(message);
         }
@@ -353,9 +360,22 @@ fn handle_app_event(
         AppEvent::ChatFinished(outcome) => {
             let outcome = *outcome;
             state.record_turn(&outcome);
+            let profile_note = if outcome.profile_changes.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    " · профиль обновлён: {}",
+                    outcome
+                        .profile_changes
+                        .iter()
+                        .map(|change| change.key.clone())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            };
             state.last_turn = Some(outcome.clone());
             state.status = format!(
-                "ответ: {}",
+                "ответ: {}{profile_note}",
                 outcome.final_text.chars().take(80).collect::<String>()
             );
             state.banner = Some((outcome.final_text.clone(), false));
@@ -429,7 +449,7 @@ fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
         .map(|label| format!(" [busy: {label}]"))
         .unwrap_or_default();
     let header = format!(
-        " lab11 · {} · {}{}",
+        " lab12 · {} · {}{}",
         state.settings.model,
         state.data_dir.display(),
         busy
@@ -467,6 +487,7 @@ fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
         Screen::Settings => widgets::settings::draw(frame, chunks[2], state),
         Screen::ApiLog => widgets::api_log::draw(frame, chunks[2], state),
         Screen::Branches => widgets::branches::draw(frame, chunks[2], state),
+        Screen::Profile => widgets::profile::draw(frame, chunks[2], state),
     }
 
     let footer = footer_lines(state);
@@ -533,6 +554,7 @@ fn footer_lines(state: &AppState) -> Vec<Line<'static>> {
         Screen::Settings => "Enter изменить · s сохранить · Tab поле",
         Screen::ApiLog => "f фильтр · Enter детали · e экспорт",
         Screen::Branches => "c checkpoint · b две ветки · Enter переключить · x удалить",
+        Screen::Profile => "↑↓ выбор · Enter/u активировать · g/G",
     };
     let second = if let Some(busy) = state.busy {
         format!("{busy}: идёт job · q/Ctrl+C — отмена и выход · ? помощь")

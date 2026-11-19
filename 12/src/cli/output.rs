@@ -2,6 +2,8 @@
 
 use crate::domain::chat::{LlmExchange, TokenStats, UsageSummary, summarize_exchanges};
 use crate::domain::memory::{MemoryBundle, MemoryLayer};
+use crate::domain::profile::UserProfile;
+use crate::experiment::personalization::PersonalizationReport;
 use crate::experiment::runner::ExperimentReport;
 use crate::memory::tokens::format_tokens;
 
@@ -107,6 +109,7 @@ pub fn print_token_stats(stats: &TokenStats) {
 pub fn print_breakdown(breakdown: &crate::domain::memory::MemoryBreakdown) {
     println!("Breakdown:");
     println!("  system      {}", breakdown.system_tokens);
+    println!("  профиль     {}", breakdown.profile_tokens);
     println!("  LTM профиль {}", breakdown.ltm_profile_tokens);
     println!("  LTM релевант {}", breakdown.ltm_relevant_tokens);
     println!("  WM          {}", breakdown.wm_tokens);
@@ -214,6 +217,115 @@ pub fn print_experiment(report: &ExperimentReport) {
             "пороги пройдены"
         } else {
             "пороги не пройдены"
+        }
+    );
+}
+
+pub fn print_profile(profile: &UserProfile, active: Option<&str>) {
+    println!(
+        "{} {} · {}",
+        if active == Some(profile.id.as_str()) {
+            "*"
+        } else {
+            " "
+        },
+        profile.id,
+        profile.title
+    );
+    println!("  предпочтения: {}", profile.summary());
+    println!(
+        "  пользователь: {} · роль: {} · язык: {}",
+        profile.identity.name.as_deref().unwrap_or("—"),
+        profile.identity.role.as_deref().unwrap_or("—"),
+        profile.identity.language
+    );
+    if !profile.constraints.is_empty() {
+        println!("  ограничения: {}", profile.constraints.join("; "));
+    }
+    println!(
+        "  источник: {} · revision: {} · обновлён: {}",
+        profile.source.as_str(),
+        profile.revision,
+        profile.updated_at.to_rfc3339()
+    );
+    if !profile.preferences.is_empty() {
+        println!("  история изменений:");
+        for preference in profile.preferences.iter().rev().take(8) {
+            println!(
+                "    {} = {} ({}{})",
+                preference.key,
+                preference.value,
+                preference.source.as_str(),
+                preference
+                    .evidence
+                    .as_deref()
+                    .map(|evidence| format!(": {evidence}"))
+                    .unwrap_or_default()
+            );
+        }
+    }
+}
+
+pub fn print_personalization(report: &PersonalizationReport) {
+    println!(
+        "Персонализация · {} · запросов {} · источник {}",
+        report.model,
+        report.total_requests,
+        if report.source.is_empty() {
+            "api"
+        } else {
+            &report.source
+        }
+    );
+    let (prompt, completion, cost) = report.usage_totals();
+    println!(
+        "API: prompt {} · completion {} · всего {} · ${:.6}",
+        format_tokens(prompt),
+        format_tokens(completion),
+        format_tokens(prompt + completion),
+        cost
+    );
+    println!();
+    println!("Профиль        Предпочтения                                      Соблюдено");
+    for profile in &report.profiles {
+        println!(
+            "{:<14} {:<48} {}",
+            profile.profile_id,
+            profile.preferences,
+            if profile.compliant { "да" } else { "нет" }
+        );
+    }
+    println!(
+        "Соблюдено профилей: {} из {}",
+        report.compliant_profiles, report.total_profiles
+    );
+    if let Some(stability) = &report.stability {
+        println!();
+        println!(
+            "Устойчивость ({}) · {}/{} · первое нарушение: {}",
+            stability.profile_id,
+            stability.compliant_count,
+            stability.total,
+            stability
+                .first_violation
+                .map(|index| format!("#{index}"))
+                .unwrap_or_else(|| "нет".into())
+        );
+    }
+    for threshold in &report.thresholds {
+        println!(
+            "  [{}] {} — {}",
+            if threshold.ok { "ok" } else { "FAIL" },
+            threshold.name,
+            threshold.detail
+        );
+    }
+    println!(
+        "Итог: {}",
+        if report.passed() {
+            "персонализация подтверждена"
+        } else {
+            "есть нарушения предпочтений"
         }
     );
 }

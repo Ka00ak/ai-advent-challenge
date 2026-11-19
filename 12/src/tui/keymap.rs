@@ -65,6 +65,7 @@ pub enum UiAction {
     ExportHistory(PathBuf),
     ImportHistory(PathBuf),
     ExportApi(PathBuf),
+    UseProfile(String),
     Error(String),
 }
 
@@ -117,7 +118,7 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             }
             UiAction::None
         }
-        KeyCode::Char(ch @ '1'..='8') => {
+        KeyCode::Char(ch @ '1'..='9') => {
             if let Some(index) = ch.to_digit(10) {
                 if let Some(screen) = Screen::from_index(index as usize - 1) {
                     state.screen = screen;
@@ -150,6 +151,7 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             Screen::Settings => handle_settings(state, key),
             Screen::ApiLog => handle_api(state, key),
             Screen::Branches => handle_branches(state, key),
+            Screen::Profile => handle_profile(state, key),
         },
     }
 }
@@ -447,6 +449,11 @@ fn move_selection(state: &mut AppState, delta: isize) {
         Screen::Branches => apply(
             &mut state.branch_selection,
             state.branch_file.branches.len(),
+            delta,
+        ),
+        Screen::Profile => apply(
+            &mut state.profile_selection,
+            state.profiles.profiles.len(),
             delta,
         ),
     }
@@ -856,6 +863,24 @@ fn handle_branches(state: &mut AppState, key: KeyEvent) -> UiAction {
             }
             None => UiAction::None,
         },
+        _ => UiAction::None,
+    }
+}
+
+fn handle_profile(state: &mut AppState, key: KeyEvent) -> UiAction {
+    match key.code {
+        KeyCode::Enter | KeyCode::Char('u') => state
+            .selected_profile_id()
+            .map(UiAction::UseProfile)
+            .unwrap_or(UiAction::None),
+        KeyCode::Char('g') => {
+            state.profile_selection = 0;
+            UiAction::None
+        }
+        KeyCode::Char('G') => {
+            state.profile_selection = state.profiles.profiles.len().saturating_sub(1);
+            UiAction::None
+        }
         _ => UiAction::None,
     }
 }

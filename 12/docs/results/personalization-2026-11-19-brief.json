@@ -1,0 +1,666 @@
+{
+  "started_at": "2026-11-19T03:02:26.843991589Z",
+  "finished_at": "2026-11-19T03:02:51.487171600Z",
+  "model": "deepseek-chat",
+  "base_url": "https://api.deepseek.com",
+  "source": "api",
+  "data_dir": "/tmp/lab12-personalize-real-brief",
+  "question": "Как в Rust безопасно прочитать JSON-файл и обработать ошибку?",
+  "profiles": [
+    {
+      "profile_id": "brief",
+      "profile_title": "Кратко, без кода, неформально",
+      "preferences": "кратко; неформальный, на «ты»; без кода; списки=нет; таблицы=нет; эмодзи=нет",
+      "answer": "Читаешь файл через fs::read_to_string, ошибку ловишь через match или `?` в функции, возвращающей Result. Потом парсишь serde_json::from_str в Result и тоже обрабатываешь. Оба шага дают Result, так что аккуратно пробрасываешь или матчишь на Err.",
+      "prompt_tokens": 436,
+      "completion_tokens": 82,
+      "compliant": true,
+      "checks": [
+        {
+          "name": "объём",
+          "expected": "≤ 80 слов",
+          "observed": "33 слов",
+          "ok": true
+        },
+        {
+          "name": "тон",
+          "expected": "есть «ты/тебе/слушай»",
+          "observed": "читаешь, парсишь, обрабатываешь, ловишь, пробрасываешь, матчишь",
+          "ok": true
+        },
+        {
+          "name": "код",
+          "expected": "без кода",
+          "observed": "нет",
+          "ok": true
+        },
+        {
+          "name": "списки",
+          "expected": "нет",
+          "observed": "нет",
+          "ok": true
+        },
+        {
+          "name": "таблицы",
+          "expected": "нет",
+          "observed": "нет",
+          "ok": true
+        },
+        {
+          "name": "эмодзи",
+          "expected": "нет",
+          "observed": "нет",
+          "ok": true
+        },
+        {
+          "name": "ограничение",
+          "expected": "без вступлений",
+          "observed": "без вступления",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "profile_id": "detailed",
+      "profile_title": "Подробно, с кодом, формально",
+      "preferences": "подробно; формальный, на «вы»; с примерами кода; списки=нет; таблицы=нет; эмодзи=нет",
+      "answer": "Для безопасного чтения JSON-файла в Rust используется комбинация `std::fs::read_to_string` (или `File` + `BufReader`) и библиотеки `serde_json`. Ключевой момент — не вызывать `unwrap()`/`expect()` на операциях ввода-вывода и парсинга, а возвращать `Result` и обрабатывать ошибки через `?` либо `match`. Ниже приведён полный пример с типизированной структурой, обработкой ошибок и собственным типом ошибки.\n\n```rust\nuse std::fs::File;\nuse std::io::BufReader;\nuse std::path::Path;\nuse serde::Deserialize;\n\n#[derive(Debug, Deserialize)]\nstruct Config {\n    name: String,\n    port: u16,\n    #[serde(default)]\n    debug: bool,\n}\n\n#[derive(Debug)]\nenum AppError {\n    Io(std::io::Error),\n    Json(serde_json::Error),\n}\n\nimpl From<std::io::Error> for AppError {\n    fn from(e: std::io::Error) -> Self { AppError::Io(e) }\n}\n\nimpl From<serde_json::Error> for AppError {\n    fn from(e: serde_json::Error) -> Self { AppError::Json(e) }\n}\n\nfn load_config<P: AsRef<Path>>(path: P) -> Result<Config, AppError> {\n    let file = File::open(path)?;\n    let reader = BufReader::new(file);\n    let config: Config = serde_json::from_reader(reader)?;\n    Ok(config)\n}\n\nfn main() {\n    match load_config(\"config.json\") {\n        Ok(cfg) => println!(\"Загружено: {:?}\", cfg),\n        Err(AppError::Io(e)) => eprintln!(\"Ошибка ввода-вывода: {e}\"),\n        Err(AppError::Json(e)) => eprintln!(\"Ошибка JSON: {e}\"),\n    }\n}\n```\n\nРазбор подхода: `File::open` и `serde_json::from_reader` возвращают `Result`, а оператор `?` автоматически пробрасывает ошибку наверх, преобразуя её через реализации `From`. Это позволяет различать ошибки ввода-вывода (файл не найден, нет прав) и ошибки парсинга (некорректный JSON, несоответствие схеме). Для небольших файлов допустимо `std::fs::read_to_string` + `serde_json::from_str`, что даёт более понятные сообщения об ошибках с указанием строки и столбца. Если нужен контекст (например, путь к файлу в сообщении), применяйте крейт `anyhow` или `thiserror` для эргономичных ошибок.\n\nОграничения: пример не покрывает потоковую обработку очень больших JSON (тогда стоит рассмотреть `serde_json::Deserializer` с итераторами), не показывает асинхронный вариант (`tokio::fs` + `serde_json::from_slice`), не рассматривает валидацию бизнес-правил после десериализации и не демонстрирует работу с `ser",
+      "prompt_tokens": 435,
+      "completion_tokens": 700,
+      "compliant": true,
+      "checks": [
+        {
+          "name": "объём",
+          "expected": "≥ 70 слов",
+          "observed": "225 слов",
+          "ok": true
+        },
+        {
+          "name": "тон",
+          "expected": "без «ты/тебе/слушай»",
+          "observed": "формальный",
+          "ok": true
+        },
+        {
+          "name": "код",
+          "expected": "есть код",
+          "observed": "да",
+          "ok": true
+        },
+        {
+          "name": "списки",
+          "expected": "нет",
+          "observed": "нет",
+          "ok": true
+        },
+        {
+          "name": "таблицы",
+          "expected": "нет",
+          "observed": "нет",
+          "ok": true
+        },
+        {
+          "name": "эмодзи",
+          "expected": "нет",
+          "observed": "нет",
+          "ok": true
+        }
+      ]
+    }
+  ],
+  "compliant_profiles": 2,
+  "total_profiles": 2,
+  "stability": {
+    "profile_id": "brief",
+    "profile_title": "Кратко, без кода, неформально",
+    "steps": [
+      {
+        "index": 1,
+        "question": "Как в Rust безопасно прочитать JSON-файл и обработать ошибку?",
+        "answer": "Читаешь файл через std::fs::read_to_string, а разбор — через serde_json::from_str в функцию, возвращающую Result. Ошибки файла и парсинга оборачиваешь в свой enum через thiserror или ? с Box<dyn Error>. Так не паникуешь, а обрабатываешь оба случая явно.",
+        "prompt_tokens": 436,
+        "completion_tokens": 84,
+        "compliant": true,
+        "checks": [
+          {
+            "name": "объём",
+            "expected": "≤ 80 слов",
+            "observed": "34 слов",
+            "ok": true
+          },
+          {
+            "name": "тон",
+            "expected": "есть «ты/тебе/слушай»",
+            "observed": "читаешь, обрабатываешь, оборачиваешь, паникуешь",
+            "ok": true
+          },
+          {
+            "name": "код",
+            "expected": "без кода",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "списки",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "таблицы",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "эмодзи",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "ограничение",
+            "expected": "без вступлений",
+            "observed": "без вступления",
+            "ok": true
+          }
+        ]
+      },
+      {
+        "index": 2,
+        "question": "Чем Result отличается от panic! в Rust?",
+        "answer": "Result — это значение, которое возвращается и которое вызывающий обязан обработать: ошибка становится частью типа функции. panic! разворачивает стек и роняет поток, его нельзя перехватить нормально. Result для ожидаемых ошибок, panic — для багов и нарушенных инвариантов.",
+        "prompt_tokens": 534,
+        "completion_tokens": 69,
+        "compliant": false,
+        "checks": [
+          {
+            "name": "объём",
+            "expected": "≤ 80 слов",
+            "observed": "35 слов",
+            "ok": true
+          },
+          {
+            "name": "тон",
+            "expected": "есть «ты/тебе/слушай»",
+            "observed": "нейтральный",
+            "ok": false
+          },
+          {
+            "name": "код",
+            "expected": "без кода",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "списки",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "таблицы",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "эмодзи",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "ограничение",
+            "expected": "без вступлений",
+            "observed": "без вступления",
+            "ok": true
+          }
+        ]
+      },
+      {
+        "index": 3,
+        "question": "Как обработать ошибку serde_json при разборе JSON?",
+        "answer": "serde_json::from_str возвращает Result<T, serde_json::Error>, так что матчишь Err или пробрасываешь через ?. В ошибке есть line и column — удобно для логов. Если нужен свой тип ошибки, добавь вариант с #[from] serde_json::Error.",
+        "prompt_tokens": 622,
+        "completion_tokens": 69,
+        "compliant": true,
+        "checks": [
+          {
+            "name": "объём",
+            "expected": "≤ 80 слов",
+            "observed": "30 слов",
+            "ok": true
+          },
+          {
+            "name": "тон",
+            "expected": "есть «ты/тебе/слушай»",
+            "observed": "матчишь, пробрасываешь",
+            "ok": true
+          },
+          {
+            "name": "код",
+            "expected": "без кода",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "списки",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "таблицы",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "эмодзи",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "ограничение",
+            "expected": "без вступлений",
+            "observed": "без вступления",
+            "ok": true
+          }
+        ]
+      },
+      {
+        "index": 4,
+        "question": "Как проверить, что файл существует, перед чтением?",
+        "answer": "Через std::path::Path::exists или try_exists — второй возвращает Result и корректнее обрабатывает ошибки доступа. Но надёжнее просто читать файл и ловить io::Error с kind NotFound: между проверкой и чтением файл может исчезнуть.",
+        "prompt_tokens": 709,
+        "completion_tokens": 64,
+        "compliant": false,
+        "checks": [
+          {
+            "name": "объём",
+            "expected": "≤ 80 слов",
+            "observed": "30 слов",
+            "ok": true
+          },
+          {
+            "name": "тон",
+            "expected": "есть «ты/тебе/слушай»",
+            "observed": "нейтральный",
+            "ok": false
+          },
+          {
+            "name": "код",
+            "expected": "без кода",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "списки",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "таблицы",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "эмодзи",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "ограничение",
+            "expected": "без вступлений",
+            "observed": "без вступления",
+            "ok": true
+          }
+        ]
+      },
+      {
+        "index": 5,
+        "question": "Что делает оператор ? в Rust?",
+        "answer": "? разворачивает Result или Option: при Ok/Some достаёт значение, при ошибке делает ранний return с конвертацией через From. Работает только в функциях, возвращающих совместимый тип.",
+        "prompt_tokens": 785,
+        "completion_tokens": 51,
+        "compliant": false,
+        "checks": [
+          {
+            "name": "объём",
+            "expected": "≤ 80 слов",
+            "observed": "24 слов",
+            "ok": true
+          },
+          {
+            "name": "тон",
+            "expected": "есть «ты/тебе/слушай»",
+            "observed": "нейтральный",
+            "ok": false
+          },
+          {
+            "name": "код",
+            "expected": "без кода",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "списки",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "таблицы",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "эмодзи",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "ограничение",
+            "expected": "без вступлений",
+            "observed": "без вступления",
+            "ok": true
+          }
+        ]
+      },
+      {
+        "index": 6,
+        "question": "Как вернуть ошибку из функции в Rust?",
+        "answer": "Либо Result<T, E> и return Err(e) (или ? для проброса), либо panic! если это баг. Для своих ошибок заведи enum с impl From для конвертации.",
+        "prompt_tokens": 743,
+        "completion_tokens": 43,
+        "compliant": false,
+        "checks": [
+          {
+            "name": "объём",
+            "expected": "≤ 80 слов",
+            "observed": "24 слов",
+            "ok": true
+          },
+          {
+            "name": "тон",
+            "expected": "есть «ты/тебе/слушай»",
+            "observed": "нейтральный",
+            "ok": false
+          },
+          {
+            "name": "код",
+            "expected": "без кода",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "списки",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "таблицы",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "эмодзи",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "ограничение",
+            "expected": "без вступлений",
+            "observed": "без вступления",
+            "ok": true
+          }
+        ]
+      },
+      {
+        "index": 7,
+        "question": "Как ограничить размер файла при чтении?",
+        "answer": "Проще всего взять metadata().len() и сравнить с лимитом до чтения, но это гонка. Надёжнее читать через take(limit) на Read — оберни File в file.take(max_bytes), тогда больше лимита не прочитаешь.",
+        "prompt_tokens": 717,
+        "completion_tokens": 63,
+        "compliant": true,
+        "checks": [
+          {
+            "name": "объём",
+            "expected": "≤ 80 слов",
+            "observed": "28 слов",
+            "ok": true
+          },
+          {
+            "name": "тон",
+            "expected": "есть «ты/тебе/слушай»",
+            "observed": "прочитаешь",
+            "ok": true
+          },
+          {
+            "name": "код",
+            "expected": "без кода",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "списки",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "таблицы",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "эмодзи",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "ограничение",
+            "expected": "без вступлений",
+            "observed": "без вступления",
+            "ok": true
+          }
+        ]
+      },
+      {
+        "index": 8,
+        "question": "Как протестировать чтение JSON без реального файла?",
+        "answer": "Читай из &[u8] или Cursor<Vec<u8>> вместо File — serde_json::from_reader примет любой Read. Так тестируешь парсинг без диска, а сам файловый слой проверяешь отдельно.",
+        "prompt_tokens": 710,
+        "completion_tokens": 60,
+        "compliant": true,
+        "checks": [
+          {
+            "name": "объём",
+            "expected": "≤ 80 слов",
+            "observed": "22 слов",
+            "ok": true
+          },
+          {
+            "name": "тон",
+            "expected": "есть «ты/тебе/слушай»",
+            "observed": "читай, тестируешь, проверяешь",
+            "ok": true
+          },
+          {
+            "name": "код",
+            "expected": "без кода",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "списки",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "таблицы",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "эмодзи",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "ограничение",
+            "expected": "без вступлений",
+            "observed": "без вступления",
+            "ok": true
+          }
+        ]
+      },
+      {
+        "index": 9,
+        "question": "Что делать, если файл оказался в другой кодировке?",
+        "answer": "Не читай как String — бери байты и декодируй через encoding_rs (например, WINDOWS_1251 или SHIFT_JIS). Если кодировка неизвестна, попробуй UTF-8, при ошибке фолбэк на нужную.",
+        "prompt_tokens": 707,
+        "completion_tokens": 62,
+        "compliant": true,
+        "checks": [
+          {
+            "name": "объём",
+            "expected": "≤ 80 слов",
+            "observed": "24 слов",
+            "ok": true
+          },
+          {
+            "name": "тон",
+            "expected": "есть «ты/тебе/слушай»",
+            "observed": "читай, бери",
+            "ok": true
+          },
+          {
+            "name": "код",
+            "expected": "без кода",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "списки",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "таблицы",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "эмодзи",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "ограничение",
+            "expected": "без вступлений",
+            "observed": "без вступления",
+            "ok": true
+          }
+        ]
+      },
+      {
+        "index": 10,
+        "question": "Как залогировать ошибку и не потерять исходную причину?",
+        "answer": "Оборачивай в свою ошибку с полем source (через #[from] или thiserror), а в лог пиши всю цепочку — Display плюс source. Так исходная причина сохраняется, а не теряется в строке.",
+        "prompt_tokens": 726,
+        "completion_tokens": 56,
+        "compliant": true,
+        "checks": [
+          {
+            "name": "объём",
+            "expected": "≤ 80 слов",
+            "observed": "29 слов",
+            "ok": true
+          },
+          {
+            "name": "тон",
+            "expected": "есть «ты/тебе/слушай»",
+            "observed": "пиши, оборачивай",
+            "ok": true
+          },
+          {
+            "name": "код",
+            "expected": "без кода",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "списки",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "таблицы",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "эмодзи",
+            "expected": "нет",
+            "observed": "нет",
+            "ok": true
+          },
+          {
+            "name": "ограничение",
+            "expected": "без вступлений",
+            "observed": "без вступления",
+            "ok": true
+          }
+        ]
+      }
+    ],
+    "first_violation": 2,
+    "compliant_count": 6,
+    "total": 10
+  },
+  "thresholds": [
+    {
+      "name": "профилей ≥ 2",
+      "ok": true,
+      "detail": "2"
+    },
+    {
+      "name": "предпочтения соблюдены",
+      "ok": true,
+      "detail": "2/2 профилей"
+    },
+    {
+      "name": "устойчивость ≥ 8/10",
+      "ok": false,
+      "detail": "6/10; первое нарушение: #2"
+    },
+    {
+      "name": "без ошибок API",
+      "ok": true,
+      "detail": "0 ошибок"
+    }
+  ],
+  "total_requests": 12,
+  "errors": []
+}

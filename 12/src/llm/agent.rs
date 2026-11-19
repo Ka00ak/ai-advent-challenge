@@ -11,6 +11,7 @@ use crate::domain::chat::{TokenStats, TurnOutcome};
 use crate::domain::memory::{
     ChatMessage, LayerFlags, MemoryBreakdown, MemoryBundle, MemorySource, ToolCall,
 };
+use crate::domain::profile::UserProfile;
 use crate::domain::settings::Settings;
 use crate::llm::dto::{ChatClient, ChatRequest, model_profile};
 use crate::llm::tools::ToolRegistry;
@@ -47,6 +48,7 @@ pub struct TurnInput<'a> {
     pub tools: &'a ToolRegistry,
     pub client: &'a dyn ChatClient,
     pub cancel: &'a AtomicBool,
+    pub profile: Option<&'a UserProfile>,
 }
 
 pub fn run_turn(
@@ -68,6 +70,7 @@ pub fn run_turn(
         config: &input.settings.memory,
         tools: &schemas,
         layers: LayerFlags::ALL,
+        profile: input.profile,
         now,
     })?;
     let breakdown = assembly.breakdown.clone();
@@ -124,6 +127,8 @@ pub fn run_turn(
                 breakdown,
                 token_stats,
                 audit,
+                profile_id: input.profile.map(|profile| profile.id.clone()),
+                profile_changes: Vec::new(),
             });
         }
 
@@ -188,6 +193,7 @@ pub fn estimate_breakdown(
     memory: &MemoryBundle,
     settings: &Settings,
     tools: &ToolRegistry,
+    profile: Option<&UserProfile>,
 ) -> MemoryBreakdown {
     let schemas = tools.schemas();
     let result = assemble_prompt(AssembleInput {
@@ -198,6 +204,7 @@ pub fn estimate_breakdown(
         config: &settings.memory,
         tools: &schemas,
         layers: LayerFlags::ALL,
+        profile,
         now: Utc::now(),
     });
     match result {
@@ -293,6 +300,7 @@ mod tests {
                 tools: &tools,
                 client: &scripted,
                 cancel: &cancel,
+                profile: None,
             },
             &mut |event| progress.push(event),
         )
@@ -339,6 +347,7 @@ mod tests {
                 tools: &tools,
                 client: &scripted,
                 cancel: &cancel,
+                profile: None,
             },
             &mut |_| {},
         )
@@ -364,6 +373,7 @@ mod tests {
                 tools: &tools,
                 client: &scripted,
                 cancel: &cancel,
+                profile: None,
             },
             &mut |_| {},
         )
@@ -399,6 +409,7 @@ mod tests {
                 tools: &tools,
                 client: &scripted,
                 cancel: &cancel,
+                profile: None,
             },
             &mut |_| {},
         )

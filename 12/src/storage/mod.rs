@@ -18,6 +18,7 @@ use crate::domain::memory::{
     LtmState, MemoryBundle, MemoryMetaState, PendingWrite, STATE_VERSION, StmState,
     WorkingMemoryState,
 };
+use crate::domain::profile::ProfileState;
 use crate::domain::settings::Settings;
 use crate::storage::atomic::{SaveError, atomic_write_json, set_private_permissions};
 use crate::storage::paths::DataPaths;
@@ -159,6 +160,14 @@ pub fn save_settings(paths: &DataPaths, settings: &Settings) -> Result<(), SaveE
     let path = paths.settings();
     atomic_write_json(&path, settings)?;
     set_private_permissions(&path)
+}
+
+pub fn load_profiles(paths: &DataPaths) -> Result<ProfileState, LoadError> {
+    read_json(&paths.profiles(), true)
+}
+
+pub fn save_profiles(paths: &DataPaths, state: &ProfileState) -> Result<(), SaveError> {
+    atomic_write_json(&paths.profiles(), state)
 }
 
 pub fn load_branch_file(paths: &DataPaths) -> Result<branches::BranchFile, LoadError> {

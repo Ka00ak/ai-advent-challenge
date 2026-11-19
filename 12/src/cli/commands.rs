@@ -9,7 +9,9 @@ use clap::{Parser, Subcommand, ValueEnum};
 use crate::app::controller::{AppController, AppError, AppRuntime};
 use crate::cli::output;
 use crate::domain::memory::MemoryLayer;
+use crate::domain::profile::{CodePolicy, ProfileSource, Tone, UserProfile, Verbosity};
 use crate::domain::settings::Settings;
+use crate::experiment::personalization::PersonalizationOptions;
 use crate::experiment::runner::{ExperimentMode, ExperimentOptions};
 use crate::llm::client::{FakeChatClient, ReqwestClient};
 use crate::llm::dto::ChatClient;
@@ -36,12 +38,12 @@ impl LayerArg {
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "lab11",
+    name = "lab12",
     version,
-    about = "День 11 — явная модель памяти ассистента (STM / WM / LTM)"
+    about = "День 12 — персонализация ассистента поверх модели памяти"
 )]
 pub struct Cli {
-    /// Каталог данных (по умолчанию XDG или LAB11_HOME)
+    /// Каталог данных (по умолчанию XDG или LAB12_HOME)
     #[arg(long, global = true)]
     pub data_dir: Option<PathBuf>,
 
@@ -100,6 +102,32 @@ pub enum Command {
     Dump {
         #[arg(long)]
         json: bool,
+    },
+    /// Профиль пользователя и предпочтения
+    Profile {
+        #[command(subcommand)]
+        command: ProfileCommand,
+    },
+    /// Проверка персонализации: один вопрос под разными профилями и серия из 10
+    Personalize {
+        /// Вопрос для сравнения профилей
+        #[arg(long)]
+        question: Option<String>,
+        /// ID профилей через запятую (по умолчанию brief и detailed)
+        #[arg(long, value_delimiter = ',')]
+        profiles: Vec<String>,
+        /// Профиль для проверки устойчивости (по умолчанию detailed)
+        #[arg(long)]
+        stability_profile: Option<String>,
+        /// Не запускать серию из 10 вопросов
+        #[arg(long)]
+        no_stability: bool,
+        #[arg(long)]
+        out: Option<PathBuf>,
+        #[arg(long)]
+        json: Option<PathBuf>,
+        #[arg(long)]
+        check: bool,
     },
     /// Опциональный импорт настроек Дня 10 (P2)
     ImportSettings { path: PathBuf },
@@ -179,6 +207,153 @@ pub enum PendingCommand {
     Reject { id: String },
 }
 
+#[derive(Subcommand, Debug)]
+pub enum ProfileCommand {
+    /// Список профилей
+    List {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Показать профиль (по умолчанию активный)
+    Show {
+        id: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Сделать профиль активным
+    Use { id: String },
+    /// Создать профиль (можно взять за основу preset через --like)
+    Add {
+        id: String,
+        #[arg(long)]
+        title: Option<String>,
+        #[command(flatten)]
+        edit: ProfileEditArgs,
+    },
+    /// Изменить профиль
+    Set {
+        id: String,
+        #[arg(long)]
+        title: Option<String>,
+        #[command(flatten)]
+        edit: ProfileEditArgs,
+    },
+    /// Удалить профиль
+    Delete { id: String },
+    /// Проверить обучение профиля на тексте (без запроса к модели)
+    Learn { text: String },
+}
+
+#[derive(clap::Args, Debug, Clone, Default)]
+pub struct ProfileEditArgs {
+    #[arg(long, value_enum)]
+    pub verbosity: Option<VerbosityArg>,
+    #[arg(long, value_enum)]
+    pub tone: Option<ToneArg>,
+    #[arg(long, value_enum)]
+    pub code: Option<CodeArg>,
+    #[arg(long)]
+    pub language: Option<String>,
+    #[arg(long)]
+    pub user_name: Option<String>,
+    #[arg(long)]
+    pub role: Option<String>,
+    #[arg(long, value_enum)]
+    pub lists: Option<ToggleArg>,
+    #[arg(long, value_enum)]
+    pub tables: Option<ToggleArg>,
+    #[arg(long, value_enum)]
+    pub emoji: Option<ToggleArg>,
+    /// Ограничение профиля (можно повторять)
+    #[arg(long = "constraint")]
+    pub constraints: Vec<String>,
+    #[arg(long)]
+    pub clear_constraints: bool,
+    /// Взять предпочтения из preset: default | brief | detailed
+    #[arg(long, value_enum)]
+    pub like: Option<PresetArg>,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum VerbosityArg {
+    Brief,
+    Normal,
+    Detailed,
+}
+
+impl VerbosityArg {
+    fn value(self) -> Verbosity {
+        match self {
+            VerbosityArg::Brief => Verbosity::Brief,
+            VerbosityArg::Normal => Verbosity::Normal,
+            VerbosityArg::Detailed => Verbosity::Detailed,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum ToneArg {
+    Formal,
+    Neutral,
+    Informal,
+}
+
+impl ToneArg {
+    fn value(self) -> Tone {
+        match self {
+            ToneArg::Formal => Tone::Formal,
+            ToneArg::Neutral => Tone::Neutral,
+            ToneArg::Informal => Tone::Informal,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum CodeArg {
+    With,
+    Without,
+    Neutral,
+}
+
+impl CodeArg {
+    fn value(self) -> CodePolicy {
+        match self {
+            CodeArg::With => CodePolicy::WithCode,
+            CodeArg::Without => CodePolicy::NoCode,
+            CodeArg::Neutral => CodePolicy::Neutral,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum ToggleArg {
+    On,
+    Off,
+}
+
+impl ToggleArg {
+    fn value(self) -> bool {
+        matches!(self, ToggleArg::On)
+    }
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum PresetArg {
+    Default,
+    Brief,
+    Detailed,
+}
+
+impl PresetArg {
+    fn id(self) -> &'static str {
+        match self {
+            PresetArg::Default => "default",
+            PresetArg::Brief => "brief",
+            PresetArg::Detailed => "detailed",
+        }
+    }
+}
+
 pub fn run() -> i32 {
     let cli = Cli::parse();
     match execute(cli) {
@@ -232,6 +407,10 @@ fn execute(cli: Cli) -> Result<i32, AppError> {
             if json {
                 let payload = serde_json::json!({
                     "final": outcome.final_text,
+                    "profile": {
+                        "id": outcome.profile_id,
+                        "changes": outcome.profile_changes,
+                    },
                     "tokens": {
                         "prompt_tokens": outcome.token_stats.prompt_tokens,
                         "completion_tokens": outcome.token_stats.completion_tokens,
@@ -478,6 +657,157 @@ fn execute(cli: Cli) -> Result<i32, AppError> {
             println!("{}", controller.dump_json()?);
             Ok(0)
         }
+        Command::Profile { command } => {
+            let mut controller = AppController::load(runtime)?;
+            match command {
+                ProfileCommand::List { json } => {
+                    if json {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(controller.profiles())
+                                .map_err(|error| AppError::Invalid(error.to_string()))?
+                        );
+                    } else {
+                        for profile in &controller.profiles().profiles {
+                            let active =
+                                controller.profiles().active.as_deref() == Some(&profile.id);
+                            println!(
+                                "{} {:<10} {:<32} {}",
+                                if active { "*" } else { " " },
+                                profile.id,
+                                profile.title,
+                                profile.summary()
+                            );
+                        }
+                    }
+                    Ok(0)
+                }
+                ProfileCommand::Show { id, json } => {
+                    let profile = controller
+                        .profile(id.as_deref())
+                        .cloned()
+                        .ok_or_else(|| AppError::NotFound("профиль".into()))?;
+                    if json {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&profile)
+                                .map_err(|error| AppError::Invalid(error.to_string()))?
+                        );
+                    } else {
+                        output::print_profile(&profile, controller.profiles().active.as_deref());
+                    }
+                    Ok(0)
+                }
+                ProfileCommand::Use { id } => {
+                    controller.set_active_profile(&id)?;
+                    println!("активный профиль: {id}");
+                    Ok(0)
+                }
+                ProfileCommand::Add { id, title, edit } => {
+                    let base = edit
+                        .like
+                        .map(PresetArg::id)
+                        .and_then(|preset| UserProfile::preset(preset, chrono::Utc::now()))
+                        .unwrap_or_else(|| UserProfile::empty(&id, chrono::Utc::now()));
+                    let mut profile = base;
+                    profile.id = id.clone();
+                    profile.title = title.unwrap_or_else(|| id.clone());
+                    profile.source = ProfileSource::Manual;
+                    apply_profile_edit(&mut profile, &edit);
+                    controller.upsert_profile(profile)?;
+                    controller.set_active_profile(&id)?;
+                    println!("профиль создан и активирован: {id}");
+                    Ok(0)
+                }
+                ProfileCommand::Set { id, title, edit } => {
+                    let mut profile = controller
+                        .profile(Some(&id))
+                        .cloned()
+                        .ok_or_else(|| AppError::NotFound(format!("профиль {id}")))?;
+                    if let Some(title) = title {
+                        profile.title = title;
+                    }
+                    if let Some(preset) = edit.like {
+                        if let Some(base) = UserProfile::preset(preset.id(), chrono::Utc::now()) {
+                            profile.identity = base.identity;
+                            profile.verbosity = base.verbosity;
+                            profile.tone = base.tone;
+                            profile.format = base.format;
+                            profile.constraints = base.constraints;
+                        }
+                    }
+                    apply_profile_edit(&mut profile, &edit);
+                    profile.source = ProfileSource::Manual;
+                    controller.upsert_profile(profile)?;
+                    println!("профиль обновлён: {id}");
+                    Ok(0)
+                }
+                ProfileCommand::Delete { id } => {
+                    controller.delete_profile(&id)?;
+                    println!("профиль удалён: {id}");
+                    Ok(0)
+                }
+                ProfileCommand::Learn { text } => {
+                    let changes = controller.learn_profile_from_text(&text)?;
+                    if changes.is_empty() {
+                        println!("профиль не изменился");
+                    } else {
+                        for change in changes {
+                            println!("{}", change.describe());
+                        }
+                    }
+                    Ok(0)
+                }
+            }
+        }
+        Command::Personalize {
+            question,
+            profiles,
+            stability_profile,
+            no_stability,
+            out,
+            json,
+            check,
+        } => {
+            require_key_if_needed()?;
+            let mut controller = AppController::load(runtime)?;
+            let options = PersonalizationOptions {
+                question,
+                profile_ids: profiles,
+                stability_profile,
+                include_stability: !no_stability,
+            };
+            let result = controller.run_personalization(options, &mut |progress| {
+                eprintln!(
+                    "[{}] {} {}/{} · всего {}/{}",
+                    progress.phase,
+                    progress.profile,
+                    progress.step,
+                    progress.steps_total,
+                    progress.done,
+                    progress.total
+                );
+            });
+            let report = result?;
+            output::print_personalization(&report);
+            if let Some(out) = &out {
+                let json_path = json.clone().unwrap_or_else(|| out.with_extension("json"));
+                controller.save_personalization_report(&report, out, &json_path)?;
+                println!(
+                    "Отчёт сохранён: {} и {}",
+                    out.display(),
+                    json_path.display()
+                );
+            } else if let Some(json) = &json {
+                let md_path = json.with_extension("md");
+                controller.save_personalization_report(&report, &md_path, json)?;
+                println!("Отчёт сохранён: {}", json.display());
+            }
+            if check && !report.passed() {
+                return Ok(4);
+            }
+            Ok(0)
+        }
         Command::ImportSettings { path } => {
             let mut settings = load_settings_or_default(&paths, None)?;
             let raw = std::fs::read_to_string(&path)
@@ -497,6 +827,52 @@ fn execute(cli: Cli) -> Result<i32, AppError> {
             save_settings(&paths, &settings)?;
             println!("Настройки Дня 10 импортированы");
             Ok(0)
+        }
+    }
+}
+
+fn apply_profile_edit(profile: &mut UserProfile, edit: &ProfileEditArgs) {
+    if let Some(value) = edit.verbosity {
+        profile.verbosity = value.value();
+    }
+    if let Some(value) = edit.tone {
+        profile.tone = value.value();
+    }
+    if let Some(value) = edit.code {
+        profile.format.code = value.value();
+    }
+    if let Some(value) = edit.language.as_deref() {
+        if !value.trim().is_empty() {
+            profile.identity.language = value.trim().to_string();
+        }
+    }
+    if let Some(value) = edit.user_name.as_deref() {
+        profile.identity.name = (!value.trim().is_empty()).then(|| value.trim().to_string());
+    }
+    if let Some(value) = edit.role.as_deref() {
+        profile.identity.role = (!value.trim().is_empty()).then(|| value.trim().to_string());
+    }
+    if let Some(value) = edit.lists {
+        profile.format.lists = value.value();
+    }
+    if let Some(value) = edit.tables {
+        profile.format.tables = value.value();
+    }
+    if let Some(value) = edit.emoji {
+        profile.format.emoji = value.value();
+    }
+    if edit.clear_constraints {
+        profile.constraints.clear();
+    }
+    for constraint in &edit.constraints {
+        let constraint = constraint.trim();
+        if !constraint.is_empty()
+            && !profile
+                .constraints
+                .iter()
+                .any(|existing| existing.to_lowercase() == constraint.to_lowercase())
+        {
+            profile.constraints.push(constraint.to_string());
         }
     }
 }
@@ -527,7 +903,9 @@ fn build_client(
     settings: &Settings,
     api_key_file: Option<&Path>,
 ) -> Result<Arc<dyn ChatClient>, AppError> {
-    if std::env::var("LAB11_FAKE_LLM").as_deref() == Ok("1") {
+    if std::env::var("LAB11_FAKE_LLM").as_deref() == Ok("1")
+        || std::env::var("LAB12_FAKE_LLM").as_deref() == Ok("1")
+    {
         return Ok(Arc::new(FakeChatClient));
     }
     let mut key = std::env::var("DEEPSEEK_API_KEY")
@@ -573,7 +951,9 @@ fn check_key_file_permissions(path: &Path) -> Result<(), AppError> {
 }
 
 fn require_key_if_needed() -> Result<(), AppError> {
-    if std::env::var("LAB11_FAKE_LLM").as_deref() == Ok("1") {
+    if std::env::var("LAB11_FAKE_LLM").as_deref() == Ok("1")
+        || std::env::var("LAB12_FAKE_LLM").as_deref() == Ok("1")
+    {
         return Ok(());
     }
     let has_env = std::env::var("DEEPSEEK_API_KEY")
@@ -620,6 +1000,7 @@ fn exit_code(error: &AppError) -> i32 {
             }
         }
         AppError::Experiment(_) => 3,
+        AppError::Personalization(_) => 3,
         _ => 2,
     }
 }

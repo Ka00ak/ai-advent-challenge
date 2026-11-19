@@ -1,4 +1,4 @@
 fn main() {
-    let code = lab11::cli::run();
+    let code = lab12::cli::run();
     std::process::exit(code);
 }
