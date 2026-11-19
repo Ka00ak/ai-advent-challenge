@@ -237,3 +237,15 @@ docs/           спецификация, трассируемость, отчё
   чек-лист `docs/08-test-plan.md` остаётся для интерактивного прогона.
 
 Подробности: [`docs/00-brief.md`](docs/00-brief.md) … [`docs/11-traceability.md`](docs/11-traceability.md).
+
+## Result
+
+Результаты проверок находятся в 11/docs/results
+
+https://github.com/user-attachments/assets/ac55d321-97a5-4b8d-8c47-625d818be669
+
+https://github.com/user-attachments/assets/4de5cf0f-8bda-4870-a4dd-34cc31a15351
+
+https://github.com/user-attachments/assets/00ce026c-46d6-44e1-9dca-a26e810942e8
+
+https://github.com/user-attachments/assets/7610dc5c-b82a-4491-9f31-d58b3efeacb8
