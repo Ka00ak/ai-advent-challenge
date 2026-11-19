@@ -1,0 +1,2146 @@
+{
+  "started_at": "2026-11-17T13:16:21.409340179Z",
+  "finished_at": "2026-11-17T13:16:21.545752879Z",
+  "mode": "full",
+  "model": "deepseek-chat",
+  "base_url": "https://api.deepseek.com",
+  "data_dir": "./data",
+  "source": "fake (LAB11_FAKE_LLM=1)",
+  "window": 8,
+  "counts": {
+    "stm_messages": 34,
+    "stm_window": 8,
+    "wm_items": 7,
+    "ltm_records": 15,
+    "pending": 1,
+    "summary": false
+  },
+  "configs": [
+    {
+      "id": "none",
+      "label": "none",
+      "layers": "stm=false wm=false ltm=false",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 944,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S2",
+          "layer": "stm",
+          "question": "Что решили насчёт инфлюенсеров?",
+          "expected": "отдельной строкой",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 940,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 937,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S4",
+          "layer": "stm",
+          "question": "Где лежит черновик сметы?",
+          "expected": "smeta-v3.xlsx",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 937,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 943,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S6",
+          "layer": "stm",
+          "question": "Сколько заложить на инфлюенсеров?",
+          "expected": "25 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 941,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 938,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W2",
+          "layer": "wm",
+          "question": "На каком шаге плана мы остановились?",
+          "expected": "шаг 2",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 941,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 941,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W4",
+          "layer": "wm",
+          "question": "Сколько стоит рабочий вариант?",
+          "expected": "140 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 939,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 939,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W6",
+          "layer": "wm",
+          "question": "Что уже сделано по задаче?",
+          "expected": "каналы собраны",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 937,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 936,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L2",
+          "layer": "ltm",
+          "question": "Как зовут заказчика?",
+          "expected": "Марина Ковалёва",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 935,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 936,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L4",
+          "layer": "ltm",
+          "question": "Какой общий бюджет проекта?",
+          "expected": "480 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 938,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 942,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L6",
+          "layer": "ltm",
+          "question": "Какую базу данных выбрали?",
+          "expected": "PostgreSQL",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 937,
+          "completion_tokens": 4
+        }
+      ],
+      "matched_stm": 0,
+      "matched_wm": 0,
+      "matched_ltm": 0,
+      "total": 0,
+      "effective": 18,
+      "layer_tokens": {
+        "ltm": 0,
+        "wm": 0,
+        "stm": 0
+      },
+      "system_tokens": 331,
+      "tools_tokens": 590,
+      "total_tokens": 944,
+      "usage_prompt_tokens": 16901,
+      "errors": []
+    },
+    {
+      "id": "stm",
+      "label": "stm",
+      "layers": "stm=true wm=false ltm=false",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "150 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1154,
+          "completion_tokens": 5
+        },
+        {
+          "id": "S2",
+          "layer": "stm",
+          "question": "Что решили насчёт инфлюенсеров?",
+          "expected": "отдельной строкой",
+          "answer": "отдельной строкой, 25 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1150,
+          "completion_tokens": 14
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "в четверг в 11:00",
+          "matched": true,
+          "prompt_tokens": 1147,
+          "completion_tokens": 7
+        },
+        {
+          "id": "S4",
+          "layer": "stm",
+          "question": "Где лежит черновик сметы?",
+          "expected": "smeta-v3.xlsx",
+          "answer": "smeta-v3.xlsx",
+          "matched": true,
+          "prompt_tokens": 1147,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "не раньше пятницы",
+          "matched": true,
+          "prompt_tokens": 1153,
+          "completion_tokens": 8
+        },
+        {
+          "id": "S6",
+          "layer": "stm",
+          "question": "Сколько заложить на инфлюенсеров?",
+          "expected": "25 000",
+          "answer": "25 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1151,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1148,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W2",
+          "layer": "wm",
+          "question": "На каком шаге плана мы остановились?",
+          "expected": "шаг 2",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1151,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1151,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W4",
+          "layer": "wm",
+          "question": "Сколько стоит рабочий вариант?",
+          "expected": "140 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1149,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1149,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W6",
+          "layer": "wm",
+          "question": "Что уже сделано по задаче?",
+          "expected": "каналы собраны",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1147,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1146,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L2",
+          "layer": "ltm",
+          "question": "Как зовут заказчика?",
+          "expected": "Марина Ковалёва",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1145,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1146,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L4",
+          "layer": "ltm",
+          "question": "Какой общий бюджет проекта?",
+          "expected": "480 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1148,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1152,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L6",
+          "layer": "ltm",
+          "question": "Какую базу данных выбрали?",
+          "expected": "PostgreSQL",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1147,
+          "completion_tokens": 4
+        }
+      ],
+      "matched_stm": 6,
+      "matched_wm": 0,
+      "matched_ltm": 0,
+      "total": 6,
+      "effective": 18,
+      "layer_tokens": {
+        "ltm": 0,
+        "wm": 0,
+        "stm": 210
+      },
+      "system_tokens": 331,
+      "tools_tokens": 590,
+      "total_tokens": 1154,
+      "usage_prompt_tokens": 20681,
+      "errors": []
+    },
+    {
+      "id": "wm",
+      "label": "wm",
+      "layers": "stm=false wm=true ltm=false",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1099,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S2",
+          "layer": "stm",
+          "question": "Что решили насчёт инфлюенсеров?",
+          "expected": "отдельной строкой",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1095,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1092,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S4",
+          "layer": "stm",
+          "question": "Где лежит черновик сметы?",
+          "expected": "smeta-v3.xlsx",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1092,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1098,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S6",
+          "layer": "stm",
+          "question": "Сколько заложить на инфлюенсеров?",
+          "expected": "25 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1096,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "смета маркетинга к релизу",
+          "matched": true,
+          "prompt_tokens": 1093,
+          "completion_tokens": 12
+        },
+        {
+          "id": "W2",
+          "layer": "wm",
+          "question": "На каком шаге плана мы остановились?",
+          "expected": "шаг 2",
+          "answer": "на шаге 2",
+          "matched": true,
+          "prompt_tokens": 1096,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "вариант B",
+          "matched": true,
+          "prompt_tokens": 1096,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W4",
+          "layer": "wm",
+          "question": "Сколько стоит рабочий вариант?",
+          "expected": "140 000",
+          "answer": "140 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1094,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "вопрос про PR-подрядчика",
+          "matched": true,
+          "prompt_tokens": 1094,
+          "completion_tokens": 11
+        },
+        {
+          "id": "W6",
+          "layer": "wm",
+          "question": "Что уже сделано по задаче?",
+          "expected": "каналы собраны",
+          "answer": "каналы собраны",
+          "matched": true,
+          "prompt_tokens": 1092,
+          "completion_tokens": 7
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1091,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L2",
+          "layer": "ltm",
+          "question": "Как зовут заказчика?",
+          "expected": "Марина Ковалёва",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1090,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1091,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L4",
+          "layer": "ltm",
+          "question": "Какой общий бюджет проекта?",
+          "expected": "480 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1093,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1097,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L6",
+          "layer": "ltm",
+          "question": "Какую базу данных выбрали?",
+          "expected": "PostgreSQL",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1092,
+          "completion_tokens": 4
+        }
+      ],
+      "matched_stm": 0,
+      "matched_wm": 6,
+      "matched_ltm": 0,
+      "total": 6,
+      "effective": 18,
+      "layer_tokens": {
+        "ltm": 0,
+        "wm": 155,
+        "stm": 0
+      },
+      "system_tokens": 331,
+      "tools_tokens": 590,
+      "total_tokens": 1099,
+      "usage_prompt_tokens": 19691,
+      "errors": []
+    },
+    {
+      "id": "ltm",
+      "label": "ltm",
+      "layers": "stm=false wm=false ltm=true",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1211,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S2",
+          "layer": "stm",
+          "question": "Что решили насчёт инфлюенсеров?",
+          "expected": "отдельной строкой",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1207,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1204,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S4",
+          "layer": "stm",
+          "question": "Где лежит черновик сметы?",
+          "expected": "smeta-v3.xlsx",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1204,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1210,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S6",
+          "layer": "stm",
+          "question": "Сколько заложить на инфлюенсеров?",
+          "expected": "25 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1208,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1205,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W2",
+          "layer": "wm",
+          "question": "На каком шаге плана мы остановились?",
+          "expected": "шаг 2",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1208,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1208,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W4",
+          "layer": "wm",
+          "question": "Сколько стоит рабочий вариант?",
+          "expected": "140 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1206,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1206,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W6",
+          "layer": "wm",
+          "question": "Что уже сделано по задаче?",
+          "expected": "каналы собраны",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1204,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "«Атлас»",
+          "matched": true,
+          "prompt_tokens": 1220,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L2",
+          "layer": "ltm",
+          "question": "Как зовут заказчика?",
+          "expected": "Марина Ковалёва",
+          "answer": "Марина Ковалёва",
+          "matched": true,
+          "prompt_tokens": 1202,
+          "completion_tokens": 8
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "15 декабря 2026",
+          "matched": true,
+          "prompt_tokens": 1220,
+          "completion_tokens": 6
+        },
+        {
+          "id": "L4",
+          "layer": "ltm",
+          "question": "Какой общий бюджет проекта?",
+          "expected": "480 000",
+          "answer": "480 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1222,
+          "completion_tokens": 5
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "только российские ЦОД",
+          "matched": true,
+          "prompt_tokens": 1243,
+          "completion_tokens": 10
+        },
+        {
+          "id": "L6",
+          "layer": "ltm",
+          "question": "Какую базу данных выбрали?",
+          "expected": "PostgreSQL",
+          "answer": "PostgreSQL",
+          "matched": true,
+          "prompt_tokens": 1227,
+          "completion_tokens": 3
+        }
+      ],
+      "matched_stm": 0,
+      "matched_wm": 0,
+      "matched_ltm": 6,
+      "total": 6,
+      "effective": 18,
+      "layer_tokens": {
+        "ltm": 267,
+        "wm": 0,
+        "stm": 0
+      },
+      "system_tokens": 331,
+      "tools_tokens": 590,
+      "total_tokens": 1211,
+      "usage_prompt_tokens": 21815,
+      "errors": []
+    },
+    {
+      "id": "stm+wm",
+      "label": "stm+wm",
+      "layers": "stm=true wm=true ltm=false",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "150 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1309,
+          "completion_tokens": 5
+        },
+        {
+          "id": "S2",
+          "layer": "stm",
+          "question": "Что решили насчёт инфлюенсеров?",
+          "expected": "отдельной строкой",
+          "answer": "отдельной строкой, 25 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1305,
+          "completion_tokens": 14
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "в четверг в 11:00",
+          "matched": true,
+          "prompt_tokens": 1302,
+          "completion_tokens": 7
+        },
+        {
+          "id": "S4",
+          "layer": "stm",
+          "question": "Где лежит черновик сметы?",
+          "expected": "smeta-v3.xlsx",
+          "answer": "smeta-v3.xlsx",
+          "matched": true,
+          "prompt_tokens": 1302,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "не раньше пятницы",
+          "matched": true,
+          "prompt_tokens": 1308,
+          "completion_tokens": 8
+        },
+        {
+          "id": "S6",
+          "layer": "stm",
+          "question": "Сколько заложить на инфлюенсеров?",
+          "expected": "25 000",
+          "answer": "25 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1306,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "смета маркетинга к релизу",
+          "matched": true,
+          "prompt_tokens": 1303,
+          "completion_tokens": 12
+        },
+        {
+          "id": "W2",
+          "layer": "wm",
+          "question": "На каком шаге плана мы остановились?",
+          "expected": "шаг 2",
+          "answer": "на шаге 2",
+          "matched": true,
+          "prompt_tokens": 1306,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "вариант B",
+          "matched": true,
+          "prompt_tokens": 1306,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W4",
+          "layer": "wm",
+          "question": "Сколько стоит рабочий вариант?",
+          "expected": "140 000",
+          "answer": "140 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1304,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "вопрос про PR-подрядчика",
+          "matched": true,
+          "prompt_tokens": 1304,
+          "completion_tokens": 11
+        },
+        {
+          "id": "W6",
+          "layer": "wm",
+          "question": "Что уже сделано по задаче?",
+          "expected": "каналы собраны",
+          "answer": "каналы собраны",
+          "matched": true,
+          "prompt_tokens": 1302,
+          "completion_tokens": 7
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1301,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L2",
+          "layer": "ltm",
+          "question": "Как зовут заказчика?",
+          "expected": "Марина Ковалёва",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1300,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1301,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L4",
+          "layer": "ltm",
+          "question": "Какой общий бюджет проекта?",
+          "expected": "480 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1303,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1307,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L6",
+          "layer": "ltm",
+          "question": "Какую базу данных выбрали?",
+          "expected": "PostgreSQL",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1302,
+          "completion_tokens": 4
+        }
+      ],
+      "matched_stm": 6,
+      "matched_wm": 6,
+      "matched_ltm": 0,
+      "total": 12,
+      "effective": 18,
+      "layer_tokens": {
+        "ltm": 0,
+        "wm": 155,
+        "stm": 210
+      },
+      "system_tokens": 331,
+      "tools_tokens": 590,
+      "total_tokens": 1309,
+      "usage_prompt_tokens": 23471,
+      "errors": []
+    },
+    {
+      "id": "stm+wm+ltm",
+      "label": "stm+wm+ltm",
+      "layers": "stm=true wm=true ltm=true",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "150 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1576,
+          "completion_tokens": 5
+        },
+        {
+          "id": "S2",
+          "layer": "stm",
+          "question": "Что решили насчёт инфлюенсеров?",
+          "expected": "отдельной строкой",
+          "answer": "отдельной строкой, 25 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1572,
+          "completion_tokens": 14
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "в четверг в 11:00",
+          "matched": true,
+          "prompt_tokens": 1569,
+          "completion_tokens": 7
+        },
+        {
+          "id": "S4",
+          "layer": "stm",
+          "question": "Где лежит черновик сметы?",
+          "expected": "smeta-v3.xlsx",
+          "answer": "smeta-v3.xlsx",
+          "matched": true,
+          "prompt_tokens": 1569,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "не раньше пятницы",
+          "matched": true,
+          "prompt_tokens": 1575,
+          "completion_tokens": 8
+        },
+        {
+          "id": "S6",
+          "layer": "stm",
+          "question": "Сколько заложить на инфлюенсеров?",
+          "expected": "25 000",
+          "answer": "25 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1573,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "смета маркетинга к релизу",
+          "matched": true,
+          "prompt_tokens": 1570,
+          "completion_tokens": 12
+        },
+        {
+          "id": "W2",
+          "layer": "wm",
+          "question": "На каком шаге плана мы остановились?",
+          "expected": "шаг 2",
+          "answer": "на шаге 2",
+          "matched": true,
+          "prompt_tokens": 1573,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "вариант B",
+          "matched": true,
+          "prompt_tokens": 1573,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W4",
+          "layer": "wm",
+          "question": "Сколько стоит рабочий вариант?",
+          "expected": "140 000",
+          "answer": "140 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1571,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "вопрос про PR-подрядчика",
+          "matched": true,
+          "prompt_tokens": 1571,
+          "completion_tokens": 11
+        },
+        {
+          "id": "W6",
+          "layer": "wm",
+          "question": "Что уже сделано по задаче?",
+          "expected": "каналы собраны",
+          "answer": "каналы собраны",
+          "matched": true,
+          "prompt_tokens": 1569,
+          "completion_tokens": 7
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "«Атлас»",
+          "matched": true,
+          "prompt_tokens": 1585,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L2",
+          "layer": "ltm",
+          "question": "Как зовут заказчика?",
+          "expected": "Марина Ковалёва",
+          "answer": "Марина Ковалёва",
+          "matched": true,
+          "prompt_tokens": 1567,
+          "completion_tokens": 8
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "15 декабря 2026",
+          "matched": true,
+          "prompt_tokens": 1585,
+          "completion_tokens": 6
+        },
+        {
+          "id": "L4",
+          "layer": "ltm",
+          "question": "Какой общий бюджет проекта?",
+          "expected": "480 000",
+          "answer": "480 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1587,
+          "completion_tokens": 5
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "только российские ЦОД",
+          "matched": true,
+          "prompt_tokens": 1608,
+          "completion_tokens": 10
+        },
+        {
+          "id": "L6",
+          "layer": "ltm",
+          "question": "Какую базу данных выбрали?",
+          "expected": "PostgreSQL",
+          "answer": "PostgreSQL",
+          "matched": true,
+          "prompt_tokens": 1592,
+          "completion_tokens": 3
+        }
+      ],
+      "matched_stm": 6,
+      "matched_wm": 6,
+      "matched_ltm": 6,
+      "total": 18,
+      "effective": 18,
+      "layer_tokens": {
+        "ltm": 267,
+        "wm": 155,
+        "stm": 210
+      },
+      "system_tokens": 331,
+      "tools_tokens": 590,
+      "total_tokens": 1576,
+      "usage_prompt_tokens": 28385,
+      "errors": []
+    },
+    {
+      "id": "full",
+      "label": "full",
+      "layers": "stm=true wm=false ltm=false",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "150 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1947,
+          "completion_tokens": 5
+        },
+        {
+          "id": "S2",
+          "layer": "stm",
+          "question": "Что решили насчёт инфлюенсеров?",
+          "expected": "отдельной строкой",
+          "answer": "отдельной строкой, 25 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1943,
+          "completion_tokens": 14
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "в четверг в 11:00",
+          "matched": true,
+          "prompt_tokens": 1940,
+          "completion_tokens": 7
+        },
+        {
+          "id": "S4",
+          "layer": "stm",
+          "question": "Где лежит черновик сметы?",
+          "expected": "smeta-v3.xlsx",
+          "answer": "smeta-v3.xlsx",
+          "matched": true,
+          "prompt_tokens": 1940,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "не раньше пятницы",
+          "matched": true,
+          "prompt_tokens": 1946,
+          "completion_tokens": 8
+        },
+        {
+          "id": "S6",
+          "layer": "stm",
+          "question": "Сколько заложить на инфлюенсеров?",
+          "expected": "25 000",
+          "answer": "25 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1944,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "смета маркетинга к релизу",
+          "matched": true,
+          "prompt_tokens": 1941,
+          "completion_tokens": 12
+        },
+        {
+          "id": "W2",
+          "layer": "wm",
+          "question": "На каком шаге плана мы остановились?",
+          "expected": "шаг 2",
+          "answer": "на шаге 2",
+          "matched": true,
+          "prompt_tokens": 1944,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "вариант B",
+          "matched": true,
+          "prompt_tokens": 1944,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W4",
+          "layer": "wm",
+          "question": "Сколько стоит рабочий вариант?",
+          "expected": "140 000",
+          "answer": "140 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1942,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "вопрос про PR-подрядчика",
+          "matched": true,
+          "prompt_tokens": 1942,
+          "completion_tokens": 11
+        },
+        {
+          "id": "W6",
+          "layer": "wm",
+          "question": "Что уже сделано по задаче?",
+          "expected": "каналы собраны",
+          "answer": "каналы собраны",
+          "matched": true,
+          "prompt_tokens": 1940,
+          "completion_tokens": 7
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "«Атлас»",
+          "matched": true,
+          "prompt_tokens": 1939,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L2",
+          "layer": "ltm",
+          "question": "Как зовут заказчика?",
+          "expected": "Марина Ковалёва",
+          "answer": "Марина Ковалёва",
+          "matched": true,
+          "prompt_tokens": 1938,
+          "completion_tokens": 8
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "15 декабря 2026",
+          "matched": true,
+          "prompt_tokens": 1939,
+          "completion_tokens": 6
+        },
+        {
+          "id": "L4",
+          "layer": "ltm",
+          "question": "Какой общий бюджет проекта?",
+          "expected": "480 000",
+          "answer": "480 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1941,
+          "completion_tokens": 5
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "только российские ЦОД",
+          "matched": true,
+          "prompt_tokens": 1945,
+          "completion_tokens": 10
+        },
+        {
+          "id": "L6",
+          "layer": "ltm",
+          "question": "Какую базу данных выбрали?",
+          "expected": "PostgreSQL",
+          "answer": "PostgreSQL",
+          "matched": true,
+          "prompt_tokens": 1940,
+          "completion_tokens": 3
+        }
+      ],
+      "matched_stm": 6,
+      "matched_wm": 6,
+      "matched_ltm": 6,
+      "total": 18,
+      "effective": 18,
+      "layer_tokens": {
+        "ltm": 0,
+        "wm": 0,
+        "stm": 1003
+      },
+      "system_tokens": 331,
+      "tools_tokens": 590,
+      "total_tokens": 1947,
+      "usage_prompt_tokens": 34955,
+      "errors": []
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "clear-stm",
+      "label": "очистить stm",
+      "layers": "stm=true wm=true ltm=true",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1366,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S2",
+          "layer": "stm",
+          "question": "Что решили насчёт инфлюенсеров?",
+          "expected": "отдельной строкой",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1362,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1359,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S4",
+          "layer": "stm",
+          "question": "Где лежит черновик сметы?",
+          "expected": "smeta-v3.xlsx",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1359,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1365,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S6",
+          "layer": "stm",
+          "question": "Сколько заложить на инфлюенсеров?",
+          "expected": "25 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1363,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "смета маркетинга к релизу",
+          "matched": true,
+          "prompt_tokens": 1360,
+          "completion_tokens": 12
+        },
+        {
+          "id": "W2",
+          "layer": "wm",
+          "question": "На каком шаге плана мы остановились?",
+          "expected": "шаг 2",
+          "answer": "на шаге 2",
+          "matched": true,
+          "prompt_tokens": 1363,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "вариант B",
+          "matched": true,
+          "prompt_tokens": 1363,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W4",
+          "layer": "wm",
+          "question": "Сколько стоит рабочий вариант?",
+          "expected": "140 000",
+          "answer": "140 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1361,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "вопрос про PR-подрядчика",
+          "matched": true,
+          "prompt_tokens": 1361,
+          "completion_tokens": 11
+        },
+        {
+          "id": "W6",
+          "layer": "wm",
+          "question": "Что уже сделано по задаче?",
+          "expected": "каналы собраны",
+          "answer": "каналы собраны",
+          "matched": true,
+          "prompt_tokens": 1359,
+          "completion_tokens": 7
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "«Атлас»",
+          "matched": true,
+          "prompt_tokens": 1375,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L2",
+          "layer": "ltm",
+          "question": "Как зовут заказчика?",
+          "expected": "Марина Ковалёва",
+          "answer": "Марина Ковалёва",
+          "matched": true,
+          "prompt_tokens": 1357,
+          "completion_tokens": 8
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "15 декабря 2026",
+          "matched": true,
+          "prompt_tokens": 1375,
+          "completion_tokens": 6
+        },
+        {
+          "id": "L4",
+          "layer": "ltm",
+          "question": "Какой общий бюджет проекта?",
+          "expected": "480 000",
+          "answer": "480 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1377,
+          "completion_tokens": 5
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "только российские ЦОД",
+          "matched": true,
+          "prompt_tokens": 1398,
+          "completion_tokens": 10
+        },
+        {
+          "id": "L6",
+          "layer": "ltm",
+          "question": "Какую базу данных выбрали?",
+          "expected": "PostgreSQL",
+          "answer": "PostgreSQL",
+          "matched": true,
+          "prompt_tokens": 1382,
+          "completion_tokens": 3
+        }
+      ],
+      "matched_stm": 0,
+      "matched_wm": 6,
+      "matched_ltm": 6,
+      "total": 12,
+      "effective": 18,
+      "layer_tokens": {
+        "ltm": 267,
+        "wm": 155,
+        "stm": 0
+      },
+      "system_tokens": 331,
+      "tools_tokens": 590,
+      "total_tokens": 1366,
+      "usage_prompt_tokens": 24605,
+      "errors": []
+    },
+    {
+      "id": "clear-wm",
+      "label": "очистить wm",
+      "layers": "stm=true wm=true ltm=true",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "150 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1386,
+          "completion_tokens": 5
+        },
+        {
+          "id": "S2",
+          "layer": "stm",
+          "question": "Что решили насчёт инфлюенсеров?",
+          "expected": "отдельной строкой",
+          "answer": "отдельной строкой, 25 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1294,
+          "completion_tokens": 14
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "в четверг в 11:00",
+          "matched": true,
+          "prompt_tokens": 1291,
+          "completion_tokens": 7
+        },
+        {
+          "id": "S4",
+          "layer": "stm",
+          "question": "Где лежит черновик сметы?",
+          "expected": "smeta-v3.xlsx",
+          "answer": "smeta-v3.xlsx",
+          "matched": true,
+          "prompt_tokens": 1291,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "не раньше пятницы",
+          "matched": true,
+          "prompt_tokens": 1297,
+          "completion_tokens": 8
+        },
+        {
+          "id": "S6",
+          "layer": "stm",
+          "question": "Сколько заложить на инфлюенсеров?",
+          "expected": "25 000",
+          "answer": "25 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1295,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1292,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W2",
+          "layer": "wm",
+          "question": "На каком шаге плана мы остановились?",
+          "expected": "шаг 2",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1295,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1295,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W4",
+          "layer": "wm",
+          "question": "Сколько стоит рабочий вариант?",
+          "expected": "140 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1293,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1293,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W6",
+          "layer": "wm",
+          "question": "Что уже сделано по задаче?",
+          "expected": "каналы собраны",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1291,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "«Атлас»",
+          "matched": true,
+          "prompt_tokens": 1363,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L2",
+          "layer": "ltm",
+          "question": "Как зовут заказчика?",
+          "expected": "Марина Ковалёва",
+          "answer": "Марина Ковалёва",
+          "matched": true,
+          "prompt_tokens": 1289,
+          "completion_tokens": 8
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "15 декабря 2026",
+          "matched": true,
+          "prompt_tokens": 1398,
+          "completion_tokens": 6
+        },
+        {
+          "id": "L4",
+          "layer": "ltm",
+          "question": "Какой общий бюджет проекта?",
+          "expected": "480 000",
+          "answer": "480 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1397,
+          "completion_tokens": 5
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "только российские ЦОД",
+          "matched": true,
+          "prompt_tokens": 1386,
+          "completion_tokens": 10
+        },
+        {
+          "id": "L6",
+          "layer": "ltm",
+          "question": "Какую базу данных выбрали?",
+          "expected": "PostgreSQL",
+          "answer": "PostgreSQL",
+          "matched": true,
+          "prompt_tokens": 1370,
+          "completion_tokens": 3
+        }
+      ],
+      "matched_stm": 6,
+      "matched_wm": 0,
+      "matched_ltm": 6,
+      "total": 12,
+      "effective": 18,
+      "layer_tokens": {
+        "ltm": 232,
+        "wm": 0,
+        "stm": 210
+      },
+      "system_tokens": 331,
+      "tools_tokens": 590,
+      "total_tokens": 1386,
+      "usage_prompt_tokens": 23816,
+      "errors": []
+    },
+    {
+      "id": "clear-ltm",
+      "label": "очистить ltm",
+      "layers": "stm=true wm=true ltm=true",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "150 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1309,
+          "completion_tokens": 5
+        },
+        {
+          "id": "S2",
+          "layer": "stm",
+          "question": "Что решили насчёт инфлюенсеров?",
+          "expected": "отдельной строкой",
+          "answer": "отдельной строкой, 25 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1305,
+          "completion_tokens": 14
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "в четверг в 11:00",
+          "matched": true,
+          "prompt_tokens": 1302,
+          "completion_tokens": 7
+        },
+        {
+          "id": "S4",
+          "layer": "stm",
+          "question": "Где лежит черновик сметы?",
+          "expected": "smeta-v3.xlsx",
+          "answer": "smeta-v3.xlsx",
+          "matched": true,
+          "prompt_tokens": 1302,
+          "completion_tokens": 4
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "не раньше пятницы",
+          "matched": true,
+          "prompt_tokens": 1308,
+          "completion_tokens": 8
+        },
+        {
+          "id": "S6",
+          "layer": "stm",
+          "question": "Сколько заложить на инфлюенсеров?",
+          "expected": "25 000",
+          "answer": "25 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1306,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "смета маркетинга к релизу",
+          "matched": true,
+          "prompt_tokens": 1303,
+          "completion_tokens": 12
+        },
+        {
+          "id": "W2",
+          "layer": "wm",
+          "question": "На каком шаге плана мы остановились?",
+          "expected": "шаг 2",
+          "answer": "на шаге 2",
+          "matched": true,
+          "prompt_tokens": 1306,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "вариант B",
+          "matched": true,
+          "prompt_tokens": 1306,
+          "completion_tokens": 4
+        },
+        {
+          "id": "W4",
+          "layer": "wm",
+          "question": "Сколько стоит рабочий вариант?",
+          "expected": "140 000",
+          "answer": "140 000 рублей",
+          "matched": true,
+          "prompt_tokens": 1304,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "вопрос про PR-подрядчика",
+          "matched": true,
+          "prompt_tokens": 1304,
+          "completion_tokens": 11
+        },
+        {
+          "id": "W6",
+          "layer": "wm",
+          "question": "Что уже сделано по задаче?",
+          "expected": "каналы собраны",
+          "answer": "каналы собраны",
+          "matched": true,
+          "prompt_tokens": 1302,
+          "completion_tokens": 7
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1301,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L2",
+          "layer": "ltm",
+          "question": "Как зовут заказчика?",
+          "expected": "Марина Ковалёва",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1300,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1301,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L4",
+          "layer": "ltm",
+          "question": "Какой общий бюджет проекта?",
+          "expected": "480 000",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1303,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1307,
+          "completion_tokens": 4
+        },
+        {
+          "id": "L6",
+          "layer": "ltm",
+          "question": "Какую базу данных выбрали?",
+          "expected": "PostgreSQL",
+          "answer": "не знаю",
+          "matched": false,
+          "prompt_tokens": 1302,
+          "completion_tokens": 4
+        }
+      ],
+      "matched_stm": 6,
+      "matched_wm": 6,
+      "matched_ltm": 0,
+      "total": 12,
+      "effective": 18,
+      "layer_tokens": {
+        "ltm": 0,
+        "wm": 155,
+        "stm": 210
+      },
+      "system_tokens": 331,
+      "tools_tokens": 590,
+      "total_tokens": 1309,
+      "usage_prompt_tokens": 23471,
+      "errors": []
+    }
+  ],
+  "deltas": {
+    "ltm": 267,
+    "wm": 155,
+    "stm": 210,
+    "ltm_block": 267,
+    "wm_block": 155,
+    "stm_block": 210
+  },
+  "saved_tokens": 371,
+  "saved_ratio": 0.19054956343091936,
+  "thresholds": [
+    {
+      "name": "all ≥ 16/18",
+      "ok": true,
+      "detail": "18/18 (порог 16/18)"
+    },
+    {
+      "name": "stm свои",
+      "ok": true,
+      "detail": "6/6 (порог 5)"
+    },
+    {
+      "name": "stm чужие",
+      "ok": true,
+      "detail": "0 (максимум 1)"
+    },
+    {
+      "name": "wm свои",
+      "ok": true,
+      "detail": "6/6 (порог 5)"
+    },
+    {
+      "name": "wm чужие",
+      "ok": true,
+      "detail": "0 (максимум 1)"
+    },
+    {
+      "name": "ltm свои",
+      "ok": true,
+      "detail": "6/6 (порог 5)"
+    },
+    {
+      "name": "ltm чужие",
+      "ok": true,
+      "detail": "0 (максимум 1)"
+    },
+    {
+      "name": "clear-stm свои",
+      "ok": true,
+      "detail": "0 (максимум 1)"
+    },
+    {
+      "name": "clear-stm чужие",
+      "ok": true,
+      "detail": "12 (порог 5)"
+    },
+    {
+      "name": "clear-wm свои",
+      "ok": true,
+      "detail": "0 (максимум 1)"
+    },
+    {
+      "name": "clear-wm чужие",
+      "ok": true,
+      "detail": "12 (порог 5)"
+    },
+    {
+      "name": "clear-ltm свои",
+      "ok": true,
+      "detail": "0 (максимум 1)"
+    },
+    {
+      "name": "clear-ltm чужие",
+      "ok": true,
+      "detail": "12 (порог 5)"
+    },
+    {
+      "name": "экономия",
+      "ok": true,
+      "detail": "371 токенов"
+    },
+    {
+      "name": "ΔLTM",
+      "ok": true,
+      "detail": "Δ=267 блок=267"
+    },
+    {
+      "name": "ΔWM",
+      "ok": true,
+      "detail": "Δ=155 блок=155"
+    },
+    {
+      "name": "ΔSTM",
+      "ok": true,
+      "detail": "Δ=210 блок=210"
+    },
+    {
+      "name": "секреты",
+      "ok": true,
+      "detail": "0 в слоях и аудите"
+    }
+  ],
+  "total_requests": 180,
+  "errors": []
+}
