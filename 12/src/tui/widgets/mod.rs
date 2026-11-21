@@ -5,7 +5,6 @@ pub mod branches;
 pub mod chat;
 pub mod experiment;
 pub mod help;
-pub mod history;
 pub mod input;
 pub mod memory;
 pub mod modal;

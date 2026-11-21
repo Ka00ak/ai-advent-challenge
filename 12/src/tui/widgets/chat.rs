@@ -104,7 +104,11 @@ fn draw_messages(frame: &mut Frame, area: Rect, state: &mut AppState) {
     let scroll = (state.chat_scroll as usize).min(max_scroll);
     state.chat_scroll = scroll.min(u16::MAX as usize) as u16;
     let offset = max_scroll.saturating_sub(scroll);
-    let paragraph = paragraph.block(Block::default().borders(Borders::ALL).title(" Диалог "));
+    let paragraph = paragraph.block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Диалог · полная история STM "),
+    );
     frame.render_widget(paragraph.scroll((offset as u16, 0)), area);
 }
 

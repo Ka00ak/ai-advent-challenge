@@ -245,7 +245,6 @@ pub struct AppState {
     pub pending_selection: usize,
     pub experiment_selection: usize,
     pub tokens_selection: usize,
-    pub history_selection: usize,
     pub api_selection: usize,
     pub branch_selection: usize,
     pub settings_selection: usize,
@@ -295,7 +294,6 @@ impl AppState {
             pending_selection: 0,
             experiment_selection: 0,
             tokens_selection: 0,
-            history_selection: 0,
             api_selection: 0,
             branch_selection: 0,
             settings_selection: 0,
@@ -567,9 +565,6 @@ impl AppState {
         self.pending_selection = self
             .pending_selection
             .min(self.bundle.pending.len().saturating_sub(1));
-        self.history_selection = self
-            .history_selection
-            .min(self.bundle.stm.messages.len().saturating_sub(1));
         self.branch_selection = self
             .branch_selection
             .min(self.branch_file.branches.len().saturating_sub(1));

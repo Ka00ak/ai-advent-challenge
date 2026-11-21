@@ -9,7 +9,6 @@ pub enum Screen {
     Pending,
     Experiment,
     Tokens,
-    History,
     Settings,
     ApiLog,
     Branches,
@@ -17,30 +16,48 @@ pub enum Screen {
 }
 
 impl Screen {
-    pub const ALL: [Screen; 10] = [
+    pub const ALL: [Screen; 9] = [
         Screen::Chat,
         Screen::Memory,
         Screen::Pending,
         Screen::Experiment,
         Screen::Tokens,
-        Screen::History,
         Screen::Settings,
         Screen::ApiLog,
         Screen::Branches,
         Screen::Profile,
     ];
 
-    /// Номер экрана в строке вкладок: чат — `0`, остальные — `1…9`.
+    /// Номер экрана в строке вкладок. Номера стабильны: вкладка `5`
+    /// (история) удалена, её функции перенесены в чат `0`.
     pub fn number(self) -> usize {
-        Self::ALL
-            .iter()
-            .position(|screen| *screen == self)
-            .unwrap_or(0)
+        match self {
+            Screen::Chat => 0,
+            Screen::Memory => 1,
+            Screen::Pending => 2,
+            Screen::Experiment => 3,
+            Screen::Tokens => 4,
+            Screen::Settings => 6,
+            Screen::ApiLog => 7,
+            Screen::Branches => 8,
+            Screen::Profile => 9,
+        }
     }
 
-    /// Экран по номеру вкладки. `0` — чат, `1…9` — остальные экраны.
+    /// Экран по номеру вкладки. `0` — чат, `1…9` без удалённой `5`.
     pub fn from_number(number: usize) -> Option<Screen> {
-        Self::ALL.get(number).copied()
+        match number {
+            0 => Some(Screen::Chat),
+            1 => Some(Screen::Memory),
+            2 => Some(Screen::Pending),
+            3 => Some(Screen::Experiment),
+            4 => Some(Screen::Tokens),
+            6 => Some(Screen::Settings),
+            7 => Some(Screen::ApiLog),
+            8 => Some(Screen::Branches),
+            9 => Some(Screen::Profile),
+            _ => None,
+        }
     }
 
     pub fn title(self) -> &'static str {
@@ -50,7 +67,6 @@ impl Screen {
             Screen::Pending => "Подтверждения",
             Screen::Experiment => "Проверка",
             Screen::Tokens => "Токены",
-            Screen::History => "История",
             Screen::Settings => "Настройки",
             Screen::ApiLog => "API",
             Screen::Branches => "Ветки",

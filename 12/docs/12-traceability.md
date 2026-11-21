@@ -22,6 +22,7 @@
 | PR-16 | Реальные прогоны 2026-11-19 | `docs/results/personalization-2026-11-19*` | приложены | done |
 | PR-17 | TUI-вкладка «0 Чат» поверх STM/WM/LTM и профиля | `src/tui/widgets/chat.rs`, `Screen::Chat` | `tests/tui.rs` | done |
 | PR-18 | API-журнал: каждый HTTP-запрос отдельно, полные request/response | `src/llm/record.rs`, `src/tui/widgets/api_log.rs`, модалка `ApiDetail` | `src/llm/record.rs`, `tests/controller.rs`, `tests/experiment.rs`, `tests/tui.rs` | done |
+| PR-19 | История STM перенесена в чат, вкладка 5 удалена | `Screen::Chat`, `src/tui/widgets/chat.rs`, keymap чата | `tests/tui.rs` | done |
 
 ## Фактические тесты
 
@@ -36,7 +37,7 @@
 | `tests/cli.rs` | `profile list/use/learn`, `personalize --check`, отчёты |
 | `tests/storage.rs` | roundtrip и битый `profiles/profiles.json` |
 | `tests/experiment.rs` | 126 отдельных HTTP-записей эксперимента, событие `ApiLogged` для TUI |
-| `tests/tui.rs` | экран 9, профиль, чат, API: разделы «Запрос»/«Ответ», прокрутка длинного журнала, замена сводки эксперимента запросами |
+| `tests/tui.rs` | экран 9, профиль, чат с историей STM, API: разделы «Запрос»/«Ответ», прокрутка длинного журнала, замена сводки эксперимента запросами |
 
-Итог: **268 тестов**, `cargo clippy --all-targets -- -D warnings` и
+Итог: **269 тестов**, `cargo clippy --all-targets -- -D warnings` и
 `cargo fmt --check` чистые.

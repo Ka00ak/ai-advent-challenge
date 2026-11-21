@@ -29,10 +29,41 @@ fn number_keys_switch_screens() {
     assert_eq!(state.screen, Screen::Experiment);
     handle_key(&mut state, key(KeyCode::Char('1')));
     assert_eq!(state.screen, Screen::Memory);
+    handle_key(&mut state, key(KeyCode::Char('6')));
+    assert_eq!(state.screen, Screen::Settings);
+    handle_key(&mut state, key(KeyCode::Char('5')));
+    assert_eq!(state.screen, Screen::Settings, "вкладка 5 удалена");
     handle_key(&mut state, key(KeyCode::Char('8')));
     assert_eq!(state.screen, Screen::Branches);
     handle_key(&mut state, key(KeyCode::Char('9')));
     assert_eq!(state.screen, Screen::Profile);
+}
+
+#[test]
+fn chat_has_stm_history_actions() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::Chat;
+    assert!(matches!(
+        handle_key(&mut state, key(KeyCode::Char('c'))),
+        UiAction::None
+    ));
+    assert!(matches!(state.modal, Some(Modal::Confirm { .. })));
+    handle_key(&mut state, key(KeyCode::Esc));
+
+    handle_key(&mut state, key(KeyCode::Char('e')));
+    let input = state.input.as_ref().unwrap();
+    assert_eq!(
+        input.purpose,
+        lab12::tui::state::InputPurpose::ExportHistory
+    );
+    handle_key(&mut state, key(KeyCode::Esc));
+
+    handle_key(&mut state, key(KeyCode::Char('I')));
+    let input = state.input.as_ref().unwrap();
+    assert_eq!(
+        input.purpose,
+        lab12::tui::state::InputPurpose::ImportHistory
+    );
 }
 
 #[test]
@@ -76,6 +107,7 @@ fn chat_tab_shows_profile_memory_and_dialog() {
     assert!(text.contains("Профиль:"));
     assert!(text.contains("STM + WM + LTM + профиль"));
     assert!(text.contains("Диалог"));
+    assert!(text.contains("полная история STM"));
 }
 
 #[test]

@@ -172,7 +172,6 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             Screen::Pending => handle_pending(state, key),
             Screen::Experiment => handle_experiment(state, key),
             Screen::Tokens => handle_tokens(state, key),
-            Screen::History => handle_history(state, key),
             Screen::Settings => handle_settings(state, key),
             Screen::ApiLog => handle_api(state, key),
             Screen::Branches => handle_branches(state, key),
@@ -532,11 +531,6 @@ fn move_selection(state: &mut AppState, delta: isize) {
         ),
         Screen::Experiment => apply(&mut state.experiment_selection, experiment_len, delta),
         Screen::Tokens => apply(&mut state.tokens_selection, state.exchanges.len(), delta),
-        Screen::History => apply(
-            &mut state.history_selection,
-            state.bundle.stm.messages.len(),
-            delta,
-        ),
         Screen::Settings => apply(&mut state.settings_selection, settings_len, delta),
         Screen::ApiLog => apply(&mut state.api_selection, api_len, delta),
         Screen::Branches => apply(
@@ -580,6 +574,39 @@ fn handle_chat(state: &mut AppState, key: KeyEvent) -> UiAction {
         }
         KeyCode::Char('G') => {
             state.chat_scroll = 0;
+            UiAction::None
+        }
+        KeyCode::Char('c') => {
+            if state.busy.is_some() {
+                return UiAction::Error("идёт job — действия заблокированы".into());
+            }
+            state.confirm(
+                "Очистить STM?",
+                layer_clear_warning(MemoryLayer::Stm),
+                ConfirmAction::ClearLayer(MemoryLayer::Stm),
+            );
+            UiAction::None
+        }
+        KeyCode::Char('e') => {
+            if state.busy.is_some() {
+                return UiAction::Error("идёт job — действия заблокированы".into());
+            }
+            state.open_input(
+                InputPurpose::ExportHistory,
+                "Экспорт истории STM",
+                "history.json",
+            );
+            UiAction::None
+        }
+        KeyCode::Char('I') => {
+            if state.busy.is_some() {
+                return UiAction::Error("идёт job — действия заблокированы".into());
+            }
+            state.open_input(
+                InputPurpose::ImportHistory,
+                "Импорт истории STM",
+                "history.json",
+            );
             UiAction::None
         }
         _ => UiAction::None,
@@ -935,49 +962,6 @@ fn handle_tokens(state: &mut AppState, key: KeyEvent) -> UiAction {
         }
     }
     UiAction::None
-}
-
-fn handle_history(state: &mut AppState, key: KeyEvent) -> UiAction {
-    match key.code {
-        KeyCode::Enter => {
-            if let Some(message) = state.bundle.stm.messages.get(state.history_selection) {
-                state.modal = Some(Modal::Card {
-                    title: format!(
-                        "История #{} · {:?}",
-                        state.history_selection + 1,
-                        message.role
-                    ),
-                    lines: message.text().lines().map(str::to_string).collect(),
-                });
-            }
-            UiAction::None
-        }
-        KeyCode::Char('c') => {
-            state.confirm(
-                "Очистить STM?",
-                layer_clear_warning(MemoryLayer::Stm),
-                ConfirmAction::ClearLayer(MemoryLayer::Stm),
-            );
-            UiAction::None
-        }
-        KeyCode::Char('e') => {
-            state.open_input(
-                InputPurpose::ExportHistory,
-                "Экспорт истории",
-                "history.json",
-            );
-            UiAction::None
-        }
-        KeyCode::Char('i') => {
-            state.open_input(
-                InputPurpose::ImportHistory,
-                "Импорт истории",
-                "history.json",
-            );
-            UiAction::None
-        }
-        _ => UiAction::None,
-    }
 }
 
 fn handle_settings(state: &mut AppState, key: KeyEvent) -> UiAction {

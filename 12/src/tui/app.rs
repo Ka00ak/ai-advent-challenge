@@ -495,7 +495,6 @@ fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
         Screen::Pending => widgets::pending::draw(frame, chunks[2], state),
         Screen::Experiment => widgets::experiment::draw(frame, chunks[2], state),
         Screen::Tokens => widgets::tokens::draw(frame, chunks[2], state),
-        Screen::History => widgets::history::draw(frame, chunks[2], state),
         Screen::Settings => widgets::settings::draw(frame, chunks[2], state),
         Screen::ApiLog => widgets::api_log::draw(frame, chunks[2], state),
         Screen::Branches => widgets::branches::draw(frame, chunks[2], state),
@@ -559,14 +558,15 @@ fn footer_lines(state: &AppState) -> Vec<Line<'static>> {
         Screen::Chat if state.chat_focused => {
             "Enter отправить · Esc выйти из ввода · ↑↓/PgUp/PgDn прокрутка"
         }
-        Screen::Chat => "i/Enter ввод · ↑↓/PgUp/PgDn прокрутка · 0…9 экраны · ? помощь · q выход",
+        Screen::Chat => {
+            "i/Enter ввод · ↑↓ прокрутка · c очистить STM · e экспорт · I импорт · q выход"
+        }
         Screen::Memory => "Tab фокус · a/e/d/p/m · c очистка · Enter карточка · / поиск",
         Screen::Pending => "y принять · n отклонить · e изменить · l сменить слой · g/G",
         Screen::Experiment => {
             "r запустить · m режим · Space очистка · s отчёт · d детали · i импорт"
         }
         Screen::Tokens => "↑↓ выбор запроса · Enter детали",
-        Screen::History => "Enter сообщение · c очистить STM · e экспорт · i импорт",
         Screen::Settings => "Enter изменить · s сохранить · Tab поле",
         Screen::ApiLog => "f фильтр · ↑↓/g/G выбор · Enter запрос/ответ · e экспорт",
         Screen::Branches => "c checkpoint · b две ветки · Enter переключить · x удалить",
