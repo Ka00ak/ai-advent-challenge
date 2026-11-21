@@ -116,6 +116,8 @@ fn execute_action(
         UiAction::Quit => state.should_quit = true,
         UiAction::Chat(text) => {
             if state.busy.is_none() {
+                state.chat_pending = Some(text.clone());
+                state.chat_scroll = 0;
                 cancel.store(false, Ordering::Relaxed);
                 spawn_job(runtime.clone(), Job::Chat(text), tx.clone(), cancel.clone());
             }
@@ -378,7 +380,9 @@ fn handle_app_event(
                 "ответ: {}{profile_note}",
                 outcome.final_text.chars().take(80).collect::<String>()
             );
-            state.banner = Some((outcome.final_text.clone(), false));
+            if state.screen != Screen::Chat {
+                state.banner = Some((outcome.final_text.clone(), false));
+            }
         }
         AppEvent::ExperimentProgress(progress) => {
             state.record_experiment_progress(&progress);
@@ -412,11 +416,13 @@ fn handle_app_event(
         }
         AppEvent::Error(message) => {
             state.busy = None;
+            state.chat_pending = None;
             state.fail_experiment_progress();
             state.error_modal(message);
         }
         AppEvent::JobFinished => {
             state.busy = None;
+            state.chat_pending = None;
             match AppController::load(runtime.clone()) {
                 Ok(reloaded) => {
                     *controller = reloaded;
@@ -458,15 +464,15 @@ fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
     frame.render_widget(header, chunks[0]);
 
     let mut tabs: Vec<Span> = Vec::new();
-    for (index, screen) in Screen::ALL.iter().enumerate() {
+    for screen in Screen::ALL.iter() {
         let title = if *screen == Screen::Pending && !state.bundle.pending.is_empty() {
             format!(
                 "{} Подтверждения({})",
-                index + 1,
+                screen.number(),
                 state.bundle.pending.len()
             )
         } else {
-            format!("{} {}", index + 1, screen.title())
+            format!("{} {}", screen.number(), screen.title())
         };
         let style = if *screen == state.screen {
             theme::selected()
@@ -479,6 +485,7 @@ fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
     frame.render_widget(Paragraph::new(Line::from(tabs)), chunks[1]);
 
     match state.screen {
+        Screen::Chat => widgets::chat::draw(frame, chunks[2], state),
         Screen::Memory => widgets::memory::draw(frame, chunks[2], state),
         Screen::Pending => widgets::pending::draw(frame, chunks[2], state),
         Screen::Experiment => widgets::experiment::draw(frame, chunks[2], state),
@@ -544,6 +551,10 @@ fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
 
 fn footer_lines(state: &AppState) -> Vec<Line<'static>> {
     let context = match state.screen {
+        Screen::Chat if state.chat_focused => {
+            "Enter отправить · Esc выйти из ввода · ↑↓/PgUp/PgDn прокрутка"
+        }
+        Screen::Chat => "i/Enter ввод · ↑↓/PgUp/PgDn прокрутка · 0…9 экраны · ? помощь · q выход",
         Screen::Memory => "Tab фокус · a/e/d/p/m · c очистка · Enter карточка · / поиск",
         Screen::Pending => "y принять · n отклонить · e изменить · l сменить слой · g/G",
         Screen::Experiment => {

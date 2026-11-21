@@ -23,6 +23,8 @@ fn state() -> (tempfile::TempDir, AppState) {
 #[test]
 fn number_keys_switch_screens() {
     let (_dir, mut state) = state();
+    handle_key(&mut state, key(KeyCode::Char('0')));
+    assert_eq!(state.screen, Screen::Chat);
     handle_key(&mut state, key(KeyCode::Char('3')));
     assert_eq!(state.screen, Screen::Experiment);
     handle_key(&mut state, key(KeyCode::Char('1')));
@@ -31,6 +33,123 @@ fn number_keys_switch_screens() {
     assert_eq!(state.screen, Screen::Branches);
     handle_key(&mut state, key(KeyCode::Char('9')));
     assert_eq!(state.screen, Screen::Profile);
+}
+
+#[test]
+fn chat_tab_collects_input_and_returns_chat_action() {
+    let (_dir, mut state) = state();
+    handle_key(&mut state, key(KeyCode::Char('0')));
+    assert_eq!(state.screen, Screen::Chat);
+
+    handle_key(&mut state, key(KeyCode::Enter));
+    assert!(state.chat_focused);
+    for ch in "Привет".chars() {
+        handle_key(&mut state, key(KeyCode::Char(ch)));
+    }
+    assert_eq!(state.chat_input.buffer, "Привет");
+
+    let action = handle_key(&mut state, key(KeyCode::Enter));
+    assert_eq!(action, UiAction::Chat("Привет".into()));
+    assert!(state.chat_input.buffer.is_empty());
+    assert_eq!(state.chat_pending.as_deref(), Some("Привет"));
+
+    // В режиме ввода q — обычный символ, а не выход.
+    handle_key(&mut state, key(KeyCode::Char('q')));
+    assert!(!state.should_quit);
+    assert_eq!(state.chat_input.buffer, "q");
+    handle_key(&mut state, key(KeyCode::Esc));
+    assert!(!state.chat_focused);
+}
+
+#[test]
+fn chat_tab_shows_profile_memory_and_dialog() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::Chat;
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let buffer = terminal.backend().buffer();
+    let text: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
+    assert!(text.contains("0 Чат"));
+    assert!(text.contains("Профиль:"));
+    assert!(text.contains("STM + WM + LTM + профиль"));
+    assert!(text.contains("Диалог"));
+}
+
+#[test]
+fn chat_tab_renders_last_turn_with_layers_and_answer() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::Chat;
+    let mut memory = state.bundle.clone();
+    memory
+        .stm
+        .messages
+        .push(lab12::domain::memory::ChatMessage::assistant(
+            "Ответ модели",
+        ));
+    state.bundle = memory.clone();
+    let outcome = lab12::domain::chat::TurnOutcome {
+        final_text: "Ответ модели".into(),
+        memory,
+        messages: Vec::new(),
+        breakdown: MemoryBreakdown {
+            profile_tokens: 7,
+            ltm_profile_tokens: 3,
+            ltm_relevant_tokens: 5,
+            wm_tokens: 11,
+            stm_summary_tokens: 2,
+            stm_tokens: 13,
+            total_tokens: 123,
+            ..MemoryBreakdown::default()
+        },
+        token_stats: Default::default(),
+        audit: Vec::new(),
+        profile_id: Some("brief".into()),
+        profile_changes: Vec::new(),
+    };
+    state.record_turn(&outcome);
+
+    let backend = TestBackend::new(120, 36);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let buffer = terminal.backend().buffer();
+    let text: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
+    assert!(text.contains("Ответ модели"));
+    assert!(text.contains("профиль 7"));
+    assert!(text.contains("всего 123 ток."));
+}
+
+#[test]
+fn chat_scroll_clamps_and_moves_back_down() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::Chat;
+    state.chat_scroll = u16::MAX;
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let top = state.chat_scroll;
+    assert!(top > 0, "история должна быть длиннее окна");
+    handle_key(&mut state, key(KeyCode::Down));
+    assert_eq!(state.chat_scroll, top - 1);
+}
+
+#[test]
+fn busy_chat_does_not_send_second_message() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::Chat;
+    state.chat_focused = true;
+    state.chat_input.insert('A');
+    state.busy = Some("chat");
+    let action = handle_key(&mut state, key(KeyCode::Enter));
+    assert_eq!(action, UiAction::None);
+    assert_eq!(state.chat_input.buffer, "A");
+    assert!(state.banner.is_some());
 }
 
 #[test]

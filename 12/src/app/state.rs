@@ -4,6 +4,7 @@ use crate::domain::memory::MemoryLayer;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
+    Chat,
     Memory,
     Pending,
     Experiment,
@@ -16,7 +17,8 @@ pub enum Screen {
 }
 
 impl Screen {
-    pub const ALL: [Screen; 9] = [
+    pub const ALL: [Screen; 10] = [
+        Screen::Chat,
         Screen::Memory,
         Screen::Pending,
         Screen::Experiment,
@@ -28,19 +30,22 @@ impl Screen {
         Screen::Profile,
     ];
 
-    pub fn index(self) -> usize {
+    /// Номер экрана в строке вкладок: чат — `0`, остальные — `1…9`.
+    pub fn number(self) -> usize {
         Self::ALL
             .iter()
             .position(|screen| *screen == self)
             .unwrap_or(0)
     }
 
-    pub fn from_index(index: usize) -> Option<Screen> {
-        Self::ALL.get(index).copied()
+    /// Экран по номеру вкладки. `0` — чат, `1…9` — остальные экраны.
+    pub fn from_number(number: usize) -> Option<Screen> {
+        Self::ALL.get(number).copied()
     }
 
     pub fn title(self) -> &'static str {
         match self {
+            Screen::Chat => "Чат",
             Screen::Memory => "Память",
             Screen::Pending => "Подтверждения",
             Screen::Experiment => "Проверка",

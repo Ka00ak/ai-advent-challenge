@@ -20,6 +20,7 @@
 | PR-14 | 10 вопросов подряд и первое нарушение | `StabilityReport.first_violation` | fake unit, реальный отчёт | done |
 | PR-15 | Markdown/JSON-отчёт и `--check` | `render_markdown`, `save_personalization_report` | unit, CLI | done |
 | PR-16 | Реальные прогоны 2026-11-19 | `docs/results/personalization-2026-11-19*` | приложены | done |
+| PR-17 | TUI-вкладка «0 Чат» поверх STM/WM/LTM и профиля | `src/tui/widgets/chat.rs`, `Screen::Chat` | `tests/tui.rs` | done |
 
 ## Фактические тесты
 
@@ -32,7 +33,7 @@
 | `tests/controller.rs` | обучение и сохранение профиля, переключение |
 | `tests/cli.rs` | `profile list/use/learn`, `personalize --check`, отчёты |
 | `tests/storage.rs` | roundtrip и битый `profiles/profiles.json` |
-| `tests/tui.rs` | экран 9, активация профиля |
+| `tests/tui.rs` | экран 9, активация профиля, вкладка «0 Чат»: ввод, отправка, busy, рендер, прокрутка до начала |
 
-Итог: **254 теста**, `cargo clippy --all-targets -- -D warnings` и
+Итог: **259 тестов**, `cargo clippy --all-targets -- -D warnings` и
 `cargo fmt --check` чистые.

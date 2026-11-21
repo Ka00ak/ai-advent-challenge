@@ -1,0 +1,893 @@
+{
+  "started_at": "2026-11-21T12:09:12.765147407Z",
+  "finished_at": "2026-11-21T12:10:22.357181605Z",
+  "mode": "quick",
+  "model": "deepseek-chat",
+  "base_url": "https://api.deepseek.com",
+  "data_dir": "./data",
+  "source": "api",
+  "window": 8,
+  "counts": {
+    "stm_messages": 34,
+    "stm_window": 8,
+    "wm_items": 7,
+    "ltm_records": 15,
+    "pending": 1,
+    "summary": false
+  },
+  "configs": [
+    {
+      "id": "none",
+      "label": "none",
+      "layers": "stm=false wm=false ltm=false",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "В памяти нет данных о бюджете маркетинга — ни в STM, ни в WM, ни в LTM. Я не могу назвать сумму, не выдумывая её.\n\nЕсли вы пришлёте цифры (старый и новый бюджет) или попросите зафиксировать их, я запишу и отвечу.",
+          "matched": false,
+          "prompt_tokens": 279,
+          "completion_tokens": 74
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "В моих блоках памяти нет информации о созвоне с заказчиком — ни даты, ни времени, ни участников. Я не вижу ни STM, ни WM, ни LTM с такими данными, поэтому не могу ответить.\n\nЕсли вы пришлёте детали (или попросите их зафиксировать), я смогу",
+          "matched": false,
+          "prompt_tokens": 276,
+          "completion_tokens": 80
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "В моей памяти нет данных о ваших проектах, сроках или правилах согласования смет — ни в рабочей, ни в долговременной памяти. Поэтому ответить конкретно по вашей ситуации я не могу.\n\nОбщий ориентир: смету обычно отправляют заказчику, когда она внутренне согласована (проверена объ",
+          "matched": false,
+          "prompt_tokens": 278,
+          "completion_tokens": 80
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "В блоках памяти, которые ты передал, нет ни STM, ни WM, ни LTM — они пустые/не приложены. Поэтому я не могу сказать, какая задача сейчас в работе: этих данных у меня нет. Пришли блоки памяти или назови задачу — зафиксирую.",
+          "matched": false,
+          "prompt_tokens": 273,
+          "completion_tokens": 69
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "В предоставленных блоках памяти (STM, WM, LTM) нет данных о смете или о выбранном рабочем варианте — я не могу определить это по доступной информации. Уточните, пожалуйста, о какой смете речь, или приложите соответствующие данные.",
+          "matched": false,
+          "prompt_tokens": 277,
+          "completion_tokens": 66
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "В моих блоках памяти нет данных о том, какой вопрос остался открытым — ни в STM, ни в WM, ни в LTM не указано никакого открытого вопроса или незавершённой темы. Если вы имеете в виду вопрос из нашего предыдущего разговора, то в переданной мне памяти он не зафиксирован. Уточ",
+          "matched": false,
+          "prompt_tokens": 274,
+          "completion_tokens": 80
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "В блоках памяти, которые ты упомянул, нет ни одного — STM, WM и LTM не переданы, поэтому названия проекта я не вижу. Пришли блоки памяти или скажи название сам.",
+          "matched": false,
+          "prompt_tokens": 270,
+          "completion_tokens": 49
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "В моих блоках памяти нет информации о дедлайне проекта — ни в STM, ни в WM, ни в LTM. Я не могу его назвать, не выдумывая данные.\n\nЕсли вы уточните дату или попросите её зафиксировать, я смогу сохранить её в память.",
+          "matched": false,
+          "prompt_tokens": 273,
+          "completion_tokens": 73
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "В предоставленных блоках памяти (STM, WM, LTM) нет никаких данных об ограничениях по инфраструктуре — эти блоки мне не переданы, и я не могу выдумывать их содержимое.\n\nУточните, пожалуйста, о какой инфраструктуре речь (серверы, облако, сеть, лимиты ресур",
+          "matched": false,
+          "prompt_tokens": 276,
+          "completion_tokens": 80
+        }
+      ],
+      "matched_stm": 0,
+      "matched_wm": 0,
+      "matched_ltm": 0,
+      "total": 0,
+      "effective": 9,
+      "layer_tokens": {
+        "ltm": 0,
+        "wm": 0,
+        "stm": 0
+      },
+      "system_tokens": 377,
+      "tools_tokens": 590,
+      "total_tokens": 990,
+      "usage_prompt_tokens": 2476,
+      "usage_completion_tokens": 651,
+      "usage_cost_usd": 0.0009667,
+      "errors": []
+    },
+    {
+      "id": "stm",
+      "label": "stm",
+      "layers": "stm=true wm=false ltm=false",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "До 150 000 рублей.",
+          "matched": true,
+          "prompt_tokens": 465,
+          "completion_tokens": 8
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "Созвон с заказчиком — в четверг в 11:00.",
+          "matched": true,
+          "prompt_tokens": 462,
+          "completion_tokens": 19
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "Смету можно отправлять не раньше пятницы — вы просили не отправлять её до этого срока.",
+          "matched": true,
+          "prompt_tokens": 464,
+          "completion_tokens": 26
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "Сейчас в работе смета маркетинга. Известные параметры:\n\n- Общий бюджет: 150 000 рублей\n- Инфлюенсеры: отдельная строка, 25 000 рублей\n- Черновик: файл smeta-v3.xlsx\n- Отправка заказчику: не раньше пятницы\n- С",
+          "matched": true,
+          "prompt_tokens": 459,
+          "completion_tokens": 80
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "В памяти нет данных о том, какой вариант сметы выбран рабочим. Известно только, что черновик лежит в файле smeta-v3.xlsx и его нельзя отправлять заказчику до пятницы.",
+          "matched": false,
+          "prompt_tokens": 463,
+          "completion_tokens": 50
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "Открытым остаётся вопрос по смете: черновик smeta-v3.xlsx готов, но отправлять заказчику его нельзя до пятницы — то есть нужно дождаться пятницы (или вашего отдельного подтверждения), прежде чем отправить.\n\nВсё остальное зафиксировано: бюджет 150 000 ₽, инфлю",
+          "matched": false,
+          "prompt_tokens": 460,
+          "completion_tokens": 80
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "В переданных мне блоках памяти название проекта не указано — там есть только бюджет (150 000 ₽), строка на инфлюенсеров (25 000 ₽), созвон в четверг в 11:00 и файл smeta-v3.xlsx. Если название уже упоминалось раньше, оно до меня не дошло — под",
+          "matched": false,
+          "prompt_tokens": 456,
+          "completion_tokens": 80
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "В доступной мне памяти дедлайн проекта не указан — есть только бюджет 150 000 ₽, строка на инфлюенсеров 25 000 ₽, созвон в четверг в 11:00 и запрет отправлять smeta-v3.xlsx до пятницы. Если дедлайн известен, скажите — зафиксирую.",
+          "matched": false,
+          "prompt_tokens": 459,
+          "completion_tokens": 80
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "В известных мне данных об ограничениях по инфраструктуре ничего нет — в памяти и в нашей переписке такого не было. Уточните, о чём речь (хостинг, серверы, бюджет на инфраструктуру?), и я зафиксирую.",
+          "matched": false,
+          "prompt_tokens": 462,
+          "completion_tokens": 61
+        }
+      ],
+      "matched_stm": 3,
+      "matched_wm": 1,
+      "matched_ltm": 0,
+      "total": 4,
+      "effective": 9,
+      "layer_tokens": {
+        "ltm": 0,
+        "wm": 0,
+        "stm": 210
+      },
+      "system_tokens": 377,
+      "tools_tokens": 590,
+      "total_tokens": 1200,
+      "usage_prompt_tokens": 4150,
+      "usage_completion_tokens": 484,
+      "usage_cost_usd": 0.0013652800000000002,
+      "errors": []
+    },
+    {
+      "id": "wm",
+      "label": "wm",
+      "layers": "stm=false wm=true ltm=false",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "По данным рабочей памяти, в смете зафиксирован вариант B — **140 000 ₽**. Других значений бюджета в памяти нет, поэтому не могу сказать, была ли это корректировка «вверх» и с какой суммы.",
+          "matched": false,
+          "prompt_tokens": 423,
+          "completion_tokens": 54
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "В памяти нет данных о дате или времени созвона с заказчиком — там зафиксировано только, что пункт «Согласовать с заказчиком» ещё не выполнен, и открытый вопрос про бюджет на PR-подрядчика.\n\nЕсли хотите, могу помочь сформулировать повестку для этого созвона или подготовить вопросы к",
+          "matched": false,
+          "prompt_tokens": 420,
+          "completion_tokens": 80
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "Смету пока отправлять рано: по плану оценка каналов ещё не завершена (шаг 2 из 3), и согласование с заказчиком не начато.\n\nЧто уже есть:\n- Каналы собраны.\n- Есть цифра по варианту B — 140 000 ₽.\n\nЧто блокирует отправку:\n-",
+          "matched": false,
+          "prompt_tokens": 422,
+          "completion_tokens": 80
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "Сейчас в работе задача **«Подготовить смету маркетинга к релизу»**.\n\nСтатус: каналы собраны, идёт оценка каналов. Из плана осталось: оценить каналы и согласовать с заказчиком. По данным зафиксирован вариант B — 140 000 ₽. Откры",
+          "matched": true,
+          "prompt_tokens": 417,
+          "completion_tokens": 80
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "Рабочий вариант — **B, 140 000 ₽** (из рабочей памяти по текущей задаче).",
+          "matched": true,
+          "prompt_tokens": 421,
+          "completion_tokens": 27
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "Открытый вопрос: **нужен ли отдельный бюджет на PR-подрядчика?**",
+          "matched": true,
+          "prompt_tokens": 418,
+          "completion_tokens": 20
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "В блоках памяти, которые мне переданы (STM, WM, LTM), название проекта не указано. Там есть только задача «Подготовить смету маркетинга к релизу», план из трёх шагов, статус и данные по варианту B (140 000 ₽).\n\nЕсли название проекта известно, скажите — зафиксирую",
+          "matched": false,
+          "prompt_tokens": 414,
+          "completion_tokens": 80
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "В доступной мне памяти (STM, WM, LTM) дедлайн проекта не указан — там есть только задача «Подготовить смету маркетинга к релизу», её план и статус, а также данные по варианту B (140 000 ₽). Даты или срока сдачи нет.\n\nЕсли скажете дедлайн, могу зафи",
+          "matched": false,
+          "prompt_tokens": 417,
+          "completion_tokens": 80
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "В блоках памяти, которые мне переданы (STM, WM, LTM), нет никаких данных об ограничениях по инфраструктуре. Там есть только состояние задачи по смете маркетинга: собранные каналы, вариант B — 140 000 ₽ и открытый вопрос про бюджет на PR-подрядчика.\n\nЕсли ограничение по",
+          "matched": false,
+          "prompt_tokens": 420,
+          "completion_tokens": 80
+        }
+      ],
+      "matched_stm": 0,
+      "matched_wm": 3,
+      "matched_ltm": 0,
+      "total": 3,
+      "effective": 9,
+      "layer_tokens": {
+        "ltm": 0,
+        "wm": 155,
+        "stm": 0
+      },
+      "system_tokens": 377,
+      "tools_tokens": 590,
+      "total_tokens": 1145,
+      "usage_prompt_tokens": 3772,
+      "usage_completion_tokens": 581,
+      "usage_cost_usd": 0.00130018,
+      "errors": []
+    },
+    {
+      "id": "ltm",
+      "label": "ltm",
+      "layers": "stm=false wm=false ltm=true",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "В памяти указан бюджет маркетинга 120 000 рублей (от 21.11.2026). Данных о том, что его «поднимали», нет — уточни новую сумму.",
+          "matched": false,
+          "prompt_tokens": 540,
+          "completion_tokens": 45
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "В памяти нет даты созвона с заказчиком — только вехи проекта: прототип 3 ноября 2026, релиз 20 декабря 2026.",
+          "matched": false,
+          "prompt_tokens": 537,
+          "completion_tokens": 39
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "Уточни, пожалуйста: смета уже готова и ждёт отправки, или вопрос про сроки в целом? Из памяти есть только бюджет (480 000 ₽, маркетинг 120 000 ₽) и вехи (прототип 3 ноября, релиз 20 декабря 2026) — про смету и условия",
+          "matched": false,
+          "prompt_tokens": 539,
+          "completion_tokens": 80
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "В памяти нет данных о текущей задаче в работе. Известно только: проект «Атлас», заказчик Марина Ковалёва, тимлид Артём Соколов, прототип — 3 ноября 2026, релиз — 20 декабря 2026, бюджет 480 000 ₽ (маркетинг ",
+          "matched": false,
+          "prompt_tokens": 534,
+          "completion_tokens": 80
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "В памяти нет данных о том, какой вариант сметы выбран рабочим. Известны только бюджеты: общий 480 000 ₽ и маркетинг 120 000 ₽.",
+          "matched": false,
+          "prompt_tokens": 538,
+          "completion_tokens": 43
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "Не могу ответить — в блоках памяти нет списка открытых вопросов или задач. Там только профиль, участники, бюджеты и вехи проекта «Атлас».",
+          "matched": false,
+          "prompt_tokens": 535,
+          "completion_tokens": 41
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "«Атлас».",
+          "matched": true,
+          "prompt_tokens": 555,
+          "completion_tokens": 6
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "15 декабря 2026.",
+          "matched": true,
+          "prompt_tokens": 558,
+          "completion_tokens": 6
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "Только российские ЦОД, зарубежные облака запрещены.",
+          "matched": true,
+          "prompt_tokens": 570,
+          "completion_tokens": 17
+        }
+      ],
+      "matched_stm": 0,
+      "matched_wm": 0,
+      "matched_ltm": 3,
+      "total": 3,
+      "effective": 9,
+      "layer_tokens": {
+        "ltm": 267,
+        "wm": 0,
+        "stm": 0
+      },
+      "system_tokens": 377,
+      "tools_tokens": 590,
+      "total_tokens": 1257,
+      "usage_prompt_tokens": 4906,
+      "usage_completion_tokens": 357,
+      "usage_cost_usd": 0.00152362,
+      "errors": []
+    },
+    {
+      "id": "stm+wm",
+      "label": "stm+wm",
+      "layers": "stm=true wm=true ltm=false",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "Бюджет маркетинга подняли до 150 000 рублей.",
+          "matched": true,
+          "prompt_tokens": 609,
+          "completion_tokens": 18
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "Созвон с заказчиком — в четверг в 11:00.",
+          "matched": true,
+          "prompt_tokens": 606,
+          "completion_tokens": 19
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "Не раньше пятницы — вы сами так сказали: до пятницы smeta-v3.xlsx заказчику не отправлять.",
+          "matched": true,
+          "prompt_tokens": 608,
+          "completion_tokens": 30
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "Сейчас в работе задача «Подготовить смету маркетинга к релизу».\n\nСтатус по плану:\n1. Собрать каналы — выполнено\n2. Оценить каналы — в работе\n3. Согласовать с заказчиком — не начато\n\nАктуальные вводные:\n- Бюджет",
+          "matched": true,
+          "prompt_tokens": 603,
+          "completion_tokens": 80
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "Рабочий вариант — B, 140 000 ₽. Но с учётом вашего уточнения бюджет поднят до 150 000 ₽, и в него заложены инфлюенсеры отдельной строкой — 25 000 ₽.",
+          "matched": true,
+          "prompt_tokens": 607,
+          "completion_tokens": 60
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "Открытый вопрос один: нужен ли отдельный бюджет на PR-подрядчика.",
+          "matched": true,
+          "prompt_tokens": 604,
+          "completion_tokens": 19
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "В блоках памяти название проекта не указано — там есть только задача («Подготовить смету маркетинга к релизу»), план, статус и данные по бюджету. Названия проекта у меня нет.",
+          "matched": false,
+          "prompt_tokens": 600,
+          "completion_tokens": 49
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "В доступной мне памяти дедлайн проекта не указан. Есть только:\n\n- созвон с заказчиком — четверг, 11:00;\n- отправку черновика smeta-v3.xlsx держим до пятницы.\n\nЕсли дедлайн известен, скажите — зафиксирую.",
+          "matched": false,
+          "prompt_tokens": 603,
+          "completion_tokens": 70
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "В доступной мне памяти нет данных об ограничениях по инфраструктуре — ни в рабочей памяти по задаче, ни в долговременной. Там есть только параметры сметы: бюджет 150 000 ₽, инфлюенсеры отдельной строкой 25 000 ₽, файл smeta-v3.xlsx и запрет отправки",
+          "matched": false,
+          "prompt_tokens": 606,
+          "completion_tokens": 80
+        }
+      ],
+      "matched_stm": 3,
+      "matched_wm": 3,
+      "matched_ltm": 0,
+      "total": 6,
+      "effective": 9,
+      "layer_tokens": {
+        "ltm": 0,
+        "wm": 155,
+        "stm": 210
+      },
+      "system_tokens": 377,
+      "tools_tokens": 590,
+      "total_tokens": 1355,
+      "usage_prompt_tokens": 5446,
+      "usage_completion_tokens": 425,
+      "usage_cost_usd": 0.0017033800000000004,
+      "errors": []
+    },
+    {
+      "id": "stm+wm+ltm",
+      "label": "stm+wm+ltm",
+      "layers": "stm=true wm=true ltm=true",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "До 150 000 рублей.",
+          "matched": true,
+          "prompt_tokens": 870,
+          "completion_tokens": 8
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "В четверг в 11:00.",
+          "matched": true,
+          "prompt_tokens": 867,
+          "completion_tokens": 9
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "Не раньше пятницы — до этого держим.",
+          "matched": true,
+          "prompt_tokens": 869,
+          "completion_tokens": 13
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "Подготовить смету маркетинга к релизу. Статус: каналы собраны, оценка в работе.",
+          "matched": true,
+          "prompt_tokens": 864,
+          "completion_tokens": 29
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "Вариант B — 140 000 ₽.",
+          "matched": true,
+          "prompt_tokens": 868,
+          "completion_tokens": 12
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "Нужен ли отдельный бюджет на PR-подрядчика.",
+          "matched": true,
+          "prompt_tokens": 865,
+          "completion_tokens": 14
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "«Атлас».",
+          "matched": true,
+          "prompt_tokens": 885,
+          "completion_tokens": 6
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "15 декабря 2026.",
+          "matched": true,
+          "prompt_tokens": 888,
+          "completion_tokens": 6
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "Только российские ЦОД, зарубежные облака запрещены.",
+          "matched": true,
+          "prompt_tokens": 900,
+          "completion_tokens": 17
+        }
+      ],
+      "matched_stm": 3,
+      "matched_wm": 3,
+      "matched_ltm": 3,
+      "total": 9,
+      "effective": 9,
+      "layer_tokens": {
+        "ltm": 267,
+        "wm": 155,
+        "stm": 210
+      },
+      "system_tokens": 377,
+      "tools_tokens": 590,
+      "total_tokens": 1622,
+      "usage_prompt_tokens": 7876,
+      "usage_completion_tokens": 114,
+      "usage_cost_usd": 0.00225316,
+      "errors": []
+    },
+    {
+      "id": "full",
+      "label": "full",
+      "layers": "stm=true wm=false ltm=false",
+      "results": [
+        {
+          "id": "S1",
+          "layer": "stm",
+          "question": "До какой суммы подняли бюджет маркетинга?",
+          "expected": "150 000",
+          "answer": "До 150 000 рублей.",
+          "matched": true,
+          "prompt_tokens": 1075,
+          "completion_tokens": 8
+        },
+        {
+          "id": "S3",
+          "layer": "stm",
+          "question": "Когда созвон с заказчиком?",
+          "expected": "четверг, 11:00",
+          "answer": "В четверг в 11:00.",
+          "matched": true,
+          "prompt_tokens": 1072,
+          "completion_tokens": 9
+        },
+        {
+          "id": "S5",
+          "layer": "stm",
+          "question": "Когда можно отправлять смету заказчику?",
+          "expected": "не раньше пятницы",
+          "answer": "Не раньше пятницы.",
+          "matched": true,
+          "prompt_tokens": 1074,
+          "completion_tokens": 7
+        },
+        {
+          "id": "W1",
+          "layer": "wm",
+          "question": "Какая задача сейчас в работе?",
+          "expected": "смета маркетинга",
+          "answer": "Подготовка сметы маркетинга к релизу, шаг 2 — оценка каналов.",
+          "matched": true,
+          "prompt_tokens": 1069,
+          "completion_tokens": 25
+        },
+        {
+          "id": "W3",
+          "layer": "wm",
+          "question": "Какой вариант сметы выбран рабочим?",
+          "expected": "вариант B",
+          "answer": "Вариант B.",
+          "matched": true,
+          "prompt_tokens": 1073,
+          "completion_tokens": 5
+        },
+        {
+          "id": "W5",
+          "layer": "wm",
+          "question": "Какой вопрос остался открытым?",
+          "expected": "PR-подрядчик",
+          "answer": "Открыт вопрос, нужен ли отдельный бюджет на PR-подрядчика.",
+          "matched": true,
+          "prompt_tokens": 1070,
+          "completion_tokens": 18
+        },
+        {
+          "id": "L1",
+          "layer": "ltm",
+          "question": "Как называется проект?",
+          "expected": "«Атлас»",
+          "answer": "«Атлас».",
+          "matched": true,
+          "prompt_tokens": 1066,
+          "completion_tokens": 6
+        },
+        {
+          "id": "L3",
+          "layer": "ltm",
+          "question": "Какой дедлайн проекта?",
+          "expected": "15 декабря 2026",
+          "answer": "15 декабря 2026 года.",
+          "matched": true,
+          "prompt_tokens": 1069,
+          "completion_tokens": 7
+        },
+        {
+          "id": "L5",
+          "layer": "ltm",
+          "question": "Какое ограничение по инфраструктуре?",
+          "expected": "только российские ЦОД",
+          "answer": "Только российские ЦОД, зарубежные облака запрещены.",
+          "matched": true,
+          "prompt_tokens": 1072,
+          "completion_tokens": 17
+        }
+      ],
+      "matched_stm": 3,
+      "matched_wm": 3,
+      "matched_ltm": 3,
+      "total": 9,
+      "effective": 9,
+      "layer_tokens": {
+        "ltm": 0,
+        "wm": 0,
+        "stm": 1003
+      },
+      "system_tokens": 377,
+      "tools_tokens": 590,
+      "total_tokens": 1993,
+      "usage_prompt_tokens": 9640,
+      "usage_completion_tokens": 102,
+      "usage_cost_usd": 0.00274204,
+      "errors": []
+    }
+  ],
+  "cleanup": [],
+  "deltas": {
+    "ltm": 267,
+    "wm": 155,
+    "stm": 210,
+    "ltm_block": 267,
+    "wm_block": 155,
+    "stm_block": 210
+  },
+  "saved_tokens": 371,
+  "saved_ratio": 0.18615153035624687,
+  "thresholds": [
+    {
+      "name": "all ≥ 16/18",
+      "ok": true,
+      "detail": "9/9 (порог 8/9)"
+    },
+    {
+      "name": "stm свои",
+      "ok": true,
+      "detail": "3/3 (порог 3)"
+    },
+    {
+      "name": "stm чужие",
+      "ok": true,
+      "detail": "1 (максимум 1)"
+    },
+    {
+      "name": "wm свои",
+      "ok": true,
+      "detail": "3/3 (порог 3)"
+    },
+    {
+      "name": "wm чужие",
+      "ok": true,
+      "detail": "0 (максимум 1)"
+    },
+    {
+      "name": "ltm свои",
+      "ok": true,
+      "detail": "3/3 (порог 3)"
+    },
+    {
+      "name": "ltm чужие",
+      "ok": true,
+      "detail": "0 (максимум 1)"
+    },
+    {
+      "name": "экономия",
+      "ok": true,
+      "detail": "371 токенов"
+    },
+    {
+      "name": "ΔLTM",
+      "ok": true,
+      "detail": "Δ=267 блок=267"
+    },
+    {
+      "name": "ΔWM",
+      "ok": true,
+      "detail": "Δ=155 блок=155"
+    },
+    {
+      "name": "ΔSTM",
+      "ok": true,
+      "detail": "Δ=210 блок=210"
+    },
+    {
+      "name": "секреты",
+      "ok": true,
+      "detail": "0 в слоях и аудите"
+    }
+  ],
+  "total_requests": 63,
+  "errors": []
+}

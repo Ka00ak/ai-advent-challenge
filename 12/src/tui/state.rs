@@ -233,6 +233,14 @@ pub struct AppState {
     pub branch_file: BranchFile,
     pub api_filter: ApiFilter,
     pub help_scroll: u16,
+    /// Черновик сообщения на вкладке «0 Чат».
+    pub chat_input: InputState,
+    /// true, когда клавиатура захвачена строкой ввода чата.
+    pub chat_focused: bool,
+    /// Прокрутка истории чата: число строк от последнего сообщения вверх.
+    pub chat_scroll: u16,
+    /// Реплика, отправленная в job и ещё не подтверждённая STM.
+    pub chat_pending: Option<String>,
     pub should_quit: bool,
     pub data_dir: PathBuf,
     pub status: String,
@@ -280,6 +288,10 @@ impl AppState {
             branch_file,
             api_filter: ApiFilter::All,
             help_scroll: 0,
+            chat_input: InputState::new(InputPurpose::Chat, "Сообщение", ""),
+            chat_focused: false,
+            chat_scroll: 0,
+            chat_pending: None,
             should_quit: false,
             data_dir: controller.runtime().paths.root.clone(),
             status: "Готово".into(),
@@ -299,6 +311,8 @@ impl AppState {
 
     pub fn record_turn(&mut self, outcome: &TurnOutcome) {
         self.last_breakdown = outcome.breakdown.clone();
+        self.chat_pending = None;
+        self.chat_scroll = 0;
         let mut exchange = LlmExchange::new(
             ExchangeKind::Chat,
             &self.settings.model,

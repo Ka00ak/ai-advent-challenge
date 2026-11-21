@@ -82,6 +82,11 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
     if state.modal.is_some() {
         return handle_modal_key(state, key);
     }
+    // В режиме ввода чата печатные клавиши принадлежат сообщению, а не
+    // глобальным горячим клавишам (q, 0…9, ?).
+    if state.screen == Screen::Chat && state.chat_focused {
+        return handle_chat_input(state, key);
+    }
 
     match key.code {
         KeyCode::Char('?') => {
@@ -95,11 +100,17 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             UiAction::None
         }
         KeyCode::Char('i') => {
-            state.open_input(InputPurpose::Chat, "Сообщение агенту", "");
+            if state.screen == Screen::Chat {
+                state.chat_focused = true;
+            } else {
+                state.open_input(InputPurpose::Chat, "Сообщение агенту", "");
+            }
             UiAction::None
         }
         KeyCode::Tab => {
-            if state.screen == Screen::Memory {
+            if state.screen == Screen::Chat {
+                state.chat_focused = true;
+            } else if state.screen == Screen::Memory {
                 state.toggle_focus(false);
             } else if state.screen == Screen::Settings {
                 state.settings_selection =
@@ -118,31 +129,45 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             }
             UiAction::None
         }
-        KeyCode::Char(ch @ '1'..='9') => {
-            if let Some(index) = ch.to_digit(10) {
-                if let Some(screen) = Screen::from_index(index as usize - 1) {
+        KeyCode::Char(ch @ '0'..='9') => {
+            if let Some(number) = ch.to_digit(10) {
+                if let Some(screen) = Screen::from_number(number as usize) {
                     state.screen = screen;
+                    state.chat_focused = false;
                 }
             }
             UiAction::None
         }
         KeyCode::Up => {
+            if state.screen == Screen::Chat {
+                return handle_chat(state, key);
+            }
             move_selection(state, -1);
             UiAction::None
         }
         KeyCode::Down => {
+            if state.screen == Screen::Chat {
+                return handle_chat(state, key);
+            }
             move_selection(state, 1);
             UiAction::None
         }
         KeyCode::PageUp => {
+            if state.screen == Screen::Chat {
+                return handle_chat(state, key);
+            }
             move_selection(state, -10);
             UiAction::None
         }
         KeyCode::PageDown => {
+            if state.screen == Screen::Chat {
+                return handle_chat(state, key);
+            }
             move_selection(state, 10);
             UiAction::None
         }
         _ => match state.screen {
+            Screen::Chat => handle_chat(state, key),
             Screen::Memory => handle_memory(state, key),
             Screen::Pending => handle_pending(state, key),
             Screen::Experiment => handle_experiment(state, key),
@@ -419,6 +444,7 @@ fn move_selection(state: &mut AppState, delta: isize) {
     let api_len = state.filtered_exchanges().len();
     let settings_len = state.settings_rows().len();
     match state.screen {
+        Screen::Chat => {}
         Screen::Memory => match state.focus {
             0 => apply(
                 &mut state.memory_selection[0],
@@ -457,6 +483,112 @@ fn move_selection(state: &mut AppState, delta: isize) {
             delta,
         ),
     }
+}
+
+fn handle_chat(state: &mut AppState, key: KeyEvent) -> UiAction {
+    match key.code {
+        KeyCode::Enter | KeyCode::Char('i') => {
+            state.chat_focused = true;
+            UiAction::None
+        }
+        KeyCode::Up => {
+            state.chat_scroll = state.chat_scroll.saturating_add(1);
+            UiAction::None
+        }
+        KeyCode::Down => {
+            state.chat_scroll = state.chat_scroll.saturating_sub(1);
+            UiAction::None
+        }
+        KeyCode::PageUp => {
+            state.chat_scroll = state.chat_scroll.saturating_add(10);
+            UiAction::None
+        }
+        KeyCode::PageDown => {
+            state.chat_scroll = state.chat_scroll.saturating_sub(10);
+            UiAction::None
+        }
+        KeyCode::Char('g') => {
+            state.chat_scroll = u16::MAX;
+            UiAction::None
+        }
+        KeyCode::Char('G') => {
+            state.chat_scroll = 0;
+            UiAction::None
+        }
+        _ => UiAction::None,
+    }
+}
+
+fn handle_chat_input(state: &mut AppState, key: KeyEvent) -> UiAction {
+    match key.code {
+        KeyCode::Esc => {
+            state.chat_focused = false;
+            state.chat_scroll = 0;
+            UiAction::None
+        }
+        KeyCode::Enter => send_chat_message(state),
+        KeyCode::Up => {
+            state.chat_scroll = state.chat_scroll.saturating_add(1);
+            UiAction::None
+        }
+        KeyCode::Down => {
+            state.chat_scroll = state.chat_scroll.saturating_sub(1);
+            UiAction::None
+        }
+        KeyCode::PageUp => {
+            state.chat_scroll = state.chat_scroll.saturating_add(10);
+            UiAction::None
+        }
+        KeyCode::PageDown => {
+            state.chat_scroll = state.chat_scroll.saturating_sub(10);
+            UiAction::None
+        }
+        KeyCode::Backspace => {
+            state.chat_input.backspace();
+            UiAction::None
+        }
+        KeyCode::Delete => {
+            state.chat_input.delete();
+            UiAction::None
+        }
+        KeyCode::Left => {
+            state.chat_input.left();
+            UiAction::None
+        }
+        KeyCode::Right => {
+            state.chat_input.right();
+            UiAction::None
+        }
+        KeyCode::Home => {
+            state.chat_input.home();
+            UiAction::None
+        }
+        KeyCode::End => {
+            state.chat_input.end();
+            UiAction::None
+        }
+        KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+            state.chat_input.insert(ch);
+            UiAction::None
+        }
+        _ => UiAction::None,
+    }
+}
+
+fn send_chat_message(state: &mut AppState) -> UiAction {
+    if state.busy.is_some() {
+        state.set_banner("Дождитесь ответа модели");
+        return UiAction::None;
+    }
+    let text = state.chat_input.buffer.trim().to_string();
+    if text.is_empty() {
+        return UiAction::None;
+    }
+    state.chat_input.buffer.clear();
+    state.chat_input.cursor = 0;
+    state.chat_scroll = 0;
+    state.chat_pending = Some(text.clone());
+    UiAction::Chat(text)
 }
 
 fn handle_memory(state: &mut AppState, key: KeyEvent) -> UiAction {
