@@ -420,30 +420,6 @@ fn manual_add_update_delete_and_pin() {
 }
 
 #[test]
-fn branches_restore_all_layers() {
-    let dir = tempfile::tempdir().unwrap();
-    let mut controller = common::seeded_controller(dir.path());
-    let id = controller.checkpoint_branch("baseline").unwrap();
-    controller.clear_layer(MemoryLayer::Ltm).unwrap();
-    controller.checkpoint_branch("empty ltm").unwrap();
-    assert_eq!(
-        lab12::memory::ltm::active_ltm(&controller.bundle().ltm).count(),
-        0
-    );
-    controller.switch_branch(&id).unwrap();
-    assert_eq!(
-        lab12::memory::ltm::active_ltm(&controller.bundle().ltm).count(),
-        15
-    );
-    assert!(!controller.bundle().stm.messages.is_empty());
-    let reloaded = common::controller_at(dir.path());
-    assert_eq!(
-        lab12::memory::ltm::active_ltm(&reloaded.bundle().ltm).count(),
-        15
-    );
-}
-
-#[test]
 fn wm_to_ltm_move_respects_confirm() {
     let dir = tempfile::tempdir().unwrap();
     let mut controller = common::seeded_controller(dir.path());

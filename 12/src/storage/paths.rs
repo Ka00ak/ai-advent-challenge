@@ -62,10 +62,6 @@ impl DataPaths {
         self.root.join("settings.json")
     }
 
-    pub fn branches(&self) -> PathBuf {
-        self.root.join("branches").join("branches.json")
-    }
-
     pub fn secrets(&self) -> PathBuf {
         self.root.join("secrets.json")
     }
@@ -88,7 +84,6 @@ impl DataPaths {
             self.root.join("meta"),
             self.root.join("migration"),
             self.root.join("profiles"),
-            self.root.join("branches"),
             self.root.join("logs"),
         ] {
             std::fs::create_dir_all(&dir).map_err(|source| PathError::Io {
@@ -164,6 +159,5 @@ mod tests {
         let paths = DataPaths::new(dir.path().join("data"));
         paths.ensure().unwrap();
         assert!(paths.root.join("stm").is_dir());
-        assert!(paths.root.join("branches").is_dir());
     }
 }

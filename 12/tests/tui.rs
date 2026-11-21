@@ -23,19 +23,19 @@ fn state() -> (tempfile::TempDir, AppState) {
 #[test]
 fn number_keys_switch_screens() {
     let (_dir, mut state) = state();
-    handle_key(&mut state, key(KeyCode::Char('0')));
-    assert_eq!(state.screen, Screen::Chat);
-    handle_key(&mut state, key(KeyCode::Char('3')));
-    assert_eq!(state.screen, Screen::Experiment);
     handle_key(&mut state, key(KeyCode::Char('1')));
+    assert_eq!(state.screen, Screen::Chat);
+    handle_key(&mut state, key(KeyCode::Char('4')));
+    assert_eq!(state.screen, Screen::Experiment);
+    handle_key(&mut state, key(KeyCode::Char('2')));
     assert_eq!(state.screen, Screen::Memory);
     handle_key(&mut state, key(KeyCode::Char('6')));
     assert_eq!(state.screen, Screen::Settings);
-    handle_key(&mut state, key(KeyCode::Char('5')));
-    assert_eq!(state.screen, Screen::Settings, "вкладка 5 удалена");
-    handle_key(&mut state, key(KeyCode::Char('8')));
-    assert_eq!(state.screen, Screen::Branches);
     handle_key(&mut state, key(KeyCode::Char('9')));
+    assert_eq!(state.screen, Screen::Settings, "вкладки 9 больше нет");
+    handle_key(&mut state, key(KeyCode::Char('7')));
+    assert_eq!(state.screen, Screen::ApiLog);
+    handle_key(&mut state, key(KeyCode::Char('8')));
     assert_eq!(state.screen, Screen::Profile);
 }
 
@@ -69,7 +69,7 @@ fn chat_has_stm_history_actions() {
 #[test]
 fn chat_tab_collects_input_and_returns_chat_action() {
     let (_dir, mut state) = state();
-    handle_key(&mut state, key(KeyCode::Char('0')));
+    handle_key(&mut state, key(KeyCode::Char('1')));
     assert_eq!(state.screen, Screen::Chat);
 
     handle_key(&mut state, key(KeyCode::Enter));
@@ -103,7 +103,7 @@ fn chat_tab_shows_profile_memory_and_dialog() {
         .unwrap();
     let buffer = terminal.backend().buffer();
     let text: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
-    assert!(text.contains("0 Чат"));
+    assert!(text.contains("1 Чат"));
     assert!(text.contains("Профиль:"));
     assert!(text.contains("STM + WM + LTM + профиль"));
     assert!(text.contains("Диалог"));
@@ -418,7 +418,7 @@ fn every_screen_renders_without_panic() {
 #[test]
 fn profile_screen_lists_and_activates_profiles() {
     let (_dir, mut state) = state();
-    handle_key(&mut state, key(KeyCode::Char('9')));
+    handle_key(&mut state, key(KeyCode::Char('8')));
     assert_eq!(state.screen, Screen::Profile);
     assert!(state.profiles.profiles.len() >= 2);
     handle_key(&mut state, key(KeyCode::Down));

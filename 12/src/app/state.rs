@@ -11,12 +11,11 @@ pub enum Screen {
     Tokens,
     Settings,
     ApiLog,
-    Branches,
     Profile,
 }
 
 impl Screen {
-    pub const ALL: [Screen; 9] = [
+    pub const ALL: [Screen; 8] = [
         Screen::Chat,
         Screen::Memory,
         Screen::Pending,
@@ -24,38 +23,33 @@ impl Screen {
         Screen::Tokens,
         Screen::Settings,
         Screen::ApiLog,
-        Screen::Branches,
         Screen::Profile,
     ];
 
-    /// Номер экрана в строке вкладок. Номера стабильны: вкладка `5`
-    /// (история) удалена, её функции перенесены в чат `0`.
+    /// Номер экрана в строке вкладок: `1…8`, без пропусков.
     pub fn number(self) -> usize {
         match self {
-            Screen::Chat => 0,
-            Screen::Memory => 1,
-            Screen::Pending => 2,
-            Screen::Experiment => 3,
-            Screen::Tokens => 4,
+            Screen::Chat => 1,
+            Screen::Memory => 2,
+            Screen::Pending => 3,
+            Screen::Experiment => 4,
+            Screen::Tokens => 5,
             Screen::Settings => 6,
             Screen::ApiLog => 7,
-            Screen::Branches => 8,
-            Screen::Profile => 9,
+            Screen::Profile => 8,
         }
     }
 
-    /// Экран по номеру вкладки. `0` — чат, `1…9` без удалённой `5`.
     pub fn from_number(number: usize) -> Option<Screen> {
         match number {
-            0 => Some(Screen::Chat),
-            1 => Some(Screen::Memory),
-            2 => Some(Screen::Pending),
-            3 => Some(Screen::Experiment),
-            4 => Some(Screen::Tokens),
+            1 => Some(Screen::Chat),
+            2 => Some(Screen::Memory),
+            3 => Some(Screen::Pending),
+            4 => Some(Screen::Experiment),
+            5 => Some(Screen::Tokens),
             6 => Some(Screen::Settings),
             7 => Some(Screen::ApiLog),
-            8 => Some(Screen::Branches),
-            9 => Some(Screen::Profile),
+            8 => Some(Screen::Profile),
             _ => None,
         }
     }
@@ -69,7 +63,6 @@ impl Screen {
             Screen::Tokens => "Токены",
             Screen::Settings => "Настройки",
             Screen::ApiLog => "API",
-            Screen::Branches => "Ветки",
             Screen::Profile => "Профиль",
         }
     }

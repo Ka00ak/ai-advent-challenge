@@ -52,7 +52,7 @@ LAB12_FAKE_LLM=1 cargo run -- --data-dir ./data experiment --quick --check
 
 | Возможность | Где |
 |---|---|
-| Чат с моделью поверх STM/WM/LTM и активного профиля | TUI экран `0`, CLI `chat` |
+| Чат с моделью поверх STM/WM/LTM и активного профиля | TUI экран `1`, CLI `chat` |
 | Три слоя с раздельными JSON-файлами | `stm/`, `wm/`, `ltm/` |
 | Профиль пользователя: стиль, формат, ограничения | `profiles/profiles.json`, CLI `profile`, TUI экран 9 |
 | Профиль в каждом запросе отдельным system-блоком | `src/memory/personalization.rs`, `src/memory/prompt.rs` |
@@ -66,7 +66,6 @@ LAB12_FAKE_LLM=1 cargo run -- --data-dir ./data experiment --quick --check
 | Breakdown токенов по слоям | TUI «Токены», `chat --json`, API-лог |
 | API-журнал: каждый HTTP-запрос отдельно, полные request/response | TUI экран `7`, `src/llm/record.rs` |
 | 7 конфигураций + 3 очистки + 18 probe | TUI «Проверка», CLI `experiment` |
-| Ветки — снимок STM+WM+LTM+pending+meta | TUI «Ветки» |
 | Lock от второго экземпляра, атомарная запись, `.bak` | `src/storage/` |
 
 ## TUI
@@ -77,14 +76,14 @@ LAB12_FAKE_LLM=1 cargo run -- --data-dir ./data experiment --quick --check
 cargo run -- --data-dir ./data tui
 ```
 
-Экраны: `0` Чат · `1` Память · `2` Подтверждения · `3` Проверка · `4` Токены ·
-`6` Настройки · `7` API · `8` Ветки · `9` Профиль. Вкладка `5` удалена:
-её функции просмотра/очистки/экспорта STM перенесены в чат.
+Экраны: `1` Чат · `2` Память · `3` Подтверждения · `4` Проверка · `5` Токены ·
+`6` Настройки · `7` API · `8` Профиль. Вкладка «История» перенесена в чат,
+функциональность веток удалена.
 
 Основные клавиши:
 
 ```text
-0..9        переключение экранов (0 — чат)
+1..8        переключение экранов (1 — чат)
 Tab         фокус между колонками/полями
 ↑ ↓ PgUp PgDn g G   навигация
 Enter       карточка записи / редактирование / активировать профиль
@@ -298,9 +297,9 @@ cargo build
 cargo test
 ```
 
-Покрыто **254 теста**: unit (слои, router, retrieval, prompt, migration,
+Покрыто **268 тестов**: unit (слои, router, retrieval, prompt, migration,
 storage, tokens, tools, experiment, профиль и обучение персонализации),
-integration (controller + fake LLM, импорт, ветки, эксперимент, персонализация),
+integration (controller + fake LLM, импорт, эксперимент, персонализация),
 CLI (`assert_cmd`, коды 0/2/3/4), TUI (`TestBackend` 80×24 и 120×36, reducer
 клавиш, экран профиля, скорость первого кадра). Тесты не ходят в сеть и не
 требуют терминала.
@@ -310,7 +309,7 @@ CLI (`assert_cmd`, коды 0/2/3/4), TUI (`TestBackend` 80×24 и 120×36, redu
 ```text
 src/
   domain/       типы слоёв, профиль, настройки, chat/tokens
-  storage/      atomic JSON, data-dir, lock, branches, profiles
+  storage/      atomic JSON, data-dir, lock, profiles
   memory/       stm, working, ltm, candidates, extractor, router,
                 retrieval, prompt, personalization, tokens, migration,
                 audit, tool_write

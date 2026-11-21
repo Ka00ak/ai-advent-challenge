@@ -45,7 +45,7 @@
 | FR-31 | Breakdown в UI/CLI | T6, T10 | T-A-10 | done |
 | FR-32 | Безопасность промпта | T1, T5 | T-P-10 | done |
 | FR-33 | Инструменты/tokens/cost | T6 | T-REG-1…3 | done |
-| FR-34 | Ветки | T10 | T-B-1…4 | done |
+| FR-34 | Ветки | — | — | p2 |
 | FR-35 | Настройки Дня 10 | T10 | T-REG-5 | done |
 | FR-36 | Cargo в корне | T0 | build/run | done |
 | FR-37 | .gitignore | T0 | git status | done |
@@ -113,7 +113,7 @@
 | `tests/prompt.rs` | порядок блоков, breakdown, ablation-флаги, budget, dedupe, NFR-2 benchmark |
 | `tests/migration.rs` | 15 facts, идемпотентность, дословность, битый вход |
 | `tests/experiment.rs` | 7×18, очистка 12/18, дельты, отчёты, отмена, usage-поля |
-| `tests/controller.rs` | send_user_message, memory_write, fallback Local, секреты, ветки, API-лог |
+| `tests/controller.rs` | send_user_message, memory_write, fallback Local, секреты, API-лог |
 | `tests/cli.rs` | коды 0/2/4, import-facts, experiment --check, отчёты, живой прогресс API |
 | `tests/tui.rs` | reducer, 80×24/120×36, все экраны, живой журнал эксперимента, NFR-7, busy-блокировка |
 

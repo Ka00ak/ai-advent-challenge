@@ -107,7 +107,7 @@ T0 ──► T1 ──► T2 ──► T3 ──► T4 ──► T5 ──► T6
    каталогов.
 2. `storage/atomic.rs` — tmp + `sync_all` + rename, `.bak`, права 0600.
 3. `storage/stm.rs`, `working.rs`, `ltm.rs`, `pending.rs`, `meta.rs`,
-   `settings.rs`, `branches.rs`.
+   `settings.rs`.
 4. `storage/lock.rs` — `fs2::try_lock_exclusive`, guard.
 5. `load_bundle`/`save_bundle`; `LoadError::{NotFound,Corrupt,UnsupportedVersion,Io}`.
 6. Битый JSON не перезаписывается; `.corrupt-<ts>` — только по команде reset.
@@ -250,7 +250,7 @@ pending сохраняется.
 
 ---
 
-### T10. TUI: настройки, токены, история, API, ветки
+### T10. TUI: настройки, токены, история в чате, API
 
 **Зависимости:** T6, T9. **Размер:** M.
 **FR:** UX-5, UX-6; FR-31, FR-34, FR-35.
@@ -259,10 +259,10 @@ pending сохраняется.
 
 1. `settings.rs` — форма, валидация, `s` сохранить; ключ API только env.
 2. `tokens.rs` — breakdown, таблица сессии, стоимость.
-3. `history.rs` — сообщения, экспорт/импорт, предупреждение о cursor.
+3. история STM — в экране чата: экспорт/импорт, предупреждение о cursor.
 4. `api_log.rs` — таблица chat/memory, фильтр, детали.
-5. `branches.rs` — checkpoint/ветки/переключение (P1).
-6. Тесты T-B-1…4, T-UI-4…5.
+5. Ветки удалены из проекта (по требованию заказчика).
+6. Тесты T-UI-4…5.
 
 **DoD:** все экраны читаемы, resize, данные сохраняются.
 
@@ -391,7 +391,7 @@ T7 (импорт facts) и T10 — следующие по важности. T12
 | T7 | `memory/migration.rs` | T-M-* |
 | T8 | `experiment/*` | T-F/E-* |
 | T9 | `tui/app.rs`, memory/pending | T-UI-*, ручной |
-| T10 | settings/tokens/history/api/branches | T-B/UI, ручной |
+| T10 | settings/tokens/history-in-chat/api | T-UI, ручной |
 | T11 | `tui/widgets/experiment.rs` | прогон + отчёт |
 | T12 | тесты | fmt/clippy/test |
 | T13 | README/отчёт/трассировка | ревью |

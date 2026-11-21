@@ -170,14 +170,6 @@ pub fn save_profiles(paths: &DataPaths, state: &ProfileState) -> Result<(), Save
     atomic_write_json(&paths.profiles(), state)
 }
 
-pub fn load_branch_file(paths: &DataPaths) -> Result<branches::BranchFile, LoadError> {
-    read_json(&paths.branches(), true)
-}
-
-pub fn save_branch_file(paths: &DataPaths, file: &branches::BranchFile) -> Result<(), SaveError> {
-    atomic_write_json(&paths.branches(), file)
-}
-
 /// Загружает все слои. Отсутствующие файлы — пустое состояние; битые — ошибка.
 pub fn load_bundle(paths: &DataPaths) -> Result<MemoryBundle, LoadError> {
     paths.ensure().map_err(|error| LoadError::Io {
@@ -237,44 +229,6 @@ pub fn save_bundle(paths: &DataPaths, bundle: &MemoryBundle) -> Result<(), SaveE
     save_pending(paths, &bundle.pending)?;
     save_meta(paths, &bundle.meta)?;
     Ok(())
-}
-
-pub mod branches {
-    use chrono::{DateTime, Utc};
-    use serde::{Deserialize, Serialize};
-
-    use crate::domain::memory::{
-        LtmState, MemoryMetaState, PendingWrite, STATE_VERSION, StmState, WorkingMemoryState,
-    };
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct BranchSnapshot {
-        pub id: String,
-        pub label: String,
-        pub created_at: DateTime<Utc>,
-        pub stm: StmState,
-        pub wm: WorkingMemoryState,
-        pub ltm: LtmState,
-        pub pending: Vec<PendingWrite>,
-        pub meta: MemoryMetaState,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct BranchFile {
-        pub version: u32,
-        pub active_branch: Option<String>,
-        pub branches: Vec<BranchSnapshot>,
-    }
-
-    impl Default for BranchFile {
-        fn default() -> Self {
-            Self {
-                version: STATE_VERSION,
-                active_branch: None,
-                branches: Vec::new(),
-            }
-        }
-    }
 }
 
 #[cfg(test)]

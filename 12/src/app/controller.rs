@@ -50,11 +50,10 @@ use crate::memory::working::{
     WmUpsert, archive_task, empty_working, prune_wm, remove_wm_item, upsert_wm_item,
 };
 use crate::storage::atomic::{SaveError, atomic_write_json};
-use crate::storage::branches::{BranchFile, BranchSnapshot};
 use crate::storage::paths::DataPaths;
 use crate::storage::{
-    LoadError, acquire_lock, load_branch_file, load_bundle, load_profiles, save_branch_file,
-    save_bundle, save_profiles, save_settings, save_stm,
+    LoadError, acquire_lock, load_bundle, load_profiles, save_bundle, save_profiles, save_settings,
+    save_stm,
 };
 
 #[derive(Clone)]
@@ -818,66 +817,6 @@ impl AppController {
             &tools,
             self.profiles.active_profile(),
         )
-    }
-
-    pub fn branch_file(&self) -> Result<BranchFile, AppError> {
-        match load_branch_file(&self.runtime.paths) {
-            Ok(file) => Ok(file),
-            Err(error) if error.is_not_found() => Ok(BranchFile::default()),
-            Err(error) => Err(AppError::Load(error)),
-        }
-    }
-
-    pub fn checkpoint_branch(&mut self, label: &str) -> Result<String, AppError> {
-        let now = Utc::now();
-        let mut file = self.branch_file()?;
-        let id = format!("branch_{}", uuid::Uuid::new_v4().simple());
-        file.branches.push(BranchSnapshot {
-            id: id.clone(),
-            label: label.to_string(),
-            created_at: now,
-            stm: self.bundle.stm.clone(),
-            wm: self.bundle.wm.clone(),
-            ltm: self.bundle.ltm.clone(),
-            pending: self.bundle.pending.clone(),
-            meta: self.bundle.meta.clone(),
-        });
-        file.active_branch = Some(id.clone());
-        save_branch_file(&self.runtime.paths, &file)?;
-        Ok(id)
-    }
-
-    pub fn list_branches(&self) -> Result<BranchFile, AppError> {
-        self.branch_file()
-    }
-
-    pub fn switch_branch(&mut self, id: &str) -> Result<(), AppError> {
-        let mut file = self.branch_file()?;
-        let snapshot = file
-            .branches
-            .iter()
-            .find(|branch| branch.id == id)
-            .cloned()
-            .ok_or_else(|| AppError::NotFound(format!("ветка {id}")))?;
-        self.bundle.stm = snapshot.stm;
-        self.bundle.wm = snapshot.wm;
-        self.bundle.ltm = snapshot.ltm;
-        self.bundle.pending = snapshot.pending;
-        self.bundle.meta = snapshot.meta;
-        self.save_all()?;
-        file.active_branch = Some(id.to_string());
-        save_branch_file(&self.runtime.paths, &file)?;
-        Ok(())
-    }
-
-    pub fn delete_branch(&mut self, id: &str) -> Result<(), AppError> {
-        let mut file = self.branch_file()?;
-        file.branches.retain(|branch| branch.id != id);
-        if file.active_branch.as_deref() == Some(id) {
-            file.active_branch = None;
-        }
-        save_branch_file(&self.runtime.paths, &file)?;
-        Ok(())
     }
 
     // ----- Ручные операции (CLI/TUI) -----

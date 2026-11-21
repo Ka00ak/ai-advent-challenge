@@ -13,7 +13,6 @@ use crate::domain::profile::ProfileState;
 use crate::domain::settings::{Approval, ExtractionMode, Settings};
 use crate::experiment::runner::{ExperimentProgress, ExperimentReport};
 use crate::memory::migration::MigrationReport;
-use crate::storage::branches::BranchFile;
 
 const MAX_INPUT: usize = 500;
 
@@ -24,7 +23,6 @@ pub enum InputPurpose {
     FormKey,
     FormValue,
     FormKind,
-    BranchLabel,
     ImportFacts,
     ExportHistory,
     ImportHistory,
@@ -111,7 +109,6 @@ pub enum ConfirmAction {
     ClearLayer(MemoryLayer),
     ArchiveTask,
     DeleteRecord { layer: MemoryLayer, key: String },
-    DeleteBranch(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -246,7 +243,6 @@ pub struct AppState {
     pub experiment_selection: usize,
     pub tokens_selection: usize,
     pub api_selection: usize,
-    pub branch_selection: usize,
     pub settings_selection: usize,
     pub profile_selection: usize,
     pub bundle: MemoryBundle,
@@ -268,10 +264,9 @@ pub struct AppState {
     pub input: Option<InputState>,
     pub form: Option<FormDraft>,
     pub ltm_search: Option<String>,
-    pub branch_file: BranchFile,
     pub api_filter: ApiFilter,
     pub help_scroll: u16,
-    /// Черновик сообщения на вкладке «0 Чат».
+    /// Черновик сообщения на вкладке «1 Чат».
     pub chat_input: InputState,
     /// true, когда клавиатура захвачена строкой ввода чата.
     pub chat_focused: bool,
@@ -286,7 +281,6 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(controller: &AppController) -> Self {
-        let branch_file = controller.branch_file().unwrap_or_default();
         Self {
             screen: Screen::Memory,
             focus: 0,
@@ -295,7 +289,6 @@ impl AppState {
             experiment_selection: 0,
             tokens_selection: 0,
             api_selection: 0,
-            branch_selection: 0,
             settings_selection: 0,
             profile_selection: 0,
             bundle: controller.bundle().clone(),
@@ -322,7 +315,6 @@ impl AppState {
             input: None,
             form: None,
             ltm_search: None,
-            branch_file,
             api_filter: ApiFilter::All,
             help_scroll: 0,
             chat_input: InputState::new(InputPurpose::Chat, "Сообщение", ""),
@@ -340,9 +332,6 @@ impl AppState {
         self.profiles = controller.profiles().clone();
         self.settings = controller.settings().clone();
         self.audit = controller.audit.events.clone();
-        if let Ok(file) = controller.branch_file() {
-            self.branch_file = file;
-        }
         self.clamp_selections();
     }
 
@@ -565,9 +554,6 @@ impl AppState {
         self.pending_selection = self
             .pending_selection
             .min(self.bundle.pending.len().saturating_sub(1));
-        self.branch_selection = self
-            .branch_selection
-            .min(self.branch_file.branches.len().saturating_sub(1));
         self.profile_selection = self
             .profile_selection
             .min(self.profiles.profiles.len().saturating_sub(1));
@@ -936,13 +922,6 @@ impl AppState {
                 value.clone(),
             );
         }
-    }
-
-    pub fn selected_branch_id(&self) -> Option<String> {
-        self.branch_file
-            .branches
-            .get(self.branch_selection)
-            .map(|branch| branch.id.clone())
     }
 
     pub fn selected_profile_id(&self) -> Option<String> {

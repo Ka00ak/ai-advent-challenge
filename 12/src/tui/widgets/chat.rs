@@ -1,4 +1,4 @@
-//! Экран «0 Чат»: простая переписка с моделью поверх STM/WM/LTM и профиля.
+//! Экран «1 Чат»: простая переписка с моделью поверх STM/WM/LTM и профиля.
 
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -62,7 +62,7 @@ fn draw_summary(frame: &mut Frame, area: Rect, state: &AppState) {
     let paragraph = Paragraph::new(lines).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(" 0 Чат · STM + WM + LTM + профиль "),
+            .title(" 1 Чат · STM + WM + LTM + профиль "),
     );
     frame.render_widget(paragraph, area);
 }

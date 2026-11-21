@@ -57,10 +57,6 @@ pub enum UiAction {
         md: PathBuf,
         json: PathBuf,
     },
-    Checkpoint(String),
-    CheckpointTwo,
-    SwitchBranch(String),
-    DeleteBranch(String),
     SaveSettings,
     ExportHistory(PathBuf),
     ImportHistory(PathBuf),
@@ -83,7 +79,7 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
         return handle_modal_key(state, key);
     }
     // В режиме ввода чата печатные клавиши принадлежат сообщению, а не
-    // глобальным горячим клавишам (q, 0…9, ?).
+    // глобальным горячим клавишам (q, 1…8, ?).
     if state.screen == Screen::Chat && state.chat_focused {
         return handle_chat_input(state, key);
     }
@@ -174,7 +170,6 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             Screen::Tokens => handle_tokens(state, key),
             Screen::Settings => handle_settings(state, key),
             Screen::ApiLog => handle_api(state, key),
-            Screen::Branches => handle_branches(state, key),
             Screen::Profile => handle_profile(state, key),
         },
     }
@@ -316,14 +311,6 @@ fn submit_input(state: &mut AppState, purpose: InputPurpose, text: &str) -> UiAc
                     value: form.value,
                     kind: form.kind,
                 }
-            }
-        }
-        InputPurpose::BranchLabel => {
-            let label = text.trim();
-            if label.is_empty() {
-                UiAction::Error("метка ветки не может быть пустой".into())
-            } else {
-                UiAction::Checkpoint(label.to_string())
             }
         }
         InputPurpose::ImportFacts => UiAction::ImportFacts(PathBuf::from(text.trim())),
@@ -488,7 +475,6 @@ fn resolve_confirm(action: ConfirmAction) -> UiAction {
         ConfirmAction::ClearLayer(layer) => UiAction::ClearLayer(layer),
         ConfirmAction::ArchiveTask => UiAction::ArchiveTask,
         ConfirmAction::DeleteRecord { layer, key } => UiAction::DeleteRecord { layer, key },
-        ConfirmAction::DeleteBranch(id) => UiAction::DeleteBranch(id),
     }
 }
 
@@ -533,11 +519,6 @@ fn move_selection(state: &mut AppState, delta: isize) {
         Screen::Tokens => apply(&mut state.tokens_selection, state.exchanges.len(), delta),
         Screen::Settings => apply(&mut state.settings_selection, settings_len, delta),
         Screen::ApiLog => apply(&mut state.api_selection, api_len, delta),
-        Screen::Branches => apply(
-            &mut state.branch_selection,
-            state.branch_file.branches.len(),
-            delta,
-        ),
         Screen::Profile => apply(
             &mut state.profile_selection,
             state.profiles.profiles.len(),
@@ -1012,33 +993,6 @@ fn handle_api(state: &mut AppState, key: KeyEvent) -> UiAction {
             }
             UiAction::None
         }
-        _ => UiAction::None,
-    }
-}
-
-fn handle_branches(state: &mut AppState, key: KeyEvent) -> UiAction {
-    match key.code {
-        KeyCode::Char('c') => {
-            let label = format!("ветка {}", state.branch_file.branches.len() + 1);
-            state.open_input(InputPurpose::BranchLabel, "Метка ветки", label);
-            UiAction::None
-        }
-        KeyCode::Char('b') => UiAction::CheckpointTwo,
-        KeyCode::Enter => state
-            .selected_branch_id()
-            .map(UiAction::SwitchBranch)
-            .unwrap_or(UiAction::None),
-        KeyCode::Char('x') => match state.selected_branch_id() {
-            Some(id) => {
-                state.confirm(
-                    "Удалить ветку?",
-                    id.clone(),
-                    ConfirmAction::DeleteBranch(id),
-                );
-                UiAction::None
-            }
-            None => UiAction::None,
-        },
         _ => UiAction::None,
     }
 }

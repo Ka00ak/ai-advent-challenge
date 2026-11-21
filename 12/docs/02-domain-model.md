@@ -283,7 +283,7 @@ pub struct MemoryConfig {
 4. `WmStatus::Done` не рендерится, кроме `Plan`: выполненный шаг выводится
    как `[x]`. `Dropped` не рендерится никогда.
 5. В STM нет `ChatRole::System`.
-6. `processed_messages` монотонно растёт; если STM стал короче (импорт/ветка),
+6. `processed_messages` монотонно растёт; если STM стал короче (импорт),
    курсор сбрасывается в `0`, данные других слоёв не удаляются.
 7. Все даты — ISO 8601 UTC (`DateTime<Utc>`).
 8. `key` ≤ 64 символов, `value` ≤ 500, `tags` ≤ 8.
@@ -346,7 +346,6 @@ Data-dir: `--data-dir <path>` → `$LAB11_HOME` → `$XDG_DATA_HOME/lab11` →
 | `meta/meta.json` | Router | `MemoryMetaState` | 4 КБ |
 | `migration/report.json` | Импорт | `MigrationReport` | 16 КБ |
 | `settings.json` | CLI/TUI | `Settings` без ключа | 16 КБ |
-| `branches/branches.json` | Ветки | снимки слоёв | 2 МБ |
 | `secrets.json` | CLI/TUI | ключ, если разрешён | 0600 |
 | `lock` | Процесс | lock-файл (fs2) | — |
 

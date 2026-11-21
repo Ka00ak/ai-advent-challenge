@@ -48,7 +48,6 @@
       pending.rs
       meta.rs
       settings.rs
-      branches.rs
       lock.rs                  # fs2
       paths.rs                 # data-dir resolution
     memory/
@@ -85,9 +84,7 @@
         experiment.rs
         tokens.rs
         settings.rs
-        history.rs
         api_log.rs
-        branches.rs
         help.rs
         modal.rs
         input.rs               # однострочный ввод
@@ -442,29 +439,13 @@ AppEvent / CLI output: final text, tokens, breakdown, audit
 | Нет прав на запись | `SaveError::Io`; TUI-баннер, CLI код 2 |
 | Нет API-ключа | TUI: модалка; CLI: код 2, без сетевого запроса |
 | Lock занят | вторая копия завершается с подсказкой |
-| Ветка ссылается на удалённую LTM | `ref_ltm_id` игнорируется, в UI бейдж «ссылка потеряна» |
 | Эксперимент отменён | частичный отчёт не сохраняется |
 | Паника в worker | `AppEvent::Error`, TUI жив; паника логируется в файл |
 
-## 8. Настройки и ветки
+## 8. Настройки
 
 `settings.json` — `Settings` без ключа. При первом запуске создаются defaults.
 Опционально `import-settings <path>` (P2) читает экспорт Дня 10 и маппит
 `factsMode → extraction_mode`, `keepRecentMessages → stm.window`.
 
-`branches/branches.json`:
-
-```rust
-pub struct BranchSnapshot {
-    pub id: String,
-    pub label: String,
-    pub created_at: DateTime<Utc>,
-    pub stm: StmState,
-    pub wm: WorkingMemoryState,
-    pub ltm: LtmState,
-    pub pending: Vec<PendingWrite>,
-    pub meta: MemoryMetaState,
-}
-```
-
-Переключение заменяет все пять частей целиком; ветки не делят векторы.
+Ветки удалены из проекта: отдельного файла снимков и переключения слоёв нет.

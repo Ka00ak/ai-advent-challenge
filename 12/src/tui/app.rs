@@ -268,41 +268,6 @@ fn execute_action(
                 }
             }
         }
-        UiAction::Checkpoint(label) => match controller.checkpoint_branch(&label) {
-            Ok(_) => {
-                state.refresh(controller);
-                state.set_banner(format!("checkpoint: {label}"));
-            }
-            Err(error) => state.error_modal(error.to_string()),
-        },
-        UiAction::CheckpointTwo => {
-            let mut errors = Vec::new();
-            for label in ["ветка A", "ветка B"] {
-                if let Err(error) = controller.checkpoint_branch(label) {
-                    errors.push(error.to_string());
-                }
-            }
-            state.refresh(controller);
-            if errors.is_empty() {
-                state.set_banner("созданы две ветки: A и B");
-            } else {
-                state.error_modal(errors.join("; "));
-            }
-        }
-        UiAction::SwitchBranch(id) => match controller.switch_branch(&id) {
-            Ok(()) => {
-                state.refresh(controller);
-                state.set_banner(format!("переключено на ветку {id}"));
-            }
-            Err(error) => state.error_modal(error.to_string()),
-        },
-        UiAction::DeleteBranch(id) => match controller.delete_branch(&id) {
-            Ok(()) => {
-                state.refresh(controller);
-                state.set_banner("ветка удалена");
-            }
-            Err(error) => state.error_modal(error.to_string()),
-        },
         UiAction::SaveSettings => {
             *controller.settings_mut() = state.settings.clone();
             match controller.save_settings() {
@@ -497,7 +462,6 @@ fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
         Screen::Tokens => widgets::tokens::draw(frame, chunks[2], state),
         Screen::Settings => widgets::settings::draw(frame, chunks[2], state),
         Screen::ApiLog => widgets::api_log::draw(frame, chunks[2], state),
-        Screen::Branches => widgets::branches::draw(frame, chunks[2], state),
         Screen::Profile => widgets::profile::draw(frame, chunks[2], state),
     }
 
@@ -569,7 +533,6 @@ fn footer_lines(state: &AppState) -> Vec<Line<'static>> {
         Screen::Tokens => "↑↓ выбор запроса · Enter детали",
         Screen::Settings => "Enter изменить · s сохранить · Tab поле",
         Screen::ApiLog => "f фильтр · ↑↓/g/G выбор · Enter запрос/ответ · e экспорт",
-        Screen::Branches => "c checkpoint · b две ветки · Enter переключить · x удалить",
         Screen::Profile => "↑↓ выбор · Enter/u активировать · g/G",
     };
     let second = if let Some(busy) = state.busy {

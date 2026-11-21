@@ -1,7 +1,6 @@
 //! Виджеты экранов TUI.
 
 pub mod api_log;
-pub mod branches;
 pub mod chat;
 pub mod experiment;
 pub mod help;
