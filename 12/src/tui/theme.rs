@@ -56,3 +56,37 @@ pub fn muted() -> Style {
         Style::default().add_modifier(Modifier::DIM)
     }
 }
+
+pub fn json_key() -> Style {
+    if color_enabled() {
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().add_modifier(Modifier::BOLD)
+    }
+}
+
+pub fn json_string() -> Style {
+    if color_enabled() {
+        Style::default().fg(Color::Green)
+    } else {
+        Style::default()
+    }
+}
+
+pub fn json_number() -> Style {
+    if color_enabled() {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default()
+    }
+}
+
+pub fn json_bool() -> Style {
+    if color_enabled() {
+        Style::default().fg(Color::Magenta)
+    } else {
+        Style::default().add_modifier(Modifier::UNDERLINED)
+    }
+}

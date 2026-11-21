@@ -1,7 +1,6 @@
 //! Состояние TUI и чистые переходы (без терминала) — тестируется reducer'ом.
 
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use crate::app::controller::AppController;
 use crate::app::state::{MemoryColumn, Screen};
@@ -134,11 +133,6 @@ pub enum Modal {
         title: String,
         lines: Vec<String>,
     },
-    ApiDetail {
-        exchange: Arc<LlmExchange>,
-        tab: ApiDetailTab,
-        scroll: u16,
-    },
     SelectLayer {
         target: LayerTarget,
         choice: usize,
@@ -146,38 +140,23 @@ pub enum Modal {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ApiDetailTab {
-    Overview,
-    Tokens,
+pub enum ApiBodyTab {
     Request,
     Response,
 }
 
-impl ApiDetailTab {
-    pub fn next(self) -> Self {
+impl ApiBodyTab {
+    pub fn toggle(self) -> Self {
         match self {
-            ApiDetailTab::Overview => ApiDetailTab::Tokens,
-            ApiDetailTab::Tokens => ApiDetailTab::Request,
-            ApiDetailTab::Request => ApiDetailTab::Response,
-            ApiDetailTab::Response => ApiDetailTab::Overview,
-        }
-    }
-
-    pub fn prev(self) -> Self {
-        match self {
-            ApiDetailTab::Overview => ApiDetailTab::Response,
-            ApiDetailTab::Tokens => ApiDetailTab::Overview,
-            ApiDetailTab::Request => ApiDetailTab::Tokens,
-            ApiDetailTab::Response => ApiDetailTab::Request,
+            ApiBodyTab::Request => ApiBodyTab::Response,
+            ApiBodyTab::Response => ApiBodyTab::Request,
         }
     }
 
     pub fn title(self) -> &'static str {
         match self {
-            ApiDetailTab::Overview => "Обзор",
-            ApiDetailTab::Tokens => "Токены",
-            ApiDetailTab::Request => "Запрос",
-            ApiDetailTab::Response => "Ответ",
+            ApiBodyTab::Request => "Запрос",
+            ApiBodyTab::Response => "Ответ",
         }
     }
 }
@@ -268,6 +247,8 @@ pub struct AppState {
     pub form: Option<FormDraft>,
     pub ltm_search: Option<String>,
     pub api_filter: ApiFilter,
+    pub api_body_tab: ApiBodyTab,
+    pub api_json_scroll: u16,
     pub help_scroll: u16,
     /// Черновик сообщения на вкладке «1 Чат».
     pub chat_input: InputState,
@@ -318,6 +299,8 @@ impl AppState {
             form: None,
             ltm_search: None,
             api_filter: ApiFilter::All,
+            api_body_tab: ApiBodyTab::Request,
+            api_json_scroll: 0,
             help_scroll: 0,
             chat_input: InputState::new(InputPurpose::Chat, "Сообщение", ""),
             chat_focused: false,
@@ -569,6 +552,12 @@ impl AppState {
             .iter()
             .filter(|exchange| self.api_filter.matches(exchange))
             .collect()
+    }
+
+    pub fn selected_exchange(&self) -> Option<&LlmExchange> {
+        self.filtered_exchanges()
+            .into_iter()
+            .nth(self.api_selection)
     }
 
     pub fn confirm(

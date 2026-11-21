@@ -111,6 +111,9 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             } else if state.screen == Screen::Settings {
                 state.settings_selection =
                     (state.settings_selection + 1) % state.settings_rows().len();
+            } else if state.screen == Screen::ApiLog {
+                state.api_body_tab = state.api_body_tab.toggle();
+                state.api_json_scroll = 0;
             }
             UiAction::None
         }
@@ -120,6 +123,9 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             } else if state.screen == Screen::Settings {
                 let len = state.settings_rows().len();
                 state.settings_selection = (state.settings_selection + len - 1) % len;
+            } else if state.screen == Screen::ApiLog {
+                state.api_body_tab = state.api_body_tab.toggle();
+                state.api_json_scroll = 0;
             }
             UiAction::None
         }
@@ -150,12 +156,18 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             if state.screen == Screen::Chat {
                 return handle_chat(state, key);
             }
+            if state.screen == Screen::ApiLog {
+                return handle_api(state, key);
+            }
             move_selection(state, -10);
             UiAction::None
         }
         KeyCode::PageDown => {
             if state.screen == Screen::Chat {
                 return handle_chat(state, key);
+            }
+            if state.screen == Screen::ApiLog {
+                return handle_api(state, key);
             }
             move_selection(state, 10);
             UiAction::None
@@ -391,73 +403,6 @@ fn handle_modal_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             }
             UiAction::None
         }
-        Modal::ApiDetail {
-            exchange,
-            tab,
-            scroll,
-        } => {
-            match key.code {
-                KeyCode::Esc | KeyCode::Enter => state.modal = None,
-                KeyCode::Tab | KeyCode::Right => {
-                    state.modal = Some(Modal::ApiDetail {
-                        exchange,
-                        tab: tab.next(),
-                        scroll: 0,
-                    });
-                }
-                KeyCode::BackTab | KeyCode::Left => {
-                    state.modal = Some(Modal::ApiDetail {
-                        exchange,
-                        tab: tab.prev(),
-                        scroll: 0,
-                    });
-                }
-                KeyCode::Down | KeyCode::Char('j') => {
-                    state.modal = Some(Modal::ApiDetail {
-                        exchange,
-                        tab,
-                        scroll: scroll.saturating_add(1),
-                    });
-                }
-                KeyCode::Up | KeyCode::Char('k') => {
-                    state.modal = Some(Modal::ApiDetail {
-                        exchange,
-                        tab,
-                        scroll: scroll.saturating_sub(1),
-                    });
-                }
-                KeyCode::PageDown => {
-                    state.modal = Some(Modal::ApiDetail {
-                        exchange,
-                        tab,
-                        scroll: scroll.saturating_add(15),
-                    });
-                }
-                KeyCode::PageUp => {
-                    state.modal = Some(Modal::ApiDetail {
-                        exchange,
-                        tab,
-                        scroll: scroll.saturating_sub(15),
-                    });
-                }
-                KeyCode::Char('g') => {
-                    state.modal = Some(Modal::ApiDetail {
-                        exchange,
-                        tab,
-                        scroll: 0,
-                    });
-                }
-                KeyCode::Char('G') => {
-                    state.modal = Some(Modal::ApiDetail {
-                        exchange,
-                        tab,
-                        scroll: u16::MAX,
-                    });
-                }
-                _ => {}
-            }
-            UiAction::None
-        }
         Modal::Error(_) | Modal::Card { .. } | Modal::Details { .. } => {
             if matches!(key.code, KeyCode::Esc | KeyCode::Enter) {
                 state.modal = None;
@@ -514,7 +459,10 @@ fn move_selection(state: &mut AppState, delta: isize) {
         ),
         Screen::Experiment => apply(&mut state.experiment_selection, experiment_len, delta),
         Screen::Settings => apply(&mut state.settings_selection, settings_len, delta),
-        Screen::ApiLog => apply(&mut state.api_selection, api_len, delta),
+        Screen::ApiLog => {
+            apply(&mut state.api_selection, api_len, delta);
+            state.api_json_scroll = 0;
+        }
         Screen::Profile => apply(
             &mut state.profile_selection,
             state.profiles.profiles.len(),
@@ -925,14 +873,17 @@ fn handle_api(state: &mut AppState, key: KeyEvent) -> UiAction {
         KeyCode::Char('f') => {
             state.api_filter = state.api_filter.next();
             state.api_selection = 0;
+            state.api_json_scroll = 0;
             UiAction::None
         }
         KeyCode::Char('g') => {
             state.api_selection = 0;
+            state.api_json_scroll = 0;
             UiAction::None
         }
         KeyCode::Char('G') => {
             state.api_selection = state.filtered_exchanges().len().saturating_sub(1);
+            state.api_json_scroll = 0;
             UiAction::None
         }
         KeyCode::Char('e') => {
@@ -943,18 +894,25 @@ fn handle_api(state: &mut AppState, key: KeyEvent) -> UiAction {
             );
             UiAction::None
         }
-        KeyCode::Enter => {
-            if let Some(exchange) = state
-                .filtered_exchanges()
-                .get(state.api_selection)
-                .map(|exchange| (*exchange).clone())
-            {
-                state.modal = Some(Modal::ApiDetail {
-                    exchange: std::sync::Arc::new(exchange),
-                    tab: crate::tui::state::ApiDetailTab::Overview,
-                    scroll: 0,
-                });
-            }
+        KeyCode::Tab | KeyCode::Right | KeyCode::BackTab | KeyCode::Left | KeyCode::Enter => {
+            state.api_body_tab = state.api_body_tab.toggle();
+            state.api_json_scroll = 0;
+            UiAction::None
+        }
+        KeyCode::PageUp => {
+            state.api_json_scroll = state.api_json_scroll.saturating_sub(15);
+            UiAction::None
+        }
+        KeyCode::PageDown => {
+            state.api_json_scroll = state.api_json_scroll.saturating_add(15);
+            UiAction::None
+        }
+        KeyCode::Home => {
+            state.api_json_scroll = 0;
+            UiAction::None
+        }
+        KeyCode::End => {
+            state.api_json_scroll = u16::MAX;
             UiAction::None
         }
         _ => UiAction::None,

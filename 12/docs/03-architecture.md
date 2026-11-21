@@ -84,6 +84,7 @@
         experiment.rs
         settings.rs
         api_log.rs
+        json.rs                # подсветка JSON
         help.rs
         modal.rs
         input.rs               # однострочный ввод

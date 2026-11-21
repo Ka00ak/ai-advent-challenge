@@ -172,7 +172,7 @@ fn chat_scroll_clamps_and_moves_back_down() {
 }
 
 #[test]
-fn api_screen_opens_request_and_response_tabs_per_http_call() {
+fn api_screen_shows_details_and_highlighted_request_without_modal() {
     let (_dir, mut state) = state();
     state.screen = Screen::ApiLog;
     let mut first = lab12::domain::chat::LlmExchange::new(
@@ -187,8 +187,6 @@ fn api_screen_opens_request_and_response_tabs_per_http_call() {
             .into(),
     );
     first.response_body = Some("{\n  \"content\": \"ответ API\"\n}".into());
-    first.request_preview = Some("письмо".into());
-    first.response_preview = Some("ответ".into());
     first.memory = Some(MemoryBreakdown {
         system_tokens: 100,
         profile_tokens: 20,
@@ -201,12 +199,19 @@ fn api_screen_opens_request_and_response_tabs_per_http_call() {
         total_tokens: 212,
         ..MemoryBreakdown::default()
     });
-    state.merge_exchanges(vec![first]);
+    let mut second = lab12::domain::chat::LlmExchange::new(
+        lab12::domain::chat::ExchangeKind::Chat,
+        "deepseek-chat",
+        "https://api.deepseek.com/chat/completions",
+    );
+    second.status_code = Some(200);
+    second.duration_ms = 30;
+    second.request_body = Some("{\n  \"content\": \"второй запрос\"\n}".into());
+    second.response_body = Some("{\n  \"content\": \"второй ответ\"\n}".into());
+    state.merge_exchanges(vec![first, second]);
+    state.api_selection = 0;
 
-    assert_eq!(handle_key(&mut state, key(KeyCode::Enter)), UiAction::None);
-    assert!(matches!(state.modal, Some(Modal::ApiDetail { .. })));
-
-    let backend = TestBackend::new(120, 36);
+    let backend = TestBackend::new(140, 36);
     let mut terminal = Terminal::new(backend).unwrap();
     terminal
         .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
@@ -218,37 +223,11 @@ fn api_screen_opens_request_and_response_tabs_per_http_call() {
         .iter()
         .map(|cell| cell.symbol())
         .collect();
-    assert!(text.contains("Обзор"));
-    assert!(text.contains("Токены"));
-    assert!(text.contains("Запрос"));
-    assert!(text.contains("Ответ"));
-
-    handle_key(&mut state, key(KeyCode::Tab));
-    terminal
-        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
-        .unwrap();
-    let text: String = terminal
-        .backend()
-        .buffer()
-        .content()
-        .iter()
-        .map(|cell| cell.symbol())
-        .collect();
-    assert!(text.contains("Итого промпт 212"));
-    assert!(text.contains("LTM профиль"));
-
-    handle_key(&mut state, key(KeyCode::Tab));
-    terminal
-        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
-        .unwrap();
-    let text: String = terminal
-        .backend()
-        .buffer()
-        .content()
-        .iter()
-        .map(|cell| cell.symbol())
-        .collect();
+    assert!(text.contains("Детали запроса"));
     assert!(text.contains("привет API"));
+    assert!(text.contains("system 100"));
+    assert!(text.contains("tools 7"));
+    assert!(state.modal.is_none(), "детали показываются без модалки");
 
     handle_key(&mut state, key(KeyCode::Tab));
     terminal
@@ -263,7 +242,18 @@ fn api_screen_opens_request_and_response_tabs_per_http_call() {
         .collect();
     assert!(text.contains("ответ API"));
 
-    handle_key(&mut state, key(KeyCode::Esc));
+    handle_key(&mut state, key(KeyCode::Down));
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let text: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(text.contains("второй ответ"));
     assert!(state.modal.is_none());
 }
 

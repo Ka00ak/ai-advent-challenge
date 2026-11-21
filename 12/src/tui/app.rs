@@ -530,7 +530,9 @@ fn footer_lines(state: &AppState) -> Vec<Line<'static>> {
             "r запустить · m режим · Space очистка · s отчёт · d детали · i импорт"
         }
         Screen::Settings => "Enter изменить · s сохранить · Tab поле",
-        Screen::ApiLog => "f фильтр · ↑↓/g/G выбор · Enter токены/запрос/ответ · e экспорт",
+        Screen::ApiLog => {
+            "f фильтр · ↑↓ выбор · Tab/←→ запрос/ответ · PgUp/PgDn прокрутка · e экспорт"
+        }
         Screen::Profile => "↑↓ выбор · Enter/u активировать · g/G",
     };
     let second = if let Some(busy) = state.busy {
