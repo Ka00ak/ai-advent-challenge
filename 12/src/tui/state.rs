@@ -148,6 +148,7 @@ pub enum Modal {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApiDetailTab {
     Overview,
+    Tokens,
     Request,
     Response,
 }
@@ -155,7 +156,8 @@ pub enum ApiDetailTab {
 impl ApiDetailTab {
     pub fn next(self) -> Self {
         match self {
-            ApiDetailTab::Overview => ApiDetailTab::Request,
+            ApiDetailTab::Overview => ApiDetailTab::Tokens,
+            ApiDetailTab::Tokens => ApiDetailTab::Request,
             ApiDetailTab::Request => ApiDetailTab::Response,
             ApiDetailTab::Response => ApiDetailTab::Overview,
         }
@@ -164,7 +166,8 @@ impl ApiDetailTab {
     pub fn prev(self) -> Self {
         match self {
             ApiDetailTab::Overview => ApiDetailTab::Response,
-            ApiDetailTab::Request => ApiDetailTab::Overview,
+            ApiDetailTab::Tokens => ApiDetailTab::Overview,
+            ApiDetailTab::Request => ApiDetailTab::Tokens,
             ApiDetailTab::Response => ApiDetailTab::Request,
         }
     }
@@ -172,6 +175,7 @@ impl ApiDetailTab {
     pub fn title(self) -> &'static str {
         match self {
             ApiDetailTab::Overview => "Обзор",
+            ApiDetailTab::Tokens => "Токены",
             ApiDetailTab::Request => "Запрос",
             ApiDetailTab::Response => "Ответ",
         }
@@ -241,7 +245,6 @@ pub struct AppState {
     pub memory_selection: [usize; 3],
     pub pending_selection: usize,
     pub experiment_selection: usize,
-    pub tokens_selection: usize,
     pub api_selection: usize,
     pub settings_selection: usize,
     pub profile_selection: usize,
@@ -287,7 +290,6 @@ impl AppState {
             memory_selection: [0, 0, 0],
             pending_selection: 0,
             experiment_selection: 0,
-            tokens_selection: 0,
             api_selection: 0,
             settings_selection: 0,
             profile_selection: 0,

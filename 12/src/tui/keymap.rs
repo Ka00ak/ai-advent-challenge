@@ -111,8 +111,6 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             } else if state.screen == Screen::Settings {
                 state.settings_selection =
                     (state.settings_selection + 1) % state.settings_rows().len();
-            } else {
-                state.tokens_selection = (state.tokens_selection + 1) % 2;
             }
             UiAction::None
         }
@@ -167,7 +165,6 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             Screen::Memory => handle_memory(state, key),
             Screen::Pending => handle_pending(state, key),
             Screen::Experiment => handle_experiment(state, key),
-            Screen::Tokens => handle_tokens(state, key),
             Screen::Settings => handle_settings(state, key),
             Screen::ApiLog => handle_api(state, key),
             Screen::Profile => handle_profile(state, key),
@@ -516,7 +513,6 @@ fn move_selection(state: &mut AppState, delta: isize) {
             delta,
         ),
         Screen::Experiment => apply(&mut state.experiment_selection, experiment_len, delta),
-        Screen::Tokens => apply(&mut state.tokens_selection, state.exchanges.len(), delta),
         Screen::Settings => apply(&mut state.settings_selection, settings_len, delta),
         Screen::ApiLog => apply(&mut state.api_selection, api_len, delta),
         Screen::Profile => apply(
@@ -911,38 +907,6 @@ fn handle_experiment(state: &mut AppState, key: KeyEvent) -> UiAction {
         }
         _ => UiAction::None,
     }
-}
-
-fn handle_tokens(state: &mut AppState, key: KeyEvent) -> UiAction {
-    if key.code == KeyCode::Enter {
-        if let Some(exchange) = state.exchanges.get(state.tokens_selection) {
-            let mut lines = vec![
-                format!("kind: {}", exchange.kind.as_str()),
-                format!("model: {}", exchange.model),
-                format!("url: {}", exchange.url),
-                format!(
-                    "tokens: prompt={} completion={} total={}",
-                    exchange.prompt_tokens, exchange.completion_tokens, exchange.total_tokens
-                ),
-                format!(
-                    "cost: {:.6}$ · status: {}",
-                    exchange.cost_usd, exchange.status
-                ),
-            ];
-            if let Some(breakdown) = &exchange.memory {
-                lines.push(format!("LTM: {}", breakdown.layer_delta.ltm));
-                lines.push(format!("WM: {}", breakdown.layer_delta.wm));
-                lines.push(format!("STM: {}", breakdown.layer_delta.stm));
-                lines.push(format!("included LTM: {:?}", breakdown.included_ltm_ids));
-                lines.push(format!("dropped LTM: {:?}", breakdown.dropped_ltm_ids));
-            }
-            state.modal = Some(Modal::Details {
-                title: format!("Запрос #{}", state.tokens_selection + 1),
-                lines,
-            });
-        }
-    }
-    UiAction::None
 }
 
 fn handle_settings(state: &mut AppState, key: KeyEvent) -> UiAction {

@@ -29,13 +29,13 @@ fn number_keys_switch_screens() {
     assert_eq!(state.screen, Screen::Experiment);
     handle_key(&mut state, key(KeyCode::Char('2')));
     assert_eq!(state.screen, Screen::Memory);
-    handle_key(&mut state, key(KeyCode::Char('6')));
+    handle_key(&mut state, key(KeyCode::Char('5')));
     assert_eq!(state.screen, Screen::Settings);
-    handle_key(&mut state, key(KeyCode::Char('9')));
-    assert_eq!(state.screen, Screen::Settings, "вкладки 9 больше нет");
-    handle_key(&mut state, key(KeyCode::Char('7')));
-    assert_eq!(state.screen, Screen::ApiLog);
     handle_key(&mut state, key(KeyCode::Char('8')));
+    assert_eq!(state.screen, Screen::Settings, "вкладки 8 больше нет");
+    handle_key(&mut state, key(KeyCode::Char('6')));
+    assert_eq!(state.screen, Screen::ApiLog);
+    handle_key(&mut state, key(KeyCode::Char('7')));
     assert_eq!(state.screen, Screen::Profile);
 }
 
@@ -189,6 +189,18 @@ fn api_screen_opens_request_and_response_tabs_per_http_call() {
     first.response_body = Some("{\n  \"content\": \"ответ API\"\n}".into());
     first.request_preview = Some("письмо".into());
     first.response_preview = Some("ответ".into());
+    first.memory = Some(MemoryBreakdown {
+        system_tokens: 100,
+        profile_tokens: 20,
+        ltm_profile_tokens: 30,
+        ltm_relevant_tokens: 10,
+        wm_tokens: 15,
+        stm_tokens: 25,
+        current_tokens: 5,
+        tools_tokens: 7,
+        total_tokens: 212,
+        ..MemoryBreakdown::default()
+    });
     state.merge_exchanges(vec![first]);
 
     assert_eq!(handle_key(&mut state, key(KeyCode::Enter)), UiAction::None);
@@ -207,8 +219,23 @@ fn api_screen_opens_request_and_response_tabs_per_http_call() {
         .map(|cell| cell.symbol())
         .collect();
     assert!(text.contains("Обзор"));
+    assert!(text.contains("Токены"));
     assert!(text.contains("Запрос"));
     assert!(text.contains("Ответ"));
+
+    handle_key(&mut state, key(KeyCode::Tab));
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let text: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(text.contains("Итого промпт 212"));
+    assert!(text.contains("LTM профиль"));
 
     handle_key(&mut state, key(KeyCode::Tab));
     terminal
@@ -418,7 +445,7 @@ fn every_screen_renders_without_panic() {
 #[test]
 fn profile_screen_lists_and_activates_profiles() {
     let (_dir, mut state) = state();
-    handle_key(&mut state, key(KeyCode::Char('8')));
+    handle_key(&mut state, key(KeyCode::Char('7')));
     assert_eq!(state.screen, Screen::Profile);
     assert!(state.profiles.profiles.len() >= 2);
     handle_key(&mut state, key(KeyCode::Down));
@@ -458,9 +485,9 @@ fn experiment_progress(done: usize, prompt_tokens: usize) -> ExperimentProgress 
 }
 
 #[test]
-fn experiment_progress_updates_tokens_tab_live() {
+fn experiment_progress_updates_api_tokens_live() {
     let (_dir, mut state) = state();
-    state.screen = Screen::Tokens;
+    state.screen = Screen::ApiLog;
     state.record_experiment_progress(&experiment_progress(1, 100));
     assert_eq!(state.exchanges.len(), 1);
     let id = state.exchanges[0].id.clone();

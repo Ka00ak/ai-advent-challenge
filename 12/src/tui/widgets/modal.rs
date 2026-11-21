@@ -152,6 +152,7 @@ fn draw_api_detail(
     let mut tabs = Vec::new();
     for candidate in [
         ApiDetailTab::Overview,
+        ApiDetailTab::Tokens,
         ApiDetailTab::Request,
         ApiDetailTab::Response,
     ] {
@@ -250,7 +251,96 @@ fn api_detail_lines(exchange: &LlmExchange, tab: ApiDetailTab) -> Vec<Line<'stat
             exchange.response_body.as_deref(),
             "Тело ответа не сохранено (запись до включения подробного журнала).",
         ),
+        ApiDetailTab::Tokens => token_lines(exchange),
     }
+}
+
+fn token_lines(exchange: &LlmExchange) -> Vec<Line<'static>> {
+    let Some(breakdown) = &exchange.memory else {
+        return vec![
+            Line::from(format!(
+                "prompt {} · completion {} · всего {} ток. · ${:.6}",
+                exchange.prompt_tokens,
+                exchange.completion_tokens,
+                exchange.total_tokens,
+                exchange.cost_usd
+            )),
+            Line::from(""),
+            Line::from("Разбивка по блокам для этой записи недоступна."),
+        ];
+    };
+    let rows = [
+        ("system", breakdown.system_tokens),
+        ("профиль", breakdown.profile_tokens),
+        ("LTM профиль", breakdown.ltm_profile_tokens),
+        ("LTM релевант.", breakdown.ltm_relevant_tokens),
+        ("WM", breakdown.wm_tokens),
+        ("STM сводка", breakdown.stm_summary_tokens),
+        ("STM окно", breakdown.stm_tokens),
+        ("текущий вопрос", breakdown.current_tokens),
+        ("tools", breakdown.tools_tokens),
+    ];
+    let max = rows
+        .iter()
+        .map(|(_, value)| *value)
+        .max()
+        .unwrap_or(1)
+        .max(1);
+    let mut lines = vec![
+        Line::from(Span::styled(
+            format!(
+                "prompt {} · completion {} · всего {} ток. · ${:.6} · {} мс",
+                exchange.prompt_tokens,
+                exchange.completion_tokens,
+                exchange.total_tokens,
+                exchange.cost_usd,
+                exchange.duration_ms
+            ),
+            theme::accent(),
+        )),
+        Line::from(""),
+    ];
+    for (label, value) in rows {
+        lines.push(Line::from(format!(
+            "{:<16} {} {:>6}",
+            label,
+            bar(value, max, 22),
+            value
+        )));
+    }
+    lines.push(Line::from(""));
+    lines.push(Line::from(format!(
+        "Итого промпт {} · слои: LTM {} · WM {} · STM {}",
+        breakdown.total_tokens,
+        breakdown.layer_delta.ltm,
+        breakdown.layer_delta.wm,
+        breakdown.layer_delta.stm
+    )));
+    if !breakdown.included_ltm_ids.is_empty() {
+        lines.push(Line::from(format!(
+            "LTM включено: {}",
+            breakdown.included_ltm_ids.join(", ")
+        )));
+    }
+    if !breakdown.dropped_ltm_ids.is_empty() {
+        lines.push(Line::from(format!(
+            "LTM вытеснено: {}",
+            breakdown.dropped_ltm_ids.join(", ")
+        )));
+    }
+    lines
+}
+
+fn bar(value: usize, max: usize, width: usize) -> String {
+    if value == 0 {
+        return " ".repeat(width);
+    }
+    let filled = (value as f64 / max as f64 * width as f64).ceil() as usize;
+    format!(
+        "{}{}",
+        "█".repeat(filled.min(width)),
+        "·".repeat(width.saturating_sub(filled))
+    )
 }
 
 fn body_lines(body: Option<&str>, empty: &str) -> Vec<Line<'static>> {

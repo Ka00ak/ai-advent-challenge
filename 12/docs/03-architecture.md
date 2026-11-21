@@ -82,7 +82,6 @@
         memory.rs
         pending.rs
         experiment.rs
-        tokens.rs
         settings.rs
         api_log.rs
         help.rs

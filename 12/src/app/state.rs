@@ -8,35 +8,32 @@ pub enum Screen {
     Memory,
     Pending,
     Experiment,
-    Tokens,
     Settings,
     ApiLog,
     Profile,
 }
 
 impl Screen {
-    pub const ALL: [Screen; 8] = [
+    pub const ALL: [Screen; 7] = [
         Screen::Chat,
         Screen::Memory,
         Screen::Pending,
         Screen::Experiment,
-        Screen::Tokens,
         Screen::Settings,
         Screen::ApiLog,
         Screen::Profile,
     ];
 
-    /// Номер экрана в строке вкладок: `1…8`, без пропусков.
+    /// Номер экрана в строке вкладок: `1…7`, без пропусков.
     pub fn number(self) -> usize {
         match self {
             Screen::Chat => 1,
             Screen::Memory => 2,
             Screen::Pending => 3,
             Screen::Experiment => 4,
-            Screen::Tokens => 5,
-            Screen::Settings => 6,
-            Screen::ApiLog => 7,
-            Screen::Profile => 8,
+            Screen::Settings => 5,
+            Screen::ApiLog => 6,
+            Screen::Profile => 7,
         }
     }
 
@@ -46,10 +43,9 @@ impl Screen {
             2 => Some(Screen::Memory),
             3 => Some(Screen::Pending),
             4 => Some(Screen::Experiment),
-            5 => Some(Screen::Tokens),
-            6 => Some(Screen::Settings),
-            7 => Some(Screen::ApiLog),
-            8 => Some(Screen::Profile),
+            5 => Some(Screen::Settings),
+            6 => Some(Screen::ApiLog),
+            7 => Some(Screen::Profile),
             _ => None,
         }
     }
@@ -60,7 +56,6 @@ impl Screen {
             Screen::Memory => "Память",
             Screen::Pending => "Подтверждения",
             Screen::Experiment => "Проверка",
-            Screen::Tokens => "Токены",
             Screen::Settings => "Настройки",
             Screen::ApiLog => "API",
             Screen::Profile => "Профиль",

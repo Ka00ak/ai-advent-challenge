@@ -7,11 +7,12 @@ use std::time::Instant;
 use serde_json::{Value, json};
 
 use crate::domain::chat::{ExchangeKind, LlmExchange};
+use crate::domain::memory::{ChatRole, LayerDelta, MemoryBreakdown, MemoryCounts};
 use crate::llm::client::{build_body, chat_endpoint};
 use crate::llm::dto::{ChatClient, ChatRequest, ChatResponse, LlmError, model_profile};
 use crate::memory::audit::redact_secrets_preserve;
 use crate::memory::tokens::{
-    estimate_messages_tokens, estimate_text_tokens, estimate_tools_tokens,
+    estimate_message_tokens, estimate_messages_tokens, estimate_text_tokens, estimate_tools_tokens,
 };
 
 const PREVIEW_CHARS: usize = 200;
@@ -66,6 +67,7 @@ impl ChatClient for RecordingChatClient {
 
         let mut exchange = LlmExchange::new(self.kind, &self.model, &self.url);
         exchange.duration_ms = duration_ms;
+        exchange.memory = Some(breakdown_for(request));
         exchange.request_body = Some(clean(&request_body));
         exchange.request_preview = Some(preview(&request_body));
         exchange.prompt_tokens =
@@ -118,6 +120,54 @@ impl ChatClient for RecordingChatClient {
         }
         result
     }
+}
+
+/// Разбивка фактического запроса по блокам промпта: ядро, профиль, LTM,
+/// WM, STM и tools. Работает по маркерам, которые ставит `assemble_prompt`.
+fn breakdown_for(request: &ChatRequest) -> MemoryBreakdown {
+    let current_index = request
+        .messages
+        .iter()
+        .rposition(|message| message.role == ChatRole::User);
+    let mut breakdown = MemoryBreakdown::default();
+    for (index, message) in request.messages.iter().enumerate() {
+        let text = message.content.as_deref().unwrap_or_default();
+        let tokens = estimate_message_tokens(message);
+        if message.role == ChatRole::System {
+            if text.starts_with("## Персонализация") {
+                breakdown.profile_tokens += tokens;
+            } else if text.starts_with("## Долговременная память: профиль")
+            {
+                breakdown.ltm_profile_tokens += tokens;
+            } else if text.starts_with("## Долговременная память: релевантное")
+            {
+                breakdown.ltm_relevant_tokens += tokens;
+            } else if text.starts_with("## Рабочая память") {
+                breakdown.wm_tokens += tokens;
+            } else if text.starts_with("## Краткосрочная память: сводка") {
+                breakdown.stm_summary_tokens += tokens;
+            } else {
+                breakdown.system_tokens += tokens;
+            }
+        } else if Some(index) == current_index {
+            breakdown.current_tokens += tokens;
+        } else {
+            breakdown.stm_tokens += tokens;
+        }
+    }
+    breakdown.tools_tokens = estimate_tools_tokens(&request.tools);
+    breakdown.layer_delta = LayerDelta {
+        ltm: breakdown.ltm_profile_tokens + breakdown.ltm_relevant_tokens,
+        wm: breakdown.wm_tokens,
+        stm: breakdown.stm_summary_tokens + breakdown.stm_tokens,
+    };
+    breakdown.counts = MemoryCounts {
+        ltm_records: 0,
+        wm_items: 0,
+        stm_messages: request.messages.len(),
+    };
+    breakdown.recompute_total();
+    breakdown
 }
 
 fn pretty(value: &Value) -> String {
@@ -234,6 +284,9 @@ mod tests {
         assert!(entry.response_body.as_deref().unwrap().contains("ответ"));
         assert!(entry.request_size() > 0);
         assert!(entry.response_size() > 0);
+        let breakdown = entry.memory.as_ref().unwrap();
+        assert!(breakdown.total_tokens > 0);
+        assert!(breakdown.current_tokens > 0);
     }
 
     #[test]

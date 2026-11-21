@@ -24,7 +24,7 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &AppState) {
         theme::muted(),
     ))];
     lines.push(Line::from(Span::styled(
-        "#  время    kind     HTTP  model         prompt/comp  длит.   запрос/ответ",
+        "#  время    kind     HTTP  model         prompt/comp/всего  длит.   запрос/ответ",
         theme::muted(),
     )));
     if exchanges.is_empty() {
@@ -53,7 +53,7 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &AppState) {
             });
         lines.push(Line::from(Span::styled(
             format!(
-                "{marker}{:<2} {:<8} {:<8} {:<5} {:<13} {:>6}/{:<5} {:>5}мс  {}/{}",
+                "{marker}{:<2} {:<8} {:<8} {:<5} {:<13} {:>6}/{:<5}/{:<6} {:>5}мс  {}/{}",
                 position + 1,
                 exchange.at.format("%H:%M:%S"),
                 exchange.kind.as_str(),
@@ -61,6 +61,7 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &AppState) {
                 exchange.model.chars().take(13).collect::<String>(),
                 exchange.prompt_tokens,
                 exchange.completion_tokens,
+                exchange.total_tokens,
                 exchange.duration_ms,
                 format_size(exchange.request_size()),
                 format_size(exchange.response_size()),

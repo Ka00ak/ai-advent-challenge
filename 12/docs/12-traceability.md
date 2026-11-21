@@ -22,8 +22,9 @@
 | PR-16 | Реальные прогоны 2026-11-19 | `docs/results/personalization-2026-11-19*` | приложены | done |
 | PR-17 | TUI-вкладка «1 Чат» поверх STM/WM/LTM и профиля | `src/tui/widgets/chat.rs`, `Screen::Chat` | `tests/tui.rs` | done |
 | PR-18 | API-журнал: каждый HTTP-запрос отдельно, полные request/response | `src/llm/record.rs`, `src/tui/widgets/api_log.rs`, модалка `ApiDetail` | `src/llm/record.rs`, `tests/controller.rs`, `tests/experiment.rs`, `tests/tui.rs` | done |
-| PR-19 | История STM перенесена в чат, вкладка 5 удалена | `Screen::Chat`, `src/tui/widgets/chat.rs`, keymap чата | `tests/tui.rs` | done |
-| PR-20 | Ветки удалены из проекта, вкладки перенумерованы 1…8 | удалены `branches.rs`, branch-state и storage | `tests/tui.rs` | done |
+| PR-19 | История STM перенесена в чат | `Screen::Chat`, `src/tui/widgets/chat.rs`, keymap чата | `tests/tui.rs` | done |
+| PR-20 | Ветки удалены из проекта, нумерация вкладок пересобрана | удалены `branches.rs`, branch-state и storage | `tests/tui.rs` | done |
+| PR-21 | Токены перенесены в API, отдельная вкладка удалена | `src/llm/record.rs`, вкладка `Токены` в `ApiDetail` | `src/llm/record.rs`, `tests/tui.rs` | done |
 
 ## Фактические тесты
 
@@ -33,12 +34,12 @@
 | `src/memory/personalization.rs` | обучение по всем осям, конфликт, ложные срабатывания, блок |
 | `src/memory/prompt.rs` | первое место блока, profile_tokens, отсутствие профиля |
 | `src/experiment/personalization.rs` | fake 2/2 и 10/10, нарушения, Markdown/JSON |
-| `src/llm/record.rs` | запись request/response, ошибки, маскирование, отдельные записи |
+| `src/llm/record.rs` | запись request/response, ошибки, маскирование, отдельные записи, breakdown по блокам |
 | `tests/controller.rs` | обучение и сохранение профиля, переключение, раздельный API-лог HTTP-запросов |
 | `tests/cli.rs` | `profile list/use/learn`, `personalize --check`, отчёты |
 | `tests/storage.rs` | roundtrip и битый `profiles/profiles.json` |
 | `tests/experiment.rs` | 126 отдельных HTTP-записей эксперимента, событие `ApiLogged` для TUI |
-| `tests/tui.rs` | экран 9, профиль, чат с историей STM, API: разделы «Запрос»/«Ответ», прокрутка длинного журнала, замена сводки эксперимента запросами |
+| `tests/tui.rs` | экраны 1…7, профиль, чат с историей STM, API: «Обзор»/«Токены»/«Запрос»/«Ответ», прокрутка журнала, замена сводки эксперимента запросами |
 
 Итог: **268 тестов**, `cargo clippy --all-targets -- -D warnings` и
 `cargo fmt --check` чистые.

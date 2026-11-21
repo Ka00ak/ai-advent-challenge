@@ -389,7 +389,6 @@ impl AppController {
             Ok(mut outcome) => {
                 outcome.profile_id = profile_snapshot.as_ref().map(|profile| profile.id.clone());
                 outcome.profile_changes = profile_changes.clone();
-                annotate_breakdown(&chat_log, &outcome.breakdown);
                 self.absorb_request_log(&chat_log);
                 self.bundle = outcome.memory.clone();
                 self.push_audit_events(outcome.audit.clone());
@@ -1233,17 +1232,6 @@ impl AppController {
 
     pub fn wm_kind(key: &str) -> WmKind {
         wm_kind_for_key(key)
-    }
-}
-
-fn annotate_breakdown(log: &RequestLog, breakdown: &MemoryBreakdown) {
-    let Ok(mut entries) = log.lock() else {
-        return;
-    };
-    for exchange in entries.iter_mut() {
-        if exchange.kind == ExchangeKind::Chat {
-            exchange.memory = Some(breakdown.clone());
-        }
     }
 }
 
