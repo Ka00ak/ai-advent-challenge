@@ -134,6 +134,83 @@ fn mask_after_separator(raw: &str) -> String {
     format!("{raw}=***")
 }
 
+/// Маскирует секреты, сохраняя переводы строк и форматирование JSON.
+///
+/// В отличие от [`mask_secret`] не схлопывает пробелы: тело HTTP-запроса
+/// остаётся читаемым в журнале API. Служебные поля вроде `prompt_tokens`
+/// не маскируются.
+pub fn redact_secrets_preserve(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut token = String::new();
+    let mut mask_next = false;
+    for ch in text.chars() {
+        if ch.is_whitespace() {
+            if !token.is_empty() {
+                redact_token(&mut out, &token, &mut mask_next);
+                token.clear();
+            }
+            out.push(ch);
+        } else {
+            token.push(ch);
+        }
+    }
+    if !token.is_empty() {
+        redact_token(&mut out, &token, &mut mask_next);
+    }
+    out
+}
+
+fn redact_token(out: &mut String, token: &str, mask_next: &mut bool) {
+    if *mask_next {
+        out.push_str("***");
+        *mask_next = false;
+        return;
+    }
+    let lower = token.to_ascii_lowercase();
+    let trimmed =
+        token.trim_matches(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_' && ch != '-');
+    let trimmed_lower = trimmed.to_ascii_lowercase();
+    if is_long_token(trimmed)
+        || trimmed_lower.starts_with("sk-")
+        || trimmed_lower.starts_with("pk-")
+    {
+        out.push_str("***");
+        return;
+    }
+    if lower.contains("bearer") {
+        out.push_str(token);
+        *mask_next = true;
+        return;
+    }
+    if let Some((key, value)) = token.split_once(['=', ':']) {
+        let key_lower = key
+            .trim_matches(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_' && ch != '-')
+            .to_ascii_lowercase();
+        let safe_key = matches!(
+            key_lower.as_str(),
+            "prompt_tokens"
+                | "completion_tokens"
+                | "total_tokens"
+                | "max_tokens"
+                | "token_type"
+                | "tokens"
+        );
+        let value =
+            value.trim_matches(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_' && ch != '-');
+        let secret_key = [
+            "password", "passwd", "secret", "token", "api_key", "api-key", "apikey",
+        ]
+        .iter()
+        .any(|marker| key_lower.contains(marker));
+        if !safe_key && secret_key && !value.is_empty() {
+            out.push_str(key);
+            out.push_str("=***");
+            return;
+        }
+    }
+    out.push_str(token);
+}
+
 /// Событие аудита с уже замаскированным значением.
 #[allow(clippy::too_many_arguments)]
 pub fn make_event(
@@ -169,6 +246,18 @@ mod tests {
     fn sanitizer_collapses_control_chars() {
         assert_eq!(sanitize_value("a\n\r\tb\u{0}c"), "a b c");
         assert_eq!(sanitize_value("  много   пробелов  "), "много пробелов");
+    }
+
+    #[test]
+    fn redaction_preserves_json_layout() {
+        let raw = "{\n  \"key\": \"sk-abcdefghijklmnopqrstuvwxyz123456\",\n  \"prompt_tokens\": 10,\n  \"text\": \"task-force привет\"\n}";
+        let redacted = redact_secrets_preserve(raw);
+        assert!(redacted.contains("\n  \"key\":"));
+        assert!(redacted.contains("\"prompt_tokens\": 10"));
+        assert!(redacted.contains("task-force"));
+        assert!(redacted.contains("привет"));
+        assert!(!redacted.contains("abcdefghijklmnopqrstuvwxyz123456"));
+        assert!(redacted.contains("***"));
     }
 
     #[test]

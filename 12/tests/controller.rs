@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use lab12::app::controller::{AppController, AppRuntime};
+use lab12::domain::chat::ExchangeKind;
 use lab12::domain::memory::MemoryLayer;
 use lab12::domain::settings::ExtractionMode;
 use lab12::llm::dto::{ChatClient, ChatRequest, ChatResponse, LlmError};
@@ -274,12 +275,82 @@ fn llm_extraction_adds_one_request() {
         .send_user_message("Запускаем проект «Атлас».", &mut |_| {})
         .unwrap();
     assert_eq!(client.calls.load(Ordering::SeqCst), 2);
+    assert_eq!(controller.exchanges.len(), 2);
+    assert_eq!(controller.exchanges[0].kind, ExchangeKind::Memory);
+    assert_eq!(controller.exchanges[1].kind, ExchangeKind::Chat);
+    assert!(
+        controller.exchanges[0]
+            .request_body
+            .as_deref()
+            .unwrap()
+            .contains("Извлеки кандидатов")
+    );
     assert!(
         controller
             .bundle()
             .pending
             .iter()
             .any(|pending| pending.candidate.key == "project.name")
+    );
+}
+
+#[test]
+fn each_llm_request_is_logged_separately_with_bodies() {
+    let dir = tempfile::tempdir().unwrap();
+    let client = Arc::new(Scripted::new(vec![
+        ChatResponse {
+            content: None,
+            tool_calls: vec![lab12::domain::memory::ToolCall {
+                id: "call_1".into(),
+                name: "calculate".into(),
+                arguments: "{\"expression\":\"2+2\"}".into(),
+            }],
+            usage: None,
+        },
+        ChatResponse {
+            content: Some("Ответ: 4".into()),
+            tool_calls: Vec::new(),
+            usage: None,
+        },
+    ]));
+    let mut controller =
+        AppController::load(runtime_with(dir.path(), client, common::test_settings())).unwrap();
+    controller
+        .send_user_message("Сколько 2+2?", &mut |_| {})
+        .unwrap();
+
+    assert_eq!(
+        controller.exchanges.len(),
+        2,
+        "два HTTP-вызова — две записи"
+    );
+    for exchange in &controller.exchanges {
+        assert_eq!(exchange.kind, ExchangeKind::Chat);
+        assert_eq!(exchange.status_code, Some(200));
+        assert!(
+            exchange
+                .request_body
+                .as_deref()
+                .unwrap()
+                .contains("messages")
+        );
+        assert!(exchange.response_body.is_some());
+        assert!(exchange.request_size() > 0);
+        assert!(exchange.response_size() > 0);
+    }
+    assert!(
+        controller.exchanges[0]
+            .response_body
+            .as_deref()
+            .unwrap()
+            .contains("calculate")
+    );
+    assert!(
+        controller.exchanges[1]
+            .response_body
+            .as_deref()
+            .unwrap()
+            .contains("Ответ: 4")
     );
 }
 

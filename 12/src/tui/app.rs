@@ -355,6 +355,11 @@ fn handle_app_event(
         AppEvent::ChatProgress(progress) => {
             state.status = format!("chat: {progress:?}");
         }
+        AppEvent::ApiLogged(entries) => {
+            let count = entries.len();
+            state.merge_exchanges(entries);
+            state.status = format!("API-журнал: +{count} запрос(ов)");
+        }
         AppEvent::MemoryUpdated(bundle) => {
             state.bundle = bundle;
             state.clamp_selections();
@@ -563,7 +568,7 @@ fn footer_lines(state: &AppState) -> Vec<Line<'static>> {
         Screen::Tokens => "↑↓ выбор запроса · Enter детали",
         Screen::History => "Enter сообщение · c очистить STM · e экспорт · i импорт",
         Screen::Settings => "Enter изменить · s сохранить · Tab поле",
-        Screen::ApiLog => "f фильтр · Enter детали · e экспорт",
+        Screen::ApiLog => "f фильтр · ↑↓/g/G выбор · Enter запрос/ответ · e экспорт",
         Screen::Branches => "c checkpoint · b две ветки · Enter переключить · x удалить",
         Screen::Profile => "↑↓ выбор · Enter/u активировать · g/G",
     };

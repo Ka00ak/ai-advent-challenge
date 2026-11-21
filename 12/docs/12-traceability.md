@@ -21,6 +21,7 @@
 | PR-15 | Markdown/JSON-отчёт и `--check` | `render_markdown`, `save_personalization_report` | unit, CLI | done |
 | PR-16 | Реальные прогоны 2026-11-19 | `docs/results/personalization-2026-11-19*` | приложены | done |
 | PR-17 | TUI-вкладка «0 Чат» поверх STM/WM/LTM и профиля | `src/tui/widgets/chat.rs`, `Screen::Chat` | `tests/tui.rs` | done |
+| PR-18 | API-журнал: каждый HTTP-запрос отдельно, полные request/response | `src/llm/record.rs`, `src/tui/widgets/api_log.rs`, модалка `ApiDetail` | `src/llm/record.rs`, `tests/controller.rs`, `tests/experiment.rs`, `tests/tui.rs` | done |
 
 ## Фактические тесты
 
@@ -30,10 +31,12 @@
 | `src/memory/personalization.rs` | обучение по всем осям, конфликт, ложные срабатывания, блок |
 | `src/memory/prompt.rs` | первое место блока, profile_tokens, отсутствие профиля |
 | `src/experiment/personalization.rs` | fake 2/2 и 10/10, нарушения, Markdown/JSON |
-| `tests/controller.rs` | обучение и сохранение профиля, переключение |
+| `src/llm/record.rs` | запись request/response, ошибки, маскирование, отдельные записи |
+| `tests/controller.rs` | обучение и сохранение профиля, переключение, раздельный API-лог HTTP-запросов |
 | `tests/cli.rs` | `profile list/use/learn`, `personalize --check`, отчёты |
 | `tests/storage.rs` | roundtrip и битый `profiles/profiles.json` |
-| `tests/tui.rs` | экран 9, активация профиля, вкладка «0 Чат»: ввод, отправка, busy, рендер, прокрутка до начала |
+| `tests/experiment.rs` | 126 отдельных HTTP-записей эксперимента, событие `ApiLogged` для TUI |
+| `tests/tui.rs` | экран 9, профиль, чат, API: разделы «Запрос»/«Ответ», прокрутка длинного журнала, замена сводки эксперимента запросами |
 
-Итог: **259 тестов**, `cargo clippy --all-targets -- -D warnings` и
+Итог: **268 тестов**, `cargo clippy --all-targets -- -D warnings` и
 `cargo fmt --check` чистые.

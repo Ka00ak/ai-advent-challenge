@@ -34,6 +34,10 @@ fn run_job(runtime: AppRuntime, job: Job, tx: &Sender<AppEvent>, cancel: &Arc<At
             return;
         }
     };
+    let api_tx = tx.clone();
+    controller.set_api_listener(Some(Arc::new(move |exchange| {
+        let _ = api_tx.send(AppEvent::ApiLogged(vec![exchange]));
+    })));
     match job {
         Job::Chat(text) => {
             let result = controller.send_user_message(&text, &mut |progress| {

@@ -408,6 +408,73 @@ fn handle_modal_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             }
             UiAction::None
         }
+        Modal::ApiDetail {
+            exchange,
+            tab,
+            scroll,
+        } => {
+            match key.code {
+                KeyCode::Esc | KeyCode::Enter => state.modal = None,
+                KeyCode::Tab | KeyCode::Right => {
+                    state.modal = Some(Modal::ApiDetail {
+                        exchange,
+                        tab: tab.next(),
+                        scroll: 0,
+                    });
+                }
+                KeyCode::BackTab | KeyCode::Left => {
+                    state.modal = Some(Modal::ApiDetail {
+                        exchange,
+                        tab: tab.prev(),
+                        scroll: 0,
+                    });
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    state.modal = Some(Modal::ApiDetail {
+                        exchange,
+                        tab,
+                        scroll: scroll.saturating_add(1),
+                    });
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    state.modal = Some(Modal::ApiDetail {
+                        exchange,
+                        tab,
+                        scroll: scroll.saturating_sub(1),
+                    });
+                }
+                KeyCode::PageDown => {
+                    state.modal = Some(Modal::ApiDetail {
+                        exchange,
+                        tab,
+                        scroll: scroll.saturating_add(15),
+                    });
+                }
+                KeyCode::PageUp => {
+                    state.modal = Some(Modal::ApiDetail {
+                        exchange,
+                        tab,
+                        scroll: scroll.saturating_sub(15),
+                    });
+                }
+                KeyCode::Char('g') => {
+                    state.modal = Some(Modal::ApiDetail {
+                        exchange,
+                        tab,
+                        scroll: 0,
+                    });
+                }
+                KeyCode::Char('G') => {
+                    state.modal = Some(Modal::ApiDetail {
+                        exchange,
+                        tab,
+                        scroll: u16::MAX,
+                    });
+                }
+                _ => {}
+            }
+            UiAction::None
+        }
         Modal::Error(_) | Modal::Card { .. } | Modal::Details { .. } => {
             if matches!(key.code, KeyCode::Esc | KeyCode::Enter) {
                 state.modal = None;
@@ -931,6 +998,14 @@ fn handle_api(state: &mut AppState, key: KeyEvent) -> UiAction {
             state.api_selection = 0;
             UiAction::None
         }
+        KeyCode::Char('g') => {
+            state.api_selection = 0;
+            UiAction::None
+        }
+        KeyCode::Char('G') => {
+            state.api_selection = state.filtered_exchanges().len().saturating_sub(1);
+            UiAction::None
+        }
         KeyCode::Char('e') => {
             state.open_input(
                 InputPurpose::ExportApi,
@@ -940,30 +1015,15 @@ fn handle_api(state: &mut AppState, key: KeyEvent) -> UiAction {
             UiAction::None
         }
         KeyCode::Enter => {
-            if let Some(exchange) = state.filtered_exchanges().get(state.api_selection) {
-                state.modal = Some(Modal::Details {
-                    title: format!("API · {}", exchange.kind.as_str()),
-                    lines: vec![
-                        format!("at: {}", exchange.at.to_rfc3339()),
-                        format!("url: {}", exchange.url),
-                        format!(
-                            "tokens: prompt={} completion={} total={}",
-                            exchange.prompt_tokens,
-                            exchange.completion_tokens,
-                            exchange.total_tokens
-                        ),
-                        format!("cost: {:.6}$", exchange.cost_usd),
-                        format!("status: {}", exchange.status),
-                        format!("error: {}", exchange.error.as_deref().unwrap_or("—")),
-                        format!(
-                            "request: {}",
-                            exchange.request_preview.as_deref().unwrap_or("—")
-                        ),
-                        format!(
-                            "response: {}",
-                            exchange.response_preview.as_deref().unwrap_or("—")
-                        ),
-                    ],
+            if let Some(exchange) = state
+                .filtered_exchanges()
+                .get(state.api_selection)
+                .map(|exchange| (*exchange).clone())
+            {
+                state.modal = Some(Modal::ApiDetail {
+                    exchange: std::sync::Arc::new(exchange),
+                    tab: crate::tui::state::ApiDetailTab::Overview,
+                    scroll: 0,
                 });
             }
             UiAction::None

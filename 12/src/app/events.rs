@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use crate::domain::chat::TurnOutcome;
+use crate::domain::chat::{LlmExchange, TurnOutcome};
 use crate::domain::memory::{MemoryBundle, MemoryLayer};
 use crate::experiment::runner::{ExperimentOptions, ExperimentProgress, ExperimentReport};
 use crate::llm::agent::Progress;
@@ -23,6 +23,7 @@ pub enum Job {
 pub enum AppEvent {
     JobStarted(&'static str),
     ChatProgress(Progress),
+    ApiLogged(Vec<LlmExchange>),
     MemoryUpdated(MemoryBundle),
     ChatFinished(Box<TurnOutcome>),
     ExperimentProgress(ExperimentProgress),

@@ -7,7 +7,7 @@ use std::sync::atomic::AtomicBool;
 use chrono::Utc;
 use thiserror::Error;
 
-use crate::domain::chat::{ExchangeKind, LlmExchange, TokenStats, TurnOutcome};
+use crate::domain::chat::{ExchangeKind, LlmExchange, TurnOutcome};
 use crate::domain::memory::{
     ChatMessage, LtmKind, LtmState, MemoryBreakdown, MemoryBundle, MemoryLayer, MemorySource,
     PendingWrite, StmState, WmKind, WmStatus, WorkingMemoryState, WriteOp,
@@ -25,6 +25,7 @@ use crate::experiment::runner::{
 use crate::llm::agent::{AgentError, Progress, TurnInput, estimate_breakdown, run_turn};
 use crate::llm::client::ReqwestClient;
 use crate::llm::dto::ChatClient;
+use crate::llm::record::{ExchangeListener, RecordingChatClient, RequestLog, new_request_log};
 use crate::llm::tools::ToolRegistry;
 use crate::memory::SessionAudit;
 use crate::memory::audit::{contains_secret, make_event, mask_secret};
@@ -117,6 +118,7 @@ pub struct AppController {
     pub exchanges: Vec<LlmExchange>,
     pub last_breakdown: MemoryBreakdown,
     pub last_profile_changes: Vec<ProfileChange>,
+    api_listener: Option<ExchangeListener>,
 }
 
 impl AppController {
@@ -146,11 +148,17 @@ impl AppController {
             exchanges: Vec::new(),
             last_breakdown: MemoryBreakdown::default(),
             last_profile_changes: Vec::new(),
+            api_listener: None,
         })
     }
 
     pub fn runtime(&self) -> &AppRuntime {
         &self.runtime
+    }
+
+    /// Живой получатель каждой записи API-журнала (TUI job-поток).
+    pub fn set_api_listener(&mut self, listener: Option<ExchangeListener>) {
+        self.api_listener = listener;
     }
 
     pub fn bundle(&self) -> &MemoryBundle {
@@ -319,11 +327,21 @@ impl AppController {
         let result = match mode {
             ExtractionMode::Local => self.route_with(&LocalCandidateExtractor, now),
             ExtractionMode::Llm => {
-                let extractor = LlmCandidateExtractor::new(
-                    self.runtime.client.clone(),
-                    &self.runtime.settings.model,
+                let extraction_log = new_request_log();
+                let client = Arc::new(
+                    RecordingChatClient::new(
+                        self.runtime.client.clone(),
+                        ExchangeKind::Memory,
+                        extraction_log.clone(),
+                        &self.runtime.settings.base_url,
+                        &self.runtime.settings.model,
+                    )
+                    .with_listener(self.api_listener.clone()),
                 );
-                match self.route_with(&extractor, now) {
+                let extractor = LlmCandidateExtractor::new(client, &self.runtime.settings.model);
+                let result = self.route_with(&extractor, now);
+                self.absorb_request_log(&extraction_log);
+                match result {
                     Ok(outcome) => Ok(outcome),
                     Err(error) => {
                         let mut outcome = self.route_with(&LocalCandidateExtractor, now)?;
@@ -345,13 +363,24 @@ impl AppController {
 
         let tools = ToolRegistry::default_registry();
         let cancel = AtomicBool::new(false);
+        let chat_log = new_request_log();
+        let client = Arc::new(
+            RecordingChatClient::new(
+                self.runtime.client.clone(),
+                ExchangeKind::Chat,
+                chat_log.clone(),
+                &self.runtime.settings.base_url,
+                &self.runtime.settings.model,
+            )
+            .with_listener(self.api_listener.clone()),
+        );
         let turn = run_turn(
             TurnInput {
                 user_text: &safe_text,
                 memory: self.bundle.clone(),
                 settings: &self.runtime.settings,
                 tools: &tools,
-                client: self.runtime.client.as_ref(),
+                client: client.as_ref(),
                 cancel: &cancel,
                 profile: profile_snapshot.as_ref(),
             },
@@ -361,28 +390,17 @@ impl AppController {
             Ok(mut outcome) => {
                 outcome.profile_id = profile_snapshot.as_ref().map(|profile| profile.id.clone());
                 outcome.profile_changes = profile_changes.clone();
+                annotate_breakdown(&chat_log, &outcome.breakdown);
+                self.absorb_request_log(&chat_log);
                 self.bundle = outcome.memory.clone();
                 self.push_audit_events(outcome.audit.clone());
                 self.last_breakdown = outcome.breakdown.clone();
                 self.save_all()?;
-                self.record_exchange(
-                    ExchangeKind::Chat,
-                    &outcome.token_stats,
-                    Some(outcome.breakdown.clone()),
-                    Some(outcome.final_text.clone()),
-                    "ok",
-                );
                 Ok(outcome)
             }
             Err(error) => {
+                self.absorb_request_log(&chat_log);
                 self.save_all()?;
-                self.record_exchange(
-                    ExchangeKind::Chat,
-                    &TokenStats::default(),
-                    None,
-                    None,
-                    "error",
-                );
                 Err(AppError::Agent(error))
             }
         }
@@ -421,29 +439,20 @@ impl AppController {
         }
     }
 
-    fn record_exchange(
-        &mut self,
-        kind: ExchangeKind,
-        stats: &TokenStats,
-        breakdown: Option<MemoryBreakdown>,
-        response: Option<String>,
-        status: &str,
-    ) {
-        let mut exchange = LlmExchange::new(
-            kind,
-            &self.runtime.settings.model,
-            &self.runtime.settings.base_url,
-        );
-        exchange.prompt_tokens = stats.prompt_tokens;
-        exchange.completion_tokens = stats.completion_tokens;
-        exchange.total_tokens = stats.total_tokens;
-        exchange.cost_usd = stats.cost_usd;
-        exchange.memory = breakdown;
-        exchange.status = status.to_string();
-        exchange.response_preview = response.map(|text| text.chars().take(200).collect());
+    fn push_exchange(&mut self, exchange: LlmExchange) {
         self.exchanges.push(exchange);
         if self.exchanges.len() > 200 {
             self.exchanges.remove(0);
+        }
+    }
+
+    /// Переносит записи из буфера RecordingChatClient в журнал контроллера.
+    fn absorb_request_log(&mut self, log: &RequestLog) {
+        let Ok(mut entries) = log.lock() else {
+            return;
+        };
+        for exchange in entries.drain(..) {
+            self.push_exchange(exchange);
         }
     }
 
@@ -711,36 +720,31 @@ impl AppController {
         let fixture = crate::experiment::fixtures::seeded_bundle(Utc::now());
         let use_fixture = self.bundle.stm.messages.len() < 34 || self.bundle.wm.items.is_empty();
         let bundle = if use_fixture { &fixture } else { &self.bundle };
-        let mut report = run_experiment(
+        let log = new_request_log();
+        let client = Arc::new(
+            RecordingChatClient::new(
+                self.runtime.client.clone(),
+                ExchangeKind::Experiment,
+                log.clone(),
+                &self.runtime.settings.base_url,
+                &self.runtime.settings.model,
+            )
+            .with_listener(self.api_listener.clone()),
+        );
+        let result = run_experiment(
             bundle,
             options,
             &self.runtime.settings,
-            self.runtime.client.as_ref(),
+            client.as_ref(),
             cancel,
             progress,
-        )?;
+        );
+        self.absorb_request_log(&log);
+        let mut report = result?;
         report.data_dir = Some(self.runtime.paths.root.display().to_string());
         if std::env::var("LAB11_FAKE_LLM").as_deref() == Ok("1") {
             report.source = "fake (LAB11_FAKE_LLM=1)".into();
         }
-        let (prompt_tokens, completion_tokens, cost_usd) = report.usage_totals();
-        self.record_exchange(
-            ExchangeKind::Experiment,
-            &TokenStats {
-                prompt_tokens,
-                completion_tokens,
-                total_tokens: prompt_tokens + completion_tokens,
-                cost_usd,
-                reported: true,
-            },
-            None,
-            None,
-            if report.errors.is_empty() {
-                "ok"
-            } else {
-                "partial"
-            },
-        );
         Ok(report)
     }
 
@@ -768,36 +772,31 @@ impl AppController {
         cancel: &AtomicBool,
         progress: &mut dyn FnMut(PersonalizationProgress),
     ) -> Result<PersonalizationReport, AppError> {
-        let mut report = run_personalization(
+        let log = new_request_log();
+        let client = Arc::new(
+            RecordingChatClient::new(
+                self.runtime.client.clone(),
+                ExchangeKind::Experiment,
+                log.clone(),
+                &self.runtime.settings.base_url,
+                &self.runtime.settings.model,
+            )
+            .with_listener(self.api_listener.clone()),
+        );
+        let result = run_personalization(
             &self.profiles,
             &self.runtime.settings,
-            self.runtime.client.as_ref(),
+            client.as_ref(),
             &options,
             cancel,
             progress,
-        )?;
+        );
+        self.absorb_request_log(&log);
+        let mut report = result?;
         report.data_dir = Some(self.runtime.paths.root.display().to_string());
         if fake_llm_enabled() {
             report.source = "fake (LAB12_FAKE_LLM=1)".into();
         }
-        let (prompt_tokens, completion_tokens, cost_usd) = report.usage_totals();
-        self.record_exchange(
-            ExchangeKind::Experiment,
-            &TokenStats {
-                prompt_tokens,
-                completion_tokens,
-                total_tokens: prompt_tokens + completion_tokens,
-                cost_usd,
-                reported: true,
-            },
-            None,
-            None,
-            if report.errors.is_empty() {
-                "ok"
-            } else {
-                "partial"
-            },
-        );
         Ok(report)
     }
 
@@ -1295,6 +1294,17 @@ impl AppController {
 
     pub fn wm_kind(key: &str) -> WmKind {
         wm_kind_for_key(key)
+    }
+}
+
+fn annotate_breakdown(log: &RequestLog, breakdown: &MemoryBreakdown) {
+    let Ok(mut entries) = log.lock() else {
+        return;
+    };
+    for exchange in entries.iter_mut() {
+        if exchange.kind == ExchangeKind::Chat {
+            exchange.memory = Some(breakdown.clone());
+        }
     }
 }
 

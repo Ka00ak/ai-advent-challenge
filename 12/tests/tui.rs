@@ -140,6 +140,143 @@ fn chat_scroll_clamps_and_moves_back_down() {
 }
 
 #[test]
+fn api_screen_opens_request_and_response_tabs_per_http_call() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::ApiLog;
+    let mut first = lab12::domain::chat::LlmExchange::new(
+        lab12::domain::chat::ExchangeKind::Chat,
+        "deepseek-chat",
+        "https://api.deepseek.com/chat/completions",
+    );
+    first.status_code = Some(200);
+    first.duration_ms = 42;
+    first.request_body = Some(
+        "{\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"привет API\"}\n  ]\n}"
+            .into(),
+    );
+    first.response_body = Some("{\n  \"content\": \"ответ API\"\n}".into());
+    first.request_preview = Some("письмо".into());
+    first.response_preview = Some("ответ".into());
+    state.merge_exchanges(vec![first]);
+
+    assert_eq!(handle_key(&mut state, key(KeyCode::Enter)), UiAction::None);
+    assert!(matches!(state.modal, Some(Modal::ApiDetail { .. })));
+
+    let backend = TestBackend::new(120, 36);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let text: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(text.contains("Обзор"));
+    assert!(text.contains("Запрос"));
+    assert!(text.contains("Ответ"));
+
+    handle_key(&mut state, key(KeyCode::Tab));
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let text: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(text.contains("привет API"));
+
+    handle_key(&mut state, key(KeyCode::Tab));
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let text: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(text.contains("ответ API"));
+
+    handle_key(&mut state, key(KeyCode::Esc));
+    assert!(state.modal.is_none());
+}
+
+#[test]
+fn api_list_g_g_and_long_log_render_without_losing_selection() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::ApiLog;
+    let entries = (0..40)
+        .map(|index| {
+            let mut exchange = lab12::domain::chat::LlmExchange::new(
+                lab12::domain::chat::ExchangeKind::Chat,
+                "deepseek-chat",
+                "https://api.deepseek.com/chat/completions",
+            );
+            exchange.request_body = Some(format!("{{\"index\":{index}}}"));
+            exchange.response_body = Some(format!("{{\"answer\":{index}}}"));
+            exchange
+        })
+        .collect();
+    state.merge_exchanges(entries);
+
+    handle_key(&mut state, key(KeyCode::Char('G')));
+    assert_eq!(state.api_selection, 39);
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let text: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(text.contains("40"));
+
+    handle_key(&mut state, key(KeyCode::Char('g')));
+    assert_eq!(state.api_selection, 0);
+}
+
+#[test]
+fn experiment_summary_is_replaced_by_individual_api_requests() {
+    let (_dir, mut state) = state();
+    state.record_experiment_progress(&experiment_progress(1, 100));
+    assert_eq!(state.exchanges.len(), 1);
+    let summary_id = state.exchanges[0].id.clone();
+
+    let entries = (0..3)
+        .map(|index| {
+            let mut exchange = lab12::domain::chat::LlmExchange::new(
+                lab12::domain::chat::ExchangeKind::Experiment,
+                "deepseek-chat",
+                "https://api.deepseek.com/chat/completions",
+            );
+            exchange.request_body = Some(format!("{{\"probe\":{index}}}"));
+            exchange.response_body = Some(format!("{{\"answer\":{index}}}"));
+            exchange
+        })
+        .collect();
+    state.merge_exchanges(entries);
+
+    assert_eq!(state.exchanges.len(), 3);
+    assert!(
+        !state
+            .exchanges
+            .iter()
+            .any(|exchange| exchange.id == summary_id)
+    );
+}
+
+#[test]
 fn busy_chat_does_not_send_second_message() {
     let (_dir, mut state) = state();
     state.screen = Screen::Chat;

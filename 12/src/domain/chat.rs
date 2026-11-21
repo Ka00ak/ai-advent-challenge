@@ -43,7 +43,8 @@ impl ExchangeKind {
     }
 }
 
-/// Запись API-журнала сессии. Секреты в журнал не попадают.
+/// Запись API-журнала сессии: один элемент = один вызов модели (HTTP-запрос).
+/// Секреты в журнал не попадают.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LlmExchange {
     pub id: String,
@@ -51,7 +52,11 @@ pub struct LlmExchange {
     pub kind: ExchangeKind,
     pub model: String,
     pub url: String,
+    #[serde(default = "default_method")]
+    pub method: String,
     pub duration_ms: u64,
+    #[serde(default)]
+    pub status_code: Option<u16>,
     pub prompt_tokens: usize,
     pub completion_tokens: usize,
     pub total_tokens: usize,
@@ -61,6 +66,16 @@ pub struct LlmExchange {
     pub memory: Option<MemoryBreakdown>,
     pub request_preview: Option<String>,
     pub response_preview: Option<String>,
+    /// Полное тело запроса (JSON), уже без секретов.
+    #[serde(default)]
+    pub request_body: Option<String>,
+    /// Полное тело ответа или текст ошибки, уже без секретов.
+    #[serde(default)]
+    pub response_body: Option<String>,
+}
+
+fn default_method() -> String {
+    "POST".to_string()
 }
 
 impl LlmExchange {
@@ -71,7 +86,9 @@ impl LlmExchange {
             kind,
             model: model.to_string(),
             url: url.to_string(),
+            method: default_method(),
             duration_ms: 0,
+            status_code: None,
             prompt_tokens: 0,
             completion_tokens: 0,
             total_tokens: 0,
@@ -81,7 +98,17 @@ impl LlmExchange {
             memory: None,
             request_preview: None,
             response_preview: None,
+            request_body: None,
+            response_body: None,
         }
+    }
+
+    pub fn request_size(&self) -> usize {
+        self.request_body.as_deref().map(str::len).unwrap_or(0)
+    }
+
+    pub fn response_size(&self) -> usize {
+        self.response_body.as_deref().map(str::len).unwrap_or(0)
     }
 }
 

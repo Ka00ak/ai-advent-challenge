@@ -1,8 +1,13 @@
 mod common;
 
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::mpsc;
+use std::time::Duration;
 
 use chrono::Utc;
+use lab12::app::events::{AppEvent, Job};
+use lab12::app::jobs::spawn_job;
 use lab12::domain::settings::Settings;
 use lab12::experiment::fixtures::seeded_bundle;
 use lab12::experiment::report::render_markdown;
@@ -28,6 +33,41 @@ fn run(cleanup: bool, quick: bool) -> lab12::experiment::ExperimentReport {
         &mut |_| {},
     )
     .unwrap()
+}
+
+#[test]
+fn tui_experiment_job_sends_individual_api_entries() {
+    let dir = tempfile::tempdir().unwrap();
+    let runtime = common::runtime_at(dir.path());
+    let (tx, rx) = mpsc::channel();
+    let cancel = Arc::new(AtomicBool::new(false));
+    spawn_job(
+        runtime,
+        Job::Experiment(ExperimentOptions {
+            mode: ExperimentMode::Quick,
+            include_cleanup: false,
+        }),
+        tx,
+        cancel,
+    );
+    let mut api_entries = 0;
+    let mut api_events = 0;
+    loop {
+        match rx.recv_timeout(Duration::from_secs(15)) {
+            Ok(AppEvent::ApiLogged(entries)) => {
+                api_entries += entries.len();
+                api_events += 1;
+            }
+            Ok(AppEvent::JobFinished) => break,
+            Ok(_) => {}
+            Err(error) => panic!("job не завершился: {error}"),
+        }
+    }
+    assert_eq!(
+        api_entries, 63,
+        "quick-прогон должен дать 63 отдельные записи"
+    );
+    assert_eq!(api_events, 63, "каждый запрос приходит отдельным событием");
 }
 
 #[test]
@@ -127,6 +167,12 @@ fn controller_saves_report_files() {
             .unwrap()
             .contains("\"configs\"")
     );
+    assert_eq!(controller.exchanges.len(), 126);
+    assert!(controller.exchanges.iter().all(|exchange| {
+        exchange.kind == lab12::domain::chat::ExchangeKind::Experiment
+            && exchange.request_body.is_some()
+            && exchange.response_body.is_some()
+    }));
 }
 
 #[test]

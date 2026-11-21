@@ -1,6 +1,7 @@
 //! Состояние TUI и чистые переходы (без терминала) — тестируется reducer'ом.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::app::controller::AppController;
 use crate::app::state::{MemoryColumn, Screen};
@@ -136,10 +137,48 @@ pub enum Modal {
         title: String,
         lines: Vec<String>,
     },
+    ApiDetail {
+        exchange: Arc<LlmExchange>,
+        tab: ApiDetailTab,
+        scroll: u16,
+    },
     SelectLayer {
         target: LayerTarget,
         choice: usize,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApiDetailTab {
+    Overview,
+    Request,
+    Response,
+}
+
+impl ApiDetailTab {
+    pub fn next(self) -> Self {
+        match self {
+            ApiDetailTab::Overview => ApiDetailTab::Request,
+            ApiDetailTab::Request => ApiDetailTab::Response,
+            ApiDetailTab::Response => ApiDetailTab::Overview,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            ApiDetailTab::Overview => ApiDetailTab::Response,
+            ApiDetailTab::Request => ApiDetailTab::Overview,
+            ApiDetailTab::Response => ApiDetailTab::Request,
+        }
+    }
+
+    pub fn title(self) -> &'static str {
+        match self {
+            ApiDetailTab::Overview => "Обзор",
+            ApiDetailTab::Request => "Запрос",
+            ApiDetailTab::Response => "Ответ",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -313,20 +352,40 @@ impl AppState {
         self.last_breakdown = outcome.breakdown.clone();
         self.chat_pending = None;
         self.chat_scroll = 0;
-        let mut exchange = LlmExchange::new(
-            ExchangeKind::Chat,
-            &self.settings.model,
-            &self.settings.base_url,
-        );
-        exchange.prompt_tokens = outcome.token_stats.prompt_tokens;
-        exchange.completion_tokens = outcome.token_stats.completion_tokens;
-        exchange.total_tokens = outcome.token_stats.total_tokens;
-        exchange.cost_usd = outcome.token_stats.cost_usd;
-        exchange.memory = Some(outcome.breakdown.clone());
-        exchange.response_preview = Some(outcome.final_text.chars().take(200).collect());
-        self.exchanges.push(exchange);
-        if self.exchanges.len() > 200 {
+    }
+
+    /// Добавляет записи API-журнала job-потока. Записи с тем же id
+    /// обновляются, новые добавляются в конец.
+    pub fn merge_exchanges(&mut self, incoming: Vec<LlmExchange>) {
+        let follow_tail = self.api_selection + 1 >= self.filtered_exchanges().len();
+        // Для эксперимента до конца прогона показывается одна сводная строка.
+        // Как только приходят детальные HTTP-запросы, сводку убираем, чтобы
+        // не смешивать её с реальными запросами.
+        if incoming.iter().any(|exchange| {
+            exchange.kind == ExchangeKind::Experiment && exchange.request_body.is_some()
+        }) {
+            self.experiment_exchange_id = None;
+            self.exchanges.retain(|exchange| {
+                !(exchange.kind == ExchangeKind::Experiment && exchange.request_body.is_none())
+            });
+        }
+        for exchange in incoming {
+            if let Some(existing) = self
+                .exchanges
+                .iter_mut()
+                .find(|candidate| candidate.id == exchange.id)
+            {
+                *existing = exchange;
+            } else {
+                self.exchanges.push(exchange);
+            }
+        }
+        while self.exchanges.len() > 200 {
             self.exchanges.remove(0);
+        }
+        self.clamp_selections();
+        if follow_tail && self.screen == Screen::ApiLog {
+            self.api_selection = self.filtered_exchanges().len().saturating_sub(1);
         }
     }
 
@@ -393,6 +452,18 @@ impl AppState {
                 .unwrap_or(0),
             18
         );
+        // Детальные HTTP-записи уже пришли через AppEvent::ApiLogged —
+        // отдельная сводная строка больше не нужна.
+        if self.exchanges.iter().any(|exchange| {
+            exchange.kind == ExchangeKind::Experiment && exchange.request_body.is_some()
+        }) {
+            self.experiment_exchange_id = None;
+            self.exchanges.retain(|exchange| {
+                !(exchange.kind == ExchangeKind::Experiment && exchange.request_body.is_none())
+            });
+            self.clamp_selections();
+            return;
+        }
         if let Some(id) = self.experiment_exchange_id.take() {
             if let Some(exchange) = self.exchanges.iter_mut().find(|exchange| exchange.id == id) {
                 exchange.prompt_tokens = prompt_tokens;

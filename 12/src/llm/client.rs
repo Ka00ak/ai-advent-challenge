@@ -29,8 +29,7 @@ impl ReqwestClient {
     }
 
     pub fn endpoint(&self) -> String {
-        let base = self.base_url.trim_end_matches('/');
-        format!("{base}/chat/completions")
+        chat_endpoint(&self.base_url)
     }
 
     fn send(&self, request: &ChatRequest) -> Result<ChatResponse, LlmError> {
@@ -86,6 +85,12 @@ impl ChatClient for ReqwestClient {
     fn complete(&self, request: &ChatRequest) -> Result<ChatResponse, LlmError> {
         self.send(request)
     }
+}
+
+/// Адрес Chat Completions для заданного base URL.
+pub fn chat_endpoint(base_url: &str) -> String {
+    let base = base_url.trim_end_matches('/');
+    format!("{base}/chat/completions")
 }
 
 pub fn build_body(request: &ChatRequest) -> Value {
