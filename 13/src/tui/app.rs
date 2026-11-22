@@ -132,12 +132,13 @@ fn execute_action(
             if state.busy.is_some() {
                 state.set_banner("Дождитесь завершения текущего job");
             } else {
-                state.begin_task(&goal);
+                let history = state.task.messages.clone();
+                state.begin_task_with_history(&goal, history.clone());
                 cancel.store(false, Ordering::Relaxed);
                 pause.store(false, Ordering::Relaxed);
                 spawn_task_job(
                     runtime.clone(),
-                    Job::Task(goal),
+                    Job::Task { goal, history },
                     tx.clone(),
                     cancel.clone(),
                     pause.clone(),

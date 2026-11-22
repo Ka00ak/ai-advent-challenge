@@ -490,7 +490,9 @@ fn task_tab_accepts_goal_pauses_and_renders_route() {
     assert!(text.contains("execution"));
     assert!(text.contains("validation"));
     assert!(text.contains("done"));
-    assert!(text.contains("Состояние задачи"));
+    assert!(text.contains("Диалог задачи"));
+    assert!(text.contains("контекст сохраняется"));
+    assert!(text.contains("Вы"));
     assert!(text.contains("пауза"));
     assert!(text.contains("Текущий шаг"));
 
@@ -516,17 +518,17 @@ fn task_screen_scrolls_details() {
     let (_dir, mut state) = state();
     state.screen = Screen::Task;
     assert_eq!(state.task_scroll, 0);
-    handle_key(&mut state, key(KeyCode::Down));
-    assert_eq!(state.task_scroll, 1);
-    handle_key(&mut state, key(KeyCode::PageDown));
-    assert_eq!(state.task_scroll, 11);
     handle_key(&mut state, key(KeyCode::Up));
-    assert_eq!(state.task_scroll, 10);
+    assert_eq!(state.task_scroll, 1);
     handle_key(&mut state, key(KeyCode::PageUp));
+    assert_eq!(state.task_scroll, 11);
+    handle_key(&mut state, key(KeyCode::Down));
+    assert_eq!(state.task_scroll, 10);
+    handle_key(&mut state, key(KeyCode::PageDown));
     assert_eq!(state.task_scroll, 0);
-    handle_key(&mut state, key(KeyCode::Char('G')));
-    assert_eq!(state.task_scroll, u16::MAX);
     handle_key(&mut state, key(KeyCode::Char('g')));
+    assert_eq!(state.task_scroll, u16::MAX);
+    handle_key(&mut state, key(KeyCode::Char('G')));
     assert_eq!(state.task_scroll, 0);
 }
 

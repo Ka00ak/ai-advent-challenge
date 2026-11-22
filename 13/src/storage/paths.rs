@@ -58,6 +58,10 @@ impl DataPaths {
         self.root.join("profiles").join("profiles.json")
     }
 
+    pub fn task_session(&self) -> PathBuf {
+        self.root.join("task").join("session.json")
+    }
+
     pub fn settings(&self) -> PathBuf {
         self.root.join("settings.json")
     }
@@ -84,6 +88,7 @@ impl DataPaths {
             self.root.join("meta"),
             self.root.join("migration"),
             self.root.join("profiles"),
+            self.root.join("task"),
             self.root.join("logs"),
         ] {
             std::fs::create_dir_all(&dir).map_err(|source| PathError::Io {

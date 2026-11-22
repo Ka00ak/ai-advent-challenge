@@ -20,6 +20,7 @@ use crate::domain::memory::{
 };
 use crate::domain::profile::ProfileState;
 use crate::domain::settings::Settings;
+use crate::domain::task::{TASK_STATE_VERSION, TaskState};
 use crate::storage::atomic::{SaveError, atomic_write_json, set_private_permissions};
 use crate::storage::paths::DataPaths;
 
@@ -168,6 +169,23 @@ pub fn load_profiles(paths: &DataPaths) -> Result<ProfileState, LoadError> {
 
 pub fn save_profiles(paths: &DataPaths, state: &ProfileState) -> Result<(), SaveError> {
     atomic_write_json(&paths.profiles(), state)
+}
+
+pub fn load_task_state(paths: &DataPaths) -> Result<TaskState, LoadError> {
+    let path = paths.task_session();
+    let state: TaskState = read_json(&path, false)?;
+    if state.version != TASK_STATE_VERSION {
+        return Err(LoadError::UnsupportedVersion {
+            path,
+            found: u64::from(state.version),
+            expected: TASK_STATE_VERSION,
+        });
+    }
+    Ok(state)
+}
+
+pub fn save_task_state(paths: &DataPaths, state: &TaskState) -> Result<(), SaveError> {
+    atomic_write_json(&paths.task_session(), state)
 }
 
 /// Загружает все слои. Отсутствующие файлы — пустое состояние; битые — ошибка.

@@ -13,7 +13,7 @@ use thiserror::Error;
 
 use crate::domain::memory::ChatMessage;
 use crate::domain::settings::Settings;
-use crate::domain::task::{TaskStage, TaskState, TaskStatus, TaskTransitionError};
+use crate::domain::task::{TaskMessage, TaskStage, TaskState, TaskStatus, TaskTransitionError};
 use crate::llm::dto::{ChatClient, ChatRequest};
 
 #[derive(Debug, Error)]
@@ -43,6 +43,7 @@ pub struct TaskProgress {
 /// со статусом `failed`: переход в `done` блокируется кодом.
 pub fn run_task(
     goal: &str,
+    history: &[TaskMessage],
     settings: &Settings,
     client: &dyn ChatClient,
     cancel: &AtomicBool,
@@ -53,12 +54,13 @@ pub fn run_task(
     if goal.is_empty() {
         return Err(TaskRunError::EmptyGoal);
     }
-    let mut state = TaskState::start(goal, Utc::now());
+    let mut state = TaskState::start_with_history(goal, history.to_vec(), Utc::now());
     emit(&state, "задача запущена", progress);
 
     // --- planning ---
     checkpoint(cancel, pause, &mut state, progress)?;
     let plan = ask(client, settings, &state, TaskStage::Planning)?;
+    state.push_assistant(TaskStage::Planning, plan.clone());
     state.set_step(
         2,
         2,
@@ -84,6 +86,7 @@ pub fn run_task(
         TaskStage::Execution.expected_action(),
     );
     let execution = ask(client, settings, &state, TaskStage::Execution)?;
+    state.push_assistant(TaskStage::Execution, execution.clone());
     state.record_execution(execution, Utc::now())?;
     emit(&state, "результат реализации получен", progress);
     state.transition(
@@ -102,6 +105,7 @@ pub fn run_task(
         TaskStage::Validation.expected_action(),
     );
     let validation = ask(client, settings, &state, TaskStage::Validation)?;
+    state.push_assistant(TaskStage::Validation, validation.clone());
     let passed = parse_validation_verdict(&validation);
     state.record_validation(validation, passed, Utc::now())?;
     state.set_step(
@@ -180,9 +184,14 @@ fn ask(
         action = stage.expected_action(),
     );
     let user = stage_prompt(state, stage);
+    let mut messages = vec![ChatMessage::system(system)];
+    if let Some(history) = history_block(state) {
+        messages.push(ChatMessage::system(history));
+    }
+    messages.push(ChatMessage::user(user));
     let request = ChatRequest {
         model: settings.model.clone(),
-        messages: vec![ChatMessage::system(system), ChatMessage::user(user)],
+        messages,
         temperature: settings.temperature,
         max_tokens: settings.max_tokens,
         tools: Vec::new(),
@@ -195,6 +204,23 @@ fn ask(
         return Err(TaskRunError::EmptyResponse(stage));
     }
     Ok(text)
+}
+
+/// Последние реплики диалога задачи — контекст для промпта этапа.
+fn history_block(state: &TaskState) -> Option<String> {
+    if state.messages.is_empty() {
+        return None;
+    }
+    let mut text = String::from("## История диалога задачи\n");
+    for message in state.messages.iter().rev().take(12).rev() {
+        let stage = message
+            .stage
+            .map(|stage| format!(" · {}", stage.as_str()))
+            .unwrap_or_default();
+        let snippet: String = message.text.chars().take(1200).collect();
+        text.push_str(&format!("{}:{} {}\n", message.role.label(), stage, snippet));
+    }
+    Some(text)
 }
 
 fn stage_prompt(state: &TaskState, stage: TaskStage) -> String {
@@ -295,6 +321,7 @@ mod tests {
     fn run(client: &dyn ChatClient, cancel: &AtomicBool, pause: &AtomicBool) -> TaskState {
         run_task(
             "Подготовить отчёт",
+            &[],
             &settings(),
             client,
             cancel,
@@ -332,6 +359,44 @@ mod tests {
     }
 
     #[test]
+    fn history_is_included_in_stage_prompts() {
+        let client = Scripted::new(vec![
+            "1. Собрать данные\n2. Подготовить отчёт",
+            "Отчёт подготовлен.",
+            "ВЕРДИКТ: OK\nПлан выполнен.",
+        ]);
+        let cancel = AtomicBool::new(false);
+        let pause = AtomicBool::new(false);
+        let history = vec![
+            TaskMessage::user("Раньше мы решили делать отчёт в пятницу", Utc::now()),
+            TaskMessage::assistant(TaskStage::Execution, "Пятница согласована", Utc::now()),
+        ];
+        let state = run_task(
+            "Продолжи отчёт",
+            &history,
+            &settings(),
+            &client,
+            &cancel,
+            &pause,
+            &mut |_| {},
+        )
+        .unwrap();
+        assert_eq!(state.stage, TaskStage::Done);
+        assert_eq!(state.messages.len(), history.len() + 4);
+        assert_eq!(&state.messages[..history.len()], history.as_slice());
+
+        let calls = client.calls.lock().unwrap();
+        let first_prompt = calls[0]
+            .messages
+            .iter()
+            .map(|message| message.text())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(first_prompt.contains("Раньше мы решили делать отчёт в пятницу"));
+        assert!(first_prompt.contains("Пятница согласована"));
+    }
+
+    #[test]
     fn failed_validation_stays_on_validation() {
         let client = Scripted::with_validation_fail();
         let cancel = AtomicBool::new(false);
@@ -363,8 +428,16 @@ mod tests {
         let client = Scripted::new(vec!["1. a\n2. b"]);
         let cancel = AtomicBool::new(true);
         let pause = AtomicBool::new(false);
-        let error =
-            run_task("задача", &settings(), &client, &cancel, &pause, &mut |_| {}).unwrap_err();
+        let error = run_task(
+            "задача",
+            &[],
+            &settings(),
+            &client,
+            &cancel,
+            &pause,
+            &mut |_| {},
+        )
+        .unwrap_err();
         assert!(matches!(error, TaskRunError::Cancelled));
         assert!(client.calls.lock().unwrap().is_empty());
     }
@@ -375,6 +448,7 @@ mod tests {
         let pause = AtomicBool::new(false);
         let error = run_task(
             "задача",
+            &[],
             &settings(),
             &Failing,
             &cancel,

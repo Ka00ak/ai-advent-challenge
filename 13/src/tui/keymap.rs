@@ -695,35 +695,35 @@ fn handle_task(state: &mut AppState, key: KeyEvent) -> UiAction {
         }
         KeyCode::Char('p') | KeyCode::Char(' ') => UiAction::ToggleTaskPause,
         KeyCode::Up => {
-            state.task_scroll = state.task_scroll.saturating_sub(1);
-            UiAction::None
-        }
-        KeyCode::Down => {
             state.task_scroll = state.task_scroll.saturating_add(1);
             UiAction::None
         }
-        KeyCode::PageUp => {
-            state.task_scroll = state.task_scroll.saturating_sub(10);
+        KeyCode::Down => {
+            state.task_scroll = state.task_scroll.saturating_sub(1);
             UiAction::None
         }
-        KeyCode::PageDown => {
+        KeyCode::PageUp => {
             state.task_scroll = state.task_scroll.saturating_add(10);
             UiAction::None
         }
+        KeyCode::PageDown => {
+            state.task_scroll = state.task_scroll.saturating_sub(10);
+            UiAction::None
+        }
         KeyCode::Char('g') => {
-            state.task_scroll = 0;
+            state.task_scroll = u16::MAX;
             UiAction::None
         }
         KeyCode::Char('G') => {
-            state.task_scroll = u16::MAX;
-            UiAction::None
-        }
-        KeyCode::Home => {
             state.task_scroll = 0;
             UiAction::None
         }
-        KeyCode::End => {
+        KeyCode::Home => {
             state.task_scroll = u16::MAX;
+            UiAction::None
+        }
+        KeyCode::End => {
+            state.task_scroll = 0;
             UiAction::None
         }
         _ => UiAction::None,
@@ -738,19 +738,19 @@ fn handle_task_input(state: &mut AppState, key: KeyEvent) -> UiAction {
         }
         KeyCode::Enter => start_task(state),
         KeyCode::Up => {
-            state.task_scroll = state.task_scroll.saturating_sub(1);
-            UiAction::None
-        }
-        KeyCode::Down => {
             state.task_scroll = state.task_scroll.saturating_add(1);
             UiAction::None
         }
+        KeyCode::Down => {
+            state.task_scroll = state.task_scroll.saturating_sub(1);
+            UiAction::None
+        }
         KeyCode::PageUp => {
-            state.task_scroll = state.task_scroll.saturating_sub(10);
+            state.task_scroll = state.task_scroll.saturating_add(10);
             UiAction::None
         }
         KeyCode::PageDown => {
-            state.task_scroll = state.task_scroll.saturating_add(10);
+            state.task_scroll = state.task_scroll.saturating_sub(10);
             UiAction::None
         }
         KeyCode::Backspace => {

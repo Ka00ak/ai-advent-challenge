@@ -10,7 +10,7 @@ use crate::domain::memory::{
 };
 use crate::domain::profile::ProfileState;
 use crate::domain::settings::{Approval, ExtractionMode, Settings};
-use crate::domain::task::TaskState;
+use crate::domain::task::{TaskMessage, TaskState};
 use crate::experiment::personalization::{
     PersonalizationProgress, PersonalizationReport, SAME_QUESTION,
 };
@@ -374,7 +374,10 @@ impl AppState {
             chat_focused: false,
             chat_scroll: 0,
             chat_pending: None,
-            task: TaskState::idle(chrono::Utc::now()),
+            task: controller
+                .task_state()
+                .cloned()
+                .unwrap_or_else(|| TaskState::idle(chrono::Utc::now())),
             task_input: InputState::new(InputPurpose::TaskGoal, "Задача", ""),
             task_focused: false,
             task_paused: false,
@@ -400,8 +403,14 @@ impl AppState {
     }
 
     /// Оптимистично показывает новую задачу до ответа job-потока.
+    /// Чат-история прошлых задач сохраняется и уходит в контекст.
     pub fn begin_task(&mut self, goal: &str) {
-        self.task = TaskState::start(goal, chrono::Utc::now());
+        let history = self.task.messages.clone();
+        self.begin_task_with_history(goal, history);
+    }
+
+    pub fn begin_task_with_history(&mut self, goal: &str, history: Vec<TaskMessage>) {
+        self.task = TaskState::start_with_history(goal, history, chrono::Utc::now());
         self.task_focused = false;
         self.task_paused = false;
         self.task_scroll = 0;

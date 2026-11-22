@@ -83,10 +83,11 @@ fn run_job(
                 }
             }
         }
-        Job::Task(goal) => {
-            let result = controller.run_task_cancellable(&goal, cancel, pause, &mut |progress| {
-                let _ = tx.send(AppEvent::TaskProgress(progress));
-            });
+        Job::Task { goal, history } => {
+            let result =
+                controller.run_task_cancellable(&goal, &history, cancel, pause, &mut |progress| {
+                    let _ = tx.send(AppEvent::TaskProgress(progress));
+                });
             match result {
                 Ok(state) => {
                     let _ = tx.send(AppEvent::TaskFinished(state));
@@ -173,7 +174,7 @@ fn run_job(
 fn job_label(job: &Job) -> &'static str {
     match job {
         Job::Chat(_) => "chat",
-        Job::Task(_) => "task",
+        Job::Task { .. } => "task",
         Job::AcceptPending(_) => "accept",
         Job::RejectPending(_) => "reject",
         Job::ChangePending { .. } => "change",

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::domain::chat::{LlmExchange, TurnOutcome};
 use crate::domain::memory::{MemoryBundle, MemoryLayer};
-use crate::domain::task::TaskState;
+use crate::domain::task::{TaskMessage, TaskState};
 use crate::experiment::personalization::{
     PersonalizationOptions, PersonalizationProgress, PersonalizationReport,
 };
@@ -16,10 +16,16 @@ use crate::task::TaskProgress;
 #[derive(Debug, Clone)]
 pub enum Job {
     Chat(String),
-    Task(String),
+    Task {
+        goal: String,
+        history: Vec<TaskMessage>,
+    },
     AcceptPending(String),
     RejectPending(String),
-    ChangePending { id: String, layer: MemoryLayer },
+    ChangePending {
+        id: String,
+        layer: MemoryLayer,
+    },
     ClearLayer(MemoryLayer),
     ImportFacts(PathBuf),
     Experiment(ExperimentOptions),

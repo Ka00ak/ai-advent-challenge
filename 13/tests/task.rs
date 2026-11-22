@@ -19,6 +19,7 @@ fn controller_runs_task_to_done_and_logs_three_requests() {
     let state = controller
         .run_task_cancellable(
             "Подготовить отчёт по проекту",
+            &[],
             &cancel,
             &pause,
             &mut |event: TaskProgress| progress.push(event),
@@ -35,7 +36,48 @@ fn controller_runs_task_to_done_and_logs_three_requests() {
             .iter()
             .all(|exchange| exchange.kind == lab12::domain::chat::ExchangeKind::Chat)
     );
+    assert_eq!(state.messages.len(), 4);
+    assert_eq!(
+        state.messages[0].role,
+        lab12::domain::task::TaskMessageRole::User
+    );
     assert!(!progress.is_empty());
+}
+
+#[test]
+fn next_message_keeps_chat_context_and_survives_reload() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut controller = common::controller_at(dir.path());
+    let cancel = AtomicBool::new(false);
+    let pause = AtomicBool::new(false);
+
+    let first = controller
+        .run_task_cancellable("Подготовить отчёт", &[], &cancel, &pause, &mut |_| {})
+        .unwrap();
+    assert_eq!(first.messages.len(), 4);
+    let history = first.messages.clone();
+
+    let second = controller
+        .run_task_cancellable("Добавь сроки", &history, &cancel, &pause, &mut |_| {})
+        .unwrap();
+    assert_eq!(second.stage, TaskStage::Done);
+    assert_eq!(second.messages.len(), 8);
+    assert_eq!(&second.messages[..4], history.as_slice());
+    assert_eq!(
+        second.messages[4].role,
+        lab12::domain::task::TaskMessageRole::User
+    );
+    assert!(
+        second.messages[4..]
+            .iter()
+            .any(|message| message.text.contains("ВЕРДИКТ: OK"))
+    );
+
+    // Контекст сохраняется на диск: новый контроллер видит историю.
+    let reloaded = common::controller_at(dir.path());
+    let persisted = reloaded.task_state().unwrap();
+    assert_eq!(persisted.messages.len(), 8);
+    assert_eq!(persisted.messages[4].text, "Добавь сроки");
 }
 
 #[test]
@@ -48,6 +90,7 @@ fn pause_stops_before_request_and_resume_finishes_task() {
     let handle = std::thread::spawn(move || {
         run_task(
             "Проверить смету",
+            &[],
             &common::test_settings(),
             &FakeChatClient,
             &cancel_worker,
@@ -84,6 +127,7 @@ fn cancel_while_paused_stops_worker() {
     let handle = std::thread::spawn(move || {
         run_task(
             "Долгая задача",
+            &[],
             &common::test_settings(),
             &FakeChatClient,
             &cancel_worker,

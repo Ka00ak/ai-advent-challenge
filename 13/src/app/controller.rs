@@ -14,7 +14,7 @@ use crate::domain::memory::{
 };
 use crate::domain::profile::{ProfileState, UserProfile};
 use crate::domain::settings::{Approval, ExtractionMode, Settings};
-use crate::domain::task::TaskState;
+use crate::domain::task::{TaskMessage, TaskState};
 use crate::experiment::personalization::{
     PersonalizationError, PersonalizationOptions, PersonalizationProgress, PersonalizationReport,
     run_personalization, save_personalization_report,
@@ -53,8 +53,8 @@ use crate::memory::working::{
 use crate::storage::atomic::{SaveError, atomic_write_json};
 use crate::storage::paths::DataPaths;
 use crate::storage::{
-    LoadError, acquire_lock, load_bundle, load_profiles, save_bundle, save_profiles, save_settings,
-    save_stm,
+    LoadError, acquire_lock, load_bundle, load_profiles, load_task_state, save_bundle,
+    save_profiles, save_settings, save_stm, save_task_state,
 };
 use crate::task::runner::{TaskProgress, TaskRunError, run_task};
 
@@ -121,6 +121,8 @@ pub struct AppController {
     pub exchanges: Vec<LlmExchange>,
     pub last_breakdown: MemoryBreakdown,
     pub last_profile_changes: Vec<ProfileChange>,
+    /// Последняя/текущая задача и её чат-история (data-dir/task/session.json).
+    task: Option<TaskState>,
     api_listener: Option<ExchangeListener>,
 }
 
@@ -143,6 +145,16 @@ impl AppController {
         if profiles_changed || profiles_missing {
             save_profiles(&runtime.paths, &profiles)?;
         }
+        let mut task = match load_task_state(&runtime.paths) {
+            Ok(state) => Some(state),
+            Err(error) if error.is_not_found() => None,
+            Err(error) => return Err(AppError::Load(error)),
+        };
+        if let Some(state) = task.as_mut() {
+            if state.is_active() {
+                state.mark_failed("сессия прервана: задача не была завершена", now);
+            }
+        }
         Ok(Self {
             runtime,
             bundle,
@@ -151,6 +163,7 @@ impl AppController {
             exchanges: Vec::new(),
             last_breakdown: MemoryBreakdown::default(),
             last_profile_changes: Vec::new(),
+            task,
             api_listener: None,
         })
     }
@@ -178,6 +191,10 @@ impl AppController {
 
     pub fn profiles(&self) -> &ProfileState {
         &self.profiles
+    }
+
+    pub fn task_state(&self) -> Option<&TaskState> {
+        self.task.as_ref()
     }
 
     pub fn active_profile(&self) -> Option<&UserProfile> {
@@ -765,6 +782,7 @@ impl AppController {
     pub fn run_task_cancellable(
         &mut self,
         goal: &str,
+        history: &[TaskMessage],
         cancel: &AtomicBool,
         pause: &AtomicBool,
         progress: &mut dyn FnMut(TaskProgress),
@@ -782,6 +800,7 @@ impl AppController {
         );
         let result = run_task(
             goal,
+            history,
             &self.runtime.settings,
             client.as_ref(),
             cancel,
@@ -789,7 +808,10 @@ impl AppController {
             progress,
         );
         self.absorb_request_log(&log);
-        Ok(result?)
+        let state = result?;
+        save_task_state(&self.runtime.paths, &state)?;
+        self.task = Some(state.clone());
+        Ok(state)
     }
 
     pub fn run_personalization(

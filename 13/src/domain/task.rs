@@ -146,8 +146,56 @@ pub enum TaskTransitionError {
     EmptyResult,
 }
 
-/// Состояние задачи: этап, текущий шаг, ожидаемое действие, артефакты и
-/// журнал переходов. Это единственный источник истины для экрана «Состояния».
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskMessageRole {
+    User,
+    Assistant,
+}
+
+impl TaskMessageRole {
+    pub fn label(self) -> &'static str {
+        match self {
+            TaskMessageRole::User => "Вы",
+            TaskMessageRole::Assistant => "Ассистент",
+        }
+    }
+}
+
+/// Одна реплика в чате задачи. Хранится вместе с состоянием, чтобы контекст
+/// следующих задач и перезапуск TUI не теряли историю.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TaskMessage {
+    pub at: DateTime<Utc>,
+    pub role: TaskMessageRole,
+    /// Этап, на котором ассистент выдал сообщение.
+    pub stage: Option<TaskStage>,
+    pub text: String,
+}
+
+impl TaskMessage {
+    pub fn user(text: impl Into<String>, now: DateTime<Utc>) -> Self {
+        Self {
+            at: now,
+            role: TaskMessageRole::User,
+            stage: None,
+            text: text.into(),
+        }
+    }
+
+    pub fn assistant(stage: TaskStage, text: impl Into<String>, now: DateTime<Utc>) -> Self {
+        Self {
+            at: now,
+            role: TaskMessageRole::Assistant,
+            stage: Some(stage),
+            text: text.into(),
+        }
+    }
+}
+
+/// Состояние задачи: этап, текущий шаг, ожидаемое действие, артефакты,
+/// журнал переходов и чат-история. Это единственный источник истины для
+/// экрана «Состояния».
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TaskState {
     pub version: u32,
@@ -168,6 +216,9 @@ pub struct TaskState {
     pub validation_passed: Option<bool>,
     pub error: Option<String>,
     pub history: Vec<TaskTransitionRecord>,
+    /// Чат задачи: реплики пользователя и ответы ассистента по этапам.
+    #[serde(default)]
+    pub messages: Vec<TaskMessage>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -192,6 +243,7 @@ impl TaskState {
             validation_passed: None,
             error: None,
             history: Vec::new(),
+            messages: Vec::new(),
             created_at: now,
             updated_at: now,
         }
@@ -199,10 +251,22 @@ impl TaskState {
 
     /// Новая задача всегда начинается с `planning`.
     pub fn start(goal: impl Into<String>, now: DateTime<Utc>) -> Self {
+        Self::start_with_history(goal, Vec::new(), now)
+    }
+
+    /// Новый цикл задачи с сохранением прошлой переписки. История уходит в
+    /// промпты следующих этапов, поэтому модель видит контекст диалога.
+    pub fn start_with_history(
+        goal: impl Into<String>,
+        history: Vec<TaskMessage>,
+        now: DateTime<Utc>,
+    ) -> Self {
         let goal = goal.into();
         let mut state = Self::idle(now);
         state.id = format!("task_{}", uuid::Uuid::new_v4().simple());
-        state.goal = goal;
+        state.goal = goal.clone();
+        state.messages = history;
+        state.messages.push(TaskMessage::user(goal, now));
         state.status = TaskStatus::Running;
         state.step_index = 1;
         state.step_total = 2;
@@ -215,6 +279,12 @@ impl TaskState {
             reason: "задача запущена".into(),
         });
         state
+    }
+
+    pub fn push_assistant(&mut self, stage: TaskStage, text: impl Into<String>) {
+        self.messages
+            .push(TaskMessage::assistant(stage, text, Utc::now()));
+        self.updated_at = Utc::now();
     }
 
     pub fn is_active(&self) -> bool {

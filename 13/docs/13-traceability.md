@@ -18,12 +18,16 @@
 | TS-12 | Пауза и продолжение выполнения | `Arc<AtomicBool>` pause, `ToggleTaskPause`, `checkpoint` | `tests/task.rs` | done |
 | TS-13 | API-журнал для запросов задачи | `AppController::run_task_cancellable`, `RecordingChatClient` | `tests/task.rs` | done |
 | TS-14 | Детерминированный fake-режим задачи | `FakeChatClient`, `TASK_STAGE=` | `tests/task.rs` | done |
+| TS-15 | Вкладка «Состояния» выглядит как чат | `TaskMessage`, `src/tui/widgets/task.rs::draw_chat` | `tests/tui.rs` | done |
+| TS-16 | Можно дописывать сообщения после завершения | `TaskState::start_with_history`, `UiAction::Task` | `tests/tui.rs`, `tests/task.rs` | done |
+| TS-17 | Контекст прошлых реплик уходит в промпты | `history_block`, `TaskState.messages` | `src/task/runner.rs` unit | done |
+| TS-18 | История чата задачи сохраняется между запусками | `task/session.json`, `load_task_state`/`save_task_state` | `tests/task.rs` reload | done |
 
 ## Фактические тесты
 
 | Файл | Что покрывает |
 |---|---|
-| `src/domain/task.rs` | маршрут, запрет прыжков, план ≥ 2 шагов, валидация, serde, пауза/ошибка |
-| `src/task/runner.rs` | полный прогон 3 запросов, `FAIL` без `done`, короткий план, отмена, ошибка API, вердикт |
-| `tests/task.rs` | controller + fake LLM, API-журнал, пауза/продолжение, отмена при паузе |
-| `tests/tui.rs` | вкладка 8, ввод и запуск задачи, `p`, маршрут и этапы в 80×24 |
+| `src/domain/task.rs` | маршрут, запрет прыжков, план ≥ 2 шагов, валидация, serde, пауза/ошибка, реплики чата |
+| `src/task/runner.rs` | полный прогон 3 запросов, `FAIL` без `done`, короткий план, отмена, ошибка API, вердикт, контекст истории |
+| `tests/task.rs` | controller + fake LLM, API-журнал, пауза/продолжение, отмена при паузе, контекст и перезагрузка |
+| `tests/tui.rs` | вкладка 8, ввод и запуск задачи, `p`, маршрут и чат задачи в 80×24, прокрутка |
