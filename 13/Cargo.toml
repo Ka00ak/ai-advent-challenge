@@ -3,7 +3,7 @@ name = "lab12"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "День 12 — персонализация ассистента поверх модели памяти (Rust TUI + CLI)"
+description = "День 13 — состояние задачи как конечный автомат поверх памяти и профиля (Rust TUI + CLI)"
 
 [dependencies]
 ratatui = { version = "0.29", features = ["unstable-rendered-line-info"] }

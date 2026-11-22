@@ -10,6 +10,7 @@ use crate::domain::memory::{
 };
 use crate::domain::profile::ProfileState;
 use crate::domain::settings::{Approval, ExtractionMode, Settings};
+use crate::domain::task::TaskState;
 use crate::experiment::personalization::{
     PersonalizationProgress, PersonalizationReport, SAME_QUESTION,
 };
@@ -32,6 +33,7 @@ pub enum InputPurpose {
     SavePersonalizationReport,
     PersonalizationQuestion,
     ExportApi,
+    TaskGoal,
     Setting(usize),
 }
 
@@ -312,6 +314,12 @@ pub struct AppState {
     pub chat_scroll: u16,
     /// Реплика, отправленная в job и ещё не подтверждённая STM.
     pub chat_pending: Option<String>,
+    /// Задача на вкладке «8 Состояния» и её ввод.
+    pub task: TaskState,
+    pub task_input: InputState,
+    pub task_focused: bool,
+    pub task_paused: bool,
+    pub task_scroll: u16,
     pub should_quit: bool,
     pub data_dir: PathBuf,
     pub status: String,
@@ -366,6 +374,11 @@ impl AppState {
             chat_focused: false,
             chat_scroll: 0,
             chat_pending: None,
+            task: TaskState::idle(chrono::Utc::now()),
+            task_input: InputState::new(InputPurpose::TaskGoal, "Задача", ""),
+            task_focused: false,
+            task_paused: false,
+            task_scroll: 0,
             should_quit: false,
             data_dir: controller.runtime().paths.root.clone(),
             status: "Готово".into(),
@@ -384,6 +397,33 @@ impl AppState {
         self.last_breakdown = outcome.breakdown.clone();
         self.chat_pending = None;
         self.chat_scroll = 0;
+    }
+
+    /// Оптимистично показывает новую задачу до ответа job-потока.
+    pub fn begin_task(&mut self, goal: &str) {
+        self.task = TaskState::start(goal, chrono::Utc::now());
+        self.task_focused = false;
+        self.task_paused = false;
+        self.task_scroll = 0;
+    }
+
+    /// Переключает паузу задачи. Возвращает новое состояние паузы.
+    pub fn toggle_task_pause(&mut self) -> bool {
+        if !self.task.is_active() {
+            return self.task_paused;
+        }
+        self.task_paused = !self.task_paused;
+        let now = chrono::Utc::now();
+        if self.task_paused {
+            self.task.mark_paused(now);
+        } else {
+            self.task.mark_running(now);
+        }
+        self.task_paused
+    }
+
+    pub fn task_active(&self) -> bool {
+        self.task.is_active() || self.task_paused
     }
 
     /// Добавляет записи API-журнала job-потока. Записи с тем же id

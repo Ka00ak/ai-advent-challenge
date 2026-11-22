@@ -9,11 +9,34 @@ use crate::app::controller::{AppController, AppRuntime};
 use crate::app::events::{AppEvent, Job};
 
 pub fn spawn_job(runtime: AppRuntime, job: Job, tx: Sender<AppEvent>, cancel: Arc<AtomicBool>) {
+    spawn_job_with_pause(runtime, job, tx, cancel, Arc::new(AtomicBool::new(false)));
+}
+
+/// Job задачи получает отдельный флаг паузы: TUI переключает его клавишей `p`,
+/// worker проверяет между HTTP-запросами.
+pub fn spawn_task_job(
+    runtime: AppRuntime,
+    job: Job,
+    tx: Sender<AppEvent>,
+    cancel: Arc<AtomicBool>,
+    pause: Arc<AtomicBool>,
+) {
+    spawn_job_with_pause(runtime, job, tx, cancel, pause);
+}
+
+fn spawn_job_with_pause(
+    runtime: AppRuntime,
+    job: Job,
+    tx: Sender<AppEvent>,
+    cancel: Arc<AtomicBool>,
+    pause: Arc<AtomicBool>,
+) {
     let label = job_label(&job);
     let _ = tx.send(AppEvent::JobStarted(label));
     std::thread::spawn(move || {
-        let result =
-            std::panic::catch_unwind(AssertUnwindSafe(|| run_job(runtime, job, &tx, &cancel)));
+        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            run_job(runtime, job, &tx, &cancel, &pause)
+        }));
         if let Err(panic) = result {
             let message = panic
                 .downcast_ref::<&str>()
@@ -26,7 +49,13 @@ pub fn spawn_job(runtime: AppRuntime, job: Job, tx: Sender<AppEvent>, cancel: Ar
     });
 }
 
-fn run_job(runtime: AppRuntime, job: Job, tx: &Sender<AppEvent>, cancel: &Arc<AtomicBool>) {
+fn run_job(
+    runtime: AppRuntime,
+    job: Job,
+    tx: &Sender<AppEvent>,
+    cancel: &Arc<AtomicBool>,
+    pause: &Arc<AtomicBool>,
+) {
     let mut controller = match AppController::load(runtime) {
         Ok(controller) => controller,
         Err(error) => {
@@ -50,6 +79,19 @@ fn run_job(runtime: AppRuntime, job: Job, tx: &Sender<AppEvent>, cancel: &Arc<At
                 }
                 Err(error) => {
                     let _ = tx.send(AppEvent::MemoryUpdated(controller.bundle().clone()));
+                    let _ = tx.send(AppEvent::Error(error.to_string()));
+                }
+            }
+        }
+        Job::Task(goal) => {
+            let result = controller.run_task_cancellable(&goal, cancel, pause, &mut |progress| {
+                let _ = tx.send(AppEvent::TaskProgress(progress));
+            });
+            match result {
+                Ok(state) => {
+                    let _ = tx.send(AppEvent::TaskFinished(state));
+                }
+                Err(error) => {
                     let _ = tx.send(AppEvent::Error(error.to_string()));
                 }
             }
@@ -131,6 +173,7 @@ fn run_job(runtime: AppRuntime, job: Job, tx: &Sender<AppEvent>, cancel: &Arc<At
 fn job_label(job: &Job) -> &'static str {
     match job {
         Job::Chat(_) => "chat",
+        Job::Task(_) => "task",
         Job::AcceptPending(_) => "accept",
         Job::RejectPending(_) => "reject",
         Job::ChangePending { .. } => "change",

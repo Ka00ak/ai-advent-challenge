@@ -3,6 +3,7 @@ mod common;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use lab12::app::state::Screen;
 use lab12::domain::memory::{MemoryBreakdown, MemoryLayer};
+use lab12::domain::task::{TaskStage, TaskState, TaskStatus};
 use lab12::experiment::ExperimentProgress;
 use lab12::experiment::personalization::{
     PersonalizationOptions, SAME_QUESTION, run_personalization,
@@ -35,7 +36,7 @@ fn number_keys_switch_screens() {
     handle_key(&mut state, key(KeyCode::Char('5')));
     assert_eq!(state.screen, Screen::Settings);
     handle_key(&mut state, key(KeyCode::Char('8')));
-    assert_eq!(state.screen, Screen::Settings, "вкладки 8 больше нет");
+    assert_eq!(state.screen, Screen::Task);
     handle_key(&mut state, key(KeyCode::Char('6')));
     assert_eq!(state.screen, Screen::ApiLog);
     handle_key(&mut state, key(KeyCode::Char('7')));
@@ -444,6 +445,70 @@ fn renders_in_80x24_and_120x36() {
         assert_eq!(terminal.backend().buffer().area.width, width);
         assert_eq!(terminal.backend().buffer().area.height, height);
     }
+}
+
+#[test]
+fn task_tab_accepts_goal_pauses_and_renders_route() {
+    let (_dir, mut state) = state();
+    handle_key(&mut state, key(KeyCode::Char('8')));
+    assert_eq!(state.screen, Screen::Task);
+
+    handle_key(&mut state, key(KeyCode::Enter));
+    assert!(state.task_focused);
+    for ch in "Подготовить отчёт".chars() {
+        handle_key(&mut state, key(KeyCode::Char(ch)));
+    }
+    assert_eq!(state.task_input.buffer, "Подготовить отчёт");
+    let action = handle_key(&mut state, key(KeyCode::Enter));
+    assert_eq!(action, UiAction::Task("Подготовить отчёт".into()));
+    assert!(!state.task_focused);
+    assert!(state.task_input.buffer.is_empty());
+
+    state.begin_task("Подготовить отчёт");
+    state.busy = Some("task");
+    assert_eq!(state.task.stage, TaskStage::Planning);
+    assert_eq!(state.task.status, TaskStatus::Running);
+
+    let action = handle_key(&mut state, key(KeyCode::Char('p')));
+    assert_eq!(action, UiAction::ToggleTaskPause);
+    state.task_paused = true;
+    state.task.mark_paused(chrono::Utc::now());
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let text: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(text.contains("planning"));
+    assert!(text.contains("execution"));
+    assert!(text.contains("validation"));
+    assert!(text.contains("done"));
+    assert!(text.contains("Состояние задачи"));
+    assert!(text.contains("пауза"));
+    assert!(text.contains("Текущий шаг"));
+
+    state.task = TaskState::start("Проверить смету", chrono::Utc::now());
+    state.task.stage = TaskStage::Validation;
+    state.task.status = TaskStatus::Running;
+    state.busy = Some("task");
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let text: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(text.contains("Валидация"));
 }
 
 #[test]

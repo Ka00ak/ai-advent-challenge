@@ -245,6 +245,13 @@ impl ChatClient for FakeChatClient {
             .map(|message| message.text())
             .collect::<Vec<_>>()
             .join("\n");
+        if let Some(stage) = detect_task_stage(&context) {
+            return Ok(ChatResponse {
+                content: Some(fake_task_answer(stage)),
+                tool_calls: Vec::new(),
+                usage: None,
+            });
+        }
         if let Some(style) = detect_profile_style(&context) {
             return Ok(ChatResponse {
                 content: Some(fake_personalized_answer(&style)),
@@ -275,6 +282,32 @@ struct DetectedProfileStyle {
     lists: bool,
     tables: bool,
     emoji: bool,
+}
+
+fn detect_task_stage(context: &str) -> Option<&'static str> {
+    let lower = context.to_lowercase();
+    for stage in ["planning", "execution", "validation"] {
+        if lower.contains(&format!("task_stage={stage}")) {
+            return Some(stage);
+        }
+    }
+    None
+}
+
+fn fake_task_answer(stage: &str) -> String {
+    match stage {
+        "planning" => {
+            "1. Разобрать задачу пользователя\n2. Подготовить результат\n3. Проверить результат по плану"
+                .to_string()
+        }
+        "execution" => {
+            "Результат (fake): план выполнен, итоговый ответ подготовлен.".to_string()
+        }
+        "validation" => {
+            "ВЕРДИКТ: OK\nПлан выполнен, результат соответствует задаче.".to_string()
+        }
+        _ => "Готово.".to_string(),
+    }
 }
 
 fn detect_profile_style(context: &str) -> Option<DetectedProfileStyle> {

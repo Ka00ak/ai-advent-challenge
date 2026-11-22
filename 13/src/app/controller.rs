@@ -14,6 +14,7 @@ use crate::domain::memory::{
 };
 use crate::domain::profile::{ProfileState, UserProfile};
 use crate::domain::settings::{Approval, ExtractionMode, Settings};
+use crate::domain::task::TaskState;
 use crate::experiment::personalization::{
     PersonalizationError, PersonalizationOptions, PersonalizationProgress, PersonalizationReport,
     run_personalization, save_personalization_report,
@@ -55,6 +56,7 @@ use crate::storage::{
     LoadError, acquire_lock, load_bundle, load_profiles, save_bundle, save_profiles, save_settings,
     save_stm,
 };
+use crate::task::runner::{TaskProgress, TaskRunError, run_task};
 
 #[derive(Clone)]
 pub struct AppRuntime {
@@ -101,6 +103,8 @@ pub enum AppError {
     Experiment(#[from] ExperimentError),
     #[error("ошибка персонализации: {0}")]
     Personalization(#[from] PersonalizationError),
+    #[error("ошибка задачи: {0}")]
+    Task(#[from] TaskRunError),
     #[error("неверный ввод: {0}")]
     Invalid(String),
     #[error("не найдено: {0}")]
@@ -754,6 +758,38 @@ impl AppController {
     ) -> Result<(), AppError> {
         save_report(report, out, json)?;
         Ok(())
+    }
+
+    /// Прогон задачи конечным автоматом. Все HTTP-запросы этапов попадают в
+    /// общий API-журнал через `RecordingChatClient`.
+    pub fn run_task_cancellable(
+        &mut self,
+        goal: &str,
+        cancel: &AtomicBool,
+        pause: &AtomicBool,
+        progress: &mut dyn FnMut(TaskProgress),
+    ) -> Result<TaskState, AppError> {
+        let log = new_request_log();
+        let client = Arc::new(
+            RecordingChatClient::new(
+                self.runtime.client.clone(),
+                ExchangeKind::Chat,
+                log.clone(),
+                &self.runtime.settings.base_url,
+                &self.runtime.settings.model,
+            )
+            .with_listener(self.api_listener.clone()),
+        );
+        let result = run_task(
+            goal,
+            &self.runtime.settings,
+            client.as_ref(),
+            cancel,
+            pause,
+            progress,
+        );
+        self.absorb_request_log(&log);
+        Ok(result?)
     }
 
     pub fn run_personalization(

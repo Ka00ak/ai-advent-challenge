@@ -4,16 +4,19 @@ use std::path::PathBuf;
 
 use crate::domain::chat::{LlmExchange, TurnOutcome};
 use crate::domain::memory::{MemoryBundle, MemoryLayer};
+use crate::domain::task::TaskState;
 use crate::experiment::personalization::{
     PersonalizationOptions, PersonalizationProgress, PersonalizationReport,
 };
 use crate::experiment::runner::{ExperimentOptions, ExperimentProgress, ExperimentReport};
 use crate::llm::agent::Progress;
 use crate::memory::migration::MigrationReport;
+use crate::task::TaskProgress;
 
 #[derive(Debug, Clone)]
 pub enum Job {
     Chat(String),
+    Task(String),
     AcceptPending(String),
     RejectPending(String),
     ChangePending { id: String, layer: MemoryLayer },
@@ -30,6 +33,8 @@ pub enum AppEvent {
     ApiLogged(Vec<LlmExchange>),
     MemoryUpdated(MemoryBundle),
     ChatFinished(Box<TurnOutcome>),
+    TaskProgress(TaskProgress),
+    TaskFinished(TaskState),
     ExperimentProgress(ExperimentProgress),
     ExperimentFinished(ExperimentReport),
     PersonalizationProgress(PersonalizationProgress),

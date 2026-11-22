@@ -20,9 +20,10 @@ use ratatui::widgets::Paragraph;
 
 use crate::app::controller::{AppController, AppError, AppRuntime};
 use crate::app::events::{AppEvent, Job};
-use crate::app::jobs::spawn_job;
+use crate::app::jobs::{spawn_job, spawn_task_job};
 use crate::app::state::Screen;
 use crate::domain::memory::MemoryLayer;
+use crate::domain::task::TaskStatus;
 use crate::tui::keymap::{UiAction, handle_key};
 use crate::tui::state::{ApiFocus, AppState, Modal, VerifyMode};
 use crate::tui::theme;
@@ -33,6 +34,7 @@ pub fn run(runtime: AppRuntime) -> Result<(), AppError> {
     let mut state = AppState::new(&controller);
     let (tx, rx) = mpsc::channel();
     let cancel = Arc::new(AtomicBool::new(false));
+    let pause = Arc::new(AtomicBool::new(false));
 
     enable_raw_mode().map_err(|error| AppError::Io(error.to_string()))?;
     let mut out = stdout();
@@ -55,6 +57,7 @@ pub fn run(runtime: AppRuntime) -> Result<(), AppError> {
         &tx,
         &rx,
         &cancel,
+        &pause,
     );
 
     let _ = disable_raw_mode();
@@ -73,6 +76,7 @@ fn event_loop(
     tx: &Sender<AppEvent>,
     rx: &Receiver<AppEvent>,
     cancel: &Arc<AtomicBool>,
+    pause: &Arc<AtomicBool>,
 ) -> Result<(), AppError> {
     loop {
         terminal
@@ -85,7 +89,7 @@ fn event_loop(
             match event::read().map_err(|error| AppError::Io(error.to_string()))? {
                 Event::Key(key) if key.kind == KeyEventKind::Press => {
                     let action = handle_key(state, key);
-                    execute_action(action, runtime, controller, state, tx, cancel)?;
+                    execute_action(action, runtime, controller, state, tx, cancel, pause)?;
                 }
                 Event::Resize(_, _) => {}
                 _ => {}
@@ -98,6 +102,7 @@ fn event_loop(
 
         if state.should_quit {
             cancel.store(true, Ordering::Relaxed);
+            pause.store(false, Ordering::Relaxed);
             return Ok(());
         }
     }
@@ -110,6 +115,7 @@ fn execute_action(
     state: &mut AppState,
     tx: &Sender<AppEvent>,
     cancel: &Arc<AtomicBool>,
+    pause: &Arc<AtomicBool>,
 ) -> Result<(), AppError> {
     match action {
         UiAction::None => {}
@@ -120,6 +126,35 @@ fn execute_action(
                 state.chat_scroll = 0;
                 cancel.store(false, Ordering::Relaxed);
                 spawn_job(runtime.clone(), Job::Chat(text), tx.clone(), cancel.clone());
+            }
+        }
+        UiAction::Task(goal) => {
+            if state.busy.is_some() {
+                state.set_banner("Дождитесь завершения текущего job");
+            } else {
+                state.begin_task(&goal);
+                cancel.store(false, Ordering::Relaxed);
+                pause.store(false, Ordering::Relaxed);
+                spawn_task_job(
+                    runtime.clone(),
+                    Job::Task(goal),
+                    tx.clone(),
+                    cancel.clone(),
+                    pause.clone(),
+                );
+            }
+        }
+        UiAction::ToggleTaskPause => {
+            if state.task.is_active() || state.task_paused {
+                let paused = state.toggle_task_pause();
+                pause.store(paused, Ordering::Relaxed);
+                state.status = if paused {
+                    "задача на паузе".into()
+                } else {
+                    "задача продолжена".into()
+                };
+            } else {
+                state.set_banner("Задача не выполняется: сначала введите задачу");
             }
         }
         UiAction::AcceptPending(id) => spawn_job(
@@ -385,6 +420,33 @@ fn handle_app_event(
                 state.banner = Some((outcome.final_text.clone(), false));
             }
         }
+        AppEvent::TaskProgress(progress) => {
+            let was_paused = state.task_paused;
+            let paused = progress.state.status == TaskStatus::Paused || was_paused;
+            state.task = progress.state;
+            state.task_paused = paused;
+            if paused {
+                state.task.mark_paused(chrono::Utc::now());
+            }
+            state.status = format!(
+                "задача: {} · {}",
+                state.task.stage.as_str(),
+                progress.message
+            );
+        }
+        AppEvent::TaskFinished(task) => {
+            let failed = task.status == TaskStatus::Failed;
+            let stage = task.stage;
+            let error = task.error.clone();
+            state.task = task;
+            state.task_paused = false;
+            state.status = format!("задача: {} · {}", stage.as_str(), state.task.status.label());
+            if failed {
+                if let Some(error) = error {
+                    state.set_banner(format!("Задача: {error}"));
+                }
+            }
+        }
         AppEvent::ExperimentProgress(progress) => {
             state.record_experiment_progress(&progress);
             state.experiment_progress = Some(progress.clone());
@@ -446,11 +508,16 @@ fn handle_app_event(
             state.chat_pending = None;
             state.fail_experiment_progress();
             state.personalization_progress = None;
+            if state.task.is_active() {
+                state.task.mark_failed(message.clone(), chrono::Utc::now());
+                state.task_paused = false;
+            }
             state.error_modal(message);
         }
         AppEvent::JobFinished => {
             state.busy = None;
             state.chat_pending = None;
+            state.task_paused = false;
             match AppController::load(runtime.clone()) {
                 Ok(reloaded) => {
                     *controller = reloaded;
@@ -520,6 +587,7 @@ fn draw(frame: &mut ratatui::Frame, state: &mut AppState) {
         Screen::Settings => widgets::settings::draw(frame, chunks[2], state),
         Screen::ApiLog => widgets::api_log::draw(frame, chunks[2], state),
         Screen::Profile => widgets::profile::draw(frame, chunks[2], state),
+        Screen::Task => widgets::task::draw(frame, chunks[2], state),
     }
 
     let footer = footer_lines(state);
@@ -598,6 +666,10 @@ fn footer_lines(state: &AppState) -> Vec<Line<'static>> {
         }
         Screen::ApiLog => "f фильтр · ↑↓ выбор · Tab к телу · ←→ запрос/ответ · e экспорт",
         Screen::Profile => "↑↓ выбор · Enter/u активировать · g/G",
+        Screen::Task if state.task_focused => {
+            "Enter запустить задачу · Esc выйти из ввода · задача уйдёт агенту"
+        }
+        Screen::Task => "i/Enter ввести задачу · p пауза/продолжить · ↑↓ прокрутка · q выход",
     };
     let second = if let Some(busy) = state.busy {
         format!("{busy}: идёт job · q/Ctrl+C — отмена и выход · ? помощь")

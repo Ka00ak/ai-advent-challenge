@@ -17,6 +17,8 @@ pub enum UiAction {
     None,
     Quit,
     Chat(String),
+    Task(String),
+    ToggleTaskPause,
     AcceptPending(String),
     RejectPending(String),
     ChangePending(String, MemoryLayer),
@@ -91,6 +93,9 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
     if state.screen == Screen::Chat && state.chat_focused {
         return handle_chat_input(state, key);
     }
+    if state.screen == Screen::Task && state.task_focused {
+        return handle_task_input(state, key);
+    }
 
     match key.code {
         KeyCode::Char('?') => {
@@ -112,6 +117,14 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
         KeyCode::Char('i') => {
             if state.screen == Screen::Chat {
                 state.chat_focused = true;
+            } else if state.screen == Screen::Task {
+                if state.task_active() {
+                    state.set_banner(
+                        "Задача выполняется — дождитесь завершения или поставьте паузу",
+                    );
+                } else {
+                    state.task_focused = true;
+                }
             } else {
                 state.open_input(InputPurpose::Chat, "Сообщение агенту", "");
             }
@@ -120,6 +133,10 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
         KeyCode::Tab => {
             if state.screen == Screen::Chat {
                 state.chat_focused = true;
+            } else if state.screen == Screen::Task {
+                if !state.task_active() {
+                    state.task_focused = true;
+                }
             } else if state.screen == Screen::Memory {
                 state.toggle_focus(false);
             } else if state.screen == Screen::Settings {
@@ -198,6 +215,7 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             Screen::Settings => handle_settings(state, key),
             Screen::ApiLog => handle_api(state, key),
             Screen::Profile => handle_profile(state, key),
+            Screen::Task => handle_task(state, key),
         },
     }
 }
@@ -265,6 +283,14 @@ fn submit_input(state: &mut AppState, purpose: InputPurpose, text: &str) -> UiAc
                 UiAction::None
             } else {
                 UiAction::Chat(text)
+            }
+        }
+        InputPurpose::TaskGoal => {
+            let text = text.trim().to_string();
+            if text.is_empty() {
+                UiAction::None
+            } else {
+                UiAction::Task(text)
             }
         }
         InputPurpose::SearchLtm => {
@@ -500,6 +526,7 @@ fn move_selection(state: &mut AppState, delta: isize) {
             state.profiles.profiles.len(),
             delta,
         ),
+        Screen::Task => {}
     }
 }
 
@@ -640,6 +667,109 @@ fn send_chat_message(state: &mut AppState) -> UiAction {
     state.chat_scroll = 0;
     state.chat_pending = Some(text.clone());
     UiAction::Chat(text)
+}
+
+fn handle_task(state: &mut AppState, key: KeyEvent) -> UiAction {
+    match key.code {
+        KeyCode::Enter | KeyCode::Char('i') => {
+            if state.task_active() {
+                state.set_banner(
+                    "Задача выполняется: p — пауза/продолжить, после завершения можно ввести новую",
+                );
+            } else {
+                state.task_focused = true;
+            }
+            UiAction::None
+        }
+        KeyCode::Char('p') | KeyCode::Char(' ') => UiAction::ToggleTaskPause,
+        KeyCode::Up => {
+            state.task_scroll = state.task_scroll.saturating_sub(1);
+            UiAction::None
+        }
+        KeyCode::Down => {
+            state.task_scroll = state.task_scroll.saturating_add(1);
+            UiAction::None
+        }
+        KeyCode::PageUp => {
+            state.task_scroll = state.task_scroll.saturating_sub(10);
+            UiAction::None
+        }
+        KeyCode::PageDown => {
+            state.task_scroll = state.task_scroll.saturating_add(10);
+            UiAction::None
+        }
+        KeyCode::Char('g') => {
+            state.task_scroll = 0;
+            UiAction::None
+        }
+        KeyCode::Char('G') => {
+            state.task_scroll = u16::MAX;
+            UiAction::None
+        }
+        _ => UiAction::None,
+    }
+}
+
+fn handle_task_input(state: &mut AppState, key: KeyEvent) -> UiAction {
+    match key.code {
+        KeyCode::Esc => {
+            state.task_focused = false;
+            UiAction::None
+        }
+        KeyCode::Enter => start_task(state),
+        KeyCode::Up => {
+            state.task_scroll = state.task_scroll.saturating_sub(1);
+            UiAction::None
+        }
+        KeyCode::Down => {
+            state.task_scroll = state.task_scroll.saturating_add(1);
+            UiAction::None
+        }
+        KeyCode::Backspace => {
+            state.task_input.backspace();
+            UiAction::None
+        }
+        KeyCode::Delete => {
+            state.task_input.delete();
+            UiAction::None
+        }
+        KeyCode::Left => {
+            state.task_input.left();
+            UiAction::None
+        }
+        KeyCode::Right => {
+            state.task_input.right();
+            UiAction::None
+        }
+        KeyCode::Home => {
+            state.task_input.home();
+            UiAction::None
+        }
+        KeyCode::End => {
+            state.task_input.end();
+            UiAction::None
+        }
+        KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+            state.task_input.insert(ch);
+            UiAction::None
+        }
+        _ => UiAction::None,
+    }
+}
+
+fn start_task(state: &mut AppState) -> UiAction {
+    if state.task_active() {
+        state.set_banner("Задача уже выполняется");
+        return UiAction::None;
+    }
+    let text = state.task_input.buffer.trim().to_string();
+    if text.is_empty() {
+        return UiAction::None;
+    }
+    state.task_input.buffer.clear();
+    state.task_input.cursor = 0;
+    state.task_focused = false;
+    UiAction::Task(text)
 }
 
 fn handle_memory(state: &mut AppState, key: KeyEvent) -> UiAction {
