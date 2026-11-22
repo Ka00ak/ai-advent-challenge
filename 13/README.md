@@ -418,3 +418,9 @@ docs/           спецификация, трассируемость, отчё
 дизайн Дня 12 — [`docs/12-personalization.md`](docs/12-personalization.md),
 Дня 13 — [`docs/13-task-state.md`](docs/13-task-state.md) и
 [`docs/13-traceability.md`](docs/13-traceability.md).
+
+## Result
+
+https://github.com/user-attachments/assets/201249ce-3741-4be5-9cb1-b32182672930
+
+https://github.com/user-attachments/assets/8041f5d4-dcfc-4926-9012-7e8fe92ed8d1
