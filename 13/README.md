@@ -346,7 +346,7 @@ cargo build
 cargo test
 ```
 
-Покрыто **293 теста**: unit (слои, router, retrieval, prompt, migration,
+Покрыто **294 теста**: unit (слои, router, retrieval, prompt, migration,
 storage, tokens, tools, experiment, профиль и обучение персонализации,
 3 × 10 цепочки с изоляцией контекста, конечный автомат задачи), integration
 (controller + fake LLM, импорт, эксперимент, персонализация, задача с паузой и

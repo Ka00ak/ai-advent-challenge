@@ -174,6 +174,9 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             if state.screen == Screen::ApiLog {
                 return handle_api(state, key);
             }
+            if state.screen == Screen::Task {
+                return handle_task(state, key);
+            }
             move_selection(state, -1);
             UiAction::None
         }
@@ -183,6 +186,9 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             }
             if state.screen == Screen::ApiLog {
                 return handle_api(state, key);
+            }
+            if state.screen == Screen::Task {
+                return handle_task(state, key);
             }
             move_selection(state, 1);
             UiAction::None
@@ -194,6 +200,9 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             if state.screen == Screen::ApiLog {
                 return handle_api(state, key);
             }
+            if state.screen == Screen::Task {
+                return handle_task(state, key);
+            }
             move_selection(state, -10);
             UiAction::None
         }
@@ -203,6 +212,9 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             }
             if state.screen == Screen::ApiLog {
                 return handle_api(state, key);
+            }
+            if state.screen == Screen::Task {
+                return handle_task(state, key);
             }
             move_selection(state, 10);
             UiAction::None
@@ -706,6 +718,14 @@ fn handle_task(state: &mut AppState, key: KeyEvent) -> UiAction {
             state.task_scroll = u16::MAX;
             UiAction::None
         }
+        KeyCode::Home => {
+            state.task_scroll = 0;
+            UiAction::None
+        }
+        KeyCode::End => {
+            state.task_scroll = u16::MAX;
+            UiAction::None
+        }
         _ => UiAction::None,
     }
 }
@@ -723,6 +743,14 @@ fn handle_task_input(state: &mut AppState, key: KeyEvent) -> UiAction {
         }
         KeyCode::Down => {
             state.task_scroll = state.task_scroll.saturating_add(1);
+            UiAction::None
+        }
+        KeyCode::PageUp => {
+            state.task_scroll = state.task_scroll.saturating_sub(10);
+            UiAction::None
+        }
+        KeyCode::PageDown => {
+            state.task_scroll = state.task_scroll.saturating_add(10);
             UiAction::None
         }
         KeyCode::Backspace => {

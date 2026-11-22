@@ -512,6 +512,25 @@ fn task_tab_accepts_goal_pauses_and_renders_route() {
 }
 
 #[test]
+fn task_screen_scrolls_details() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::Task;
+    assert_eq!(state.task_scroll, 0);
+    handle_key(&mut state, key(KeyCode::Down));
+    assert_eq!(state.task_scroll, 1);
+    handle_key(&mut state, key(KeyCode::PageDown));
+    assert_eq!(state.task_scroll, 11);
+    handle_key(&mut state, key(KeyCode::Up));
+    assert_eq!(state.task_scroll, 10);
+    handle_key(&mut state, key(KeyCode::PageUp));
+    assert_eq!(state.task_scroll, 0);
+    handle_key(&mut state, key(KeyCode::Char('G')));
+    assert_eq!(state.task_scroll, u16::MAX);
+    handle_key(&mut state, key(KeyCode::Char('g')));
+    assert_eq!(state.task_scroll, 0);
+}
+
+#[test]
 fn every_screen_renders_without_panic() {
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();
