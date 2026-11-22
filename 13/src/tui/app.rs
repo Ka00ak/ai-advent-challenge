@@ -158,6 +158,21 @@ fn execute_action(
                 state.set_banner("Задача не выполняется: сначала введите задачу");
             }
         }
+        UiAction::ResetTask => {
+            let active = state.task.is_active() || state.task_paused;
+            if active {
+                cancel.store(true, Ordering::Relaxed);
+                pause.store(false, Ordering::Relaxed);
+                state.task_reset_pending = true;
+            }
+            match controller.reset_task() {
+                Ok(()) => {
+                    state.reset_task_ui();
+                    state.set_banner("Задача сброшена: чат и этапы очищены");
+                }
+                Err(error) => state.error_modal(error.to_string()),
+            }
+        }
         UiAction::AcceptPending(id) => spawn_job(
             runtime.clone(),
             Job::AcceptPending(id),
@@ -422,6 +437,9 @@ fn handle_app_event(
             }
         }
         AppEvent::TaskProgress(progress) => {
+            if state.task_reset_pending {
+                return;
+            }
             let was_paused = state.task_paused;
             let paused = progress.state.status == TaskStatus::Paused || was_paused;
             state.task = progress.state;
@@ -436,6 +454,9 @@ fn handle_app_event(
             );
         }
         AppEvent::TaskFinished(task) => {
+            if state.task_reset_pending {
+                return;
+            }
             let failed = task.status == TaskStatus::Failed;
             let stage = task.stage;
             let error = task.error.clone();
@@ -505,6 +526,9 @@ fn handle_app_event(
             );
         }
         AppEvent::Error(message) => {
+            if state.task_reset_pending {
+                return;
+            }
             state.busy = None;
             state.chat_pending = None;
             state.fail_experiment_progress();
@@ -516,12 +540,20 @@ fn handle_app_event(
             state.error_modal(message);
         }
         AppEvent::JobFinished => {
+            let was_reset = state.task_reset_pending;
             state.busy = None;
             state.chat_pending = None;
             state.task_paused = false;
+            state.task_reset_pending = false;
             match AppController::load(runtime.clone()) {
                 Ok(reloaded) => {
                     *controller = reloaded;
+                    if was_reset {
+                        // Старый job мог успеть сохранить состояние до отмены —
+                        // повторно очищаем файл и экран.
+                        let _ = controller.reset_task();
+                        state.reset_task_ui();
+                    }
                     state.refresh(controller);
                 }
                 Err(error) => state.set_banner(format!("Не удалось перечитать слои: {error}")),
@@ -668,9 +700,9 @@ fn footer_lines(state: &AppState) -> Vec<Line<'static>> {
         Screen::ApiLog => "f фильтр · ↑↓ выбор · Tab к телу · ←→ запрос/ответ · e экспорт",
         Screen::Profile => "↑↓ выбор · Enter/u активировать · g/G",
         Screen::Task if state.task_focused => {
-            "Enter запустить задачу · Esc выйти из ввода · задача уйдёт агенту"
+            "Enter отправить сообщение · Esc выйти из ввода · задача уйдёт агенту"
         }
-        Screen::Task => "i/Enter ввести задачу · p пауза/продолжить · ↑↓ прокрутка · q выход",
+        Screen::Task => "i/Enter сообщение · p пауза/продолжить · r сброс · ↑↓ прокрутка · q выход",
     };
     let second = if let Some(busy) = state.busy {
         format!("{busy}: идёт job · q/Ctrl+C — отмена и выход · ? помощь")

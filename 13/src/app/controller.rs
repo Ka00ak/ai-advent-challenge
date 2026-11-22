@@ -53,8 +53,8 @@ use crate::memory::working::{
 use crate::storage::atomic::{SaveError, atomic_write_json};
 use crate::storage::paths::DataPaths;
 use crate::storage::{
-    LoadError, acquire_lock, load_bundle, load_profiles, load_task_state, save_bundle,
-    save_profiles, save_settings, save_stm, save_task_state,
+    LoadError, acquire_lock, clear_task_state, load_bundle, load_profiles, load_task_state,
+    save_bundle, save_profiles, save_settings, save_stm, save_task_state,
 };
 use crate::task::runner::{TaskProgress, TaskRunError, run_task};
 
@@ -809,9 +809,19 @@ impl AppController {
         );
         self.absorb_request_log(&log);
         let state = result?;
+        if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(AppError::Task(TaskRunError::Cancelled));
+        }
         save_task_state(&self.runtime.paths, &state)?;
         self.task = Some(state.clone());
         Ok(state)
+    }
+
+    /// Сбрасывает сохранённую задачу и её чат-историю.
+    pub fn reset_task(&mut self) -> Result<(), AppError> {
+        clear_task_state(&self.runtime.paths)?;
+        self.task = None;
+        Ok(())
     }
 
     pub fn run_personalization(

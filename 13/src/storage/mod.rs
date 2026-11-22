@@ -188,6 +188,16 @@ pub fn save_task_state(paths: &DataPaths, state: &TaskState) -> Result<(), SaveE
     atomic_write_json(&paths.task_session(), state)
 }
 
+/// Удаляет сохранённую задачу. Отсутствующий файл — не ошибка.
+pub fn clear_task_state(paths: &DataPaths) -> Result<(), SaveError> {
+    let path = paths.task_session();
+    match std::fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(SaveError::Io { path, source }),
+    }
+}
+
 /// Загружает все слои. Отсутствующие файлы — пустое состояние; битые — ошибка.
 pub fn load_bundle(paths: &DataPaths) -> Result<MemoryBundle, LoadError> {
     paths.ensure().map_err(|error| LoadError::Io {

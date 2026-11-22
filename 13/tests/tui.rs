@@ -533,6 +533,22 @@ fn task_screen_scrolls_details() {
 }
 
 #[test]
+fn task_reset_requires_confirmation_and_returns_action() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::Task;
+    state.begin_task("Подготовить отчёт");
+    assert!(!state.task.messages.is_empty());
+
+    let action = handle_key(&mut state, key(KeyCode::Char('r')));
+    assert_eq!(action, UiAction::None);
+    assert!(matches!(state.modal, Some(Modal::Confirm { .. })));
+
+    let action = handle_key(&mut state, key(KeyCode::Char('y')));
+    assert_eq!(action, UiAction::ResetTask);
+    assert!(state.modal.is_none());
+}
+
+#[test]
 fn every_screen_renders_without_panic() {
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();

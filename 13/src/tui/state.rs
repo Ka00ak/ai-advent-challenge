@@ -115,6 +115,7 @@ pub enum ConfirmAction {
     ClearLayer(MemoryLayer),
     ArchiveTask,
     DeleteRecord { layer: MemoryLayer, key: String },
+    ResetTask,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -320,6 +321,8 @@ pub struct AppState {
     pub task_focused: bool,
     pub task_paused: bool,
     pub task_scroll: u16,
+    /// После сброса во время выполнения игнорируем события старого job.
+    pub task_reset_pending: bool,
     pub should_quit: bool,
     pub data_dir: PathBuf,
     pub status: String,
@@ -382,6 +385,7 @@ impl AppState {
             task_focused: false,
             task_paused: false,
             task_scroll: 0,
+            task_reset_pending: false,
             should_quit: false,
             data_dir: controller.runtime().paths.root.clone(),
             status: "Готово".into(),
@@ -433,6 +437,16 @@ impl AppState {
 
     pub fn task_active(&self) -> bool {
         self.task.is_active() || self.task_paused
+    }
+
+    /// Очищает экран задачи; вызывается после удаления session.json.
+    pub fn reset_task_ui(&mut self) {
+        self.task = TaskState::idle(chrono::Utc::now());
+        self.task_input.buffer.clear();
+        self.task_input.cursor = 0;
+        self.task_focused = false;
+        self.task_paused = false;
+        self.task_scroll = 0;
     }
 
     /// Добавляет записи API-журнала job-потока. Записи с тем же id

@@ -22,6 +22,7 @@
 | TS-16 | Можно дописывать сообщения после завершения | `TaskState::start_with_history`, `UiAction::Task` | `tests/tui.rs`, `tests/task.rs` | done |
 | TS-17 | Контекст прошлых реплик уходит в промпты | `history_block`, `TaskState.messages` | `src/task/runner.rs` unit | done |
 | TS-18 | История чата задачи сохраняется между запусками | `task/session.json`, `load_task_state`/`save_task_state` | `tests/task.rs` reload | done |
+| TS-19 | Сброс задачи и чата с подтверждением | `UiAction::ResetTask`, `AppController::reset_task`, `clear_task_state` | `tests/tui.rs`, `tests/task.rs` | done |
 
 ## Фактические тесты
 

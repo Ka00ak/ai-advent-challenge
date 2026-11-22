@@ -81,6 +81,24 @@ fn next_message_keeps_chat_context_and_survives_reload() {
 }
 
 #[test]
+fn reset_clears_task_and_persisted_session() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut controller = common::controller_at(dir.path());
+    let cancel = AtomicBool::new(false);
+    let pause = AtomicBool::new(false);
+    controller
+        .run_task_cancellable("Подготовить отчёт", &[], &cancel, &pause, &mut |_| {})
+        .unwrap();
+    let session = controller.runtime().paths.task_session();
+    assert!(session.exists());
+    assert!(controller.task_state().is_some());
+
+    controller.reset_task().unwrap();
+    assert!(controller.task_state().is_none());
+    assert!(!session.exists());
+}
+
+#[test]
 fn pause_stops_before_request_and_resume_finishes_task() {
     let pause = Arc::new(AtomicBool::new(true));
     let cancel = Arc::new(AtomicBool::new(false));

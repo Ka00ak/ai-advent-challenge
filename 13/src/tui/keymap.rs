@@ -72,6 +72,7 @@ pub enum UiAction {
     ImportHistory(PathBuf),
     ExportApi(PathBuf),
     UseProfile(String),
+    ResetTask,
     Error(String),
 }
 
@@ -487,6 +488,7 @@ fn resolve_confirm(action: ConfirmAction) -> UiAction {
         ConfirmAction::ClearLayer(layer) => UiAction::ClearLayer(layer),
         ConfirmAction::ArchiveTask => UiAction::ArchiveTask,
         ConfirmAction::DeleteRecord { layer, key } => UiAction::DeleteRecord { layer, key },
+        ConfirmAction::ResetTask => UiAction::ResetTask,
     }
 }
 
@@ -694,6 +696,15 @@ fn handle_task(state: &mut AppState, key: KeyEvent) -> UiAction {
             UiAction::None
         }
         KeyCode::Char('p') | KeyCode::Char(' ') => UiAction::ToggleTaskPause,
+        KeyCode::Char('r') => {
+            state.confirm(
+                "Сбросить задачу?",
+                "Чат задачи, этапы и сохранённая сессия будут очищены. \
+                 Активное выполнение будет отменено.",
+                ConfirmAction::ResetTask,
+            );
+            UiAction::None
+        }
         KeyCode::Up => {
             state.task_scroll = state.task_scroll.saturating_add(1);
             UiAction::None
