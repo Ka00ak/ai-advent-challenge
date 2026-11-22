@@ -376,3 +376,7 @@ docs/           спецификация, трассируемость, отчё
 
 Подробности: [`docs/00-brief.md`](docs/00-brief.md) … [`docs/11-traceability.md`](docs/11-traceability.md),
 дизайн Дня 12 — [`docs/12-personalization.md`](docs/12-personalization.md).
+
+## Result
+
+https://github.com/user-attachments/assets/64c70d40-2e1e-482e-a695-f253c76a60c3
