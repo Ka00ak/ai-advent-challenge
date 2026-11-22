@@ -423,4 +423,4 @@ docs/           спецификация, трассируемость, отчё
 
 https://github.com/user-attachments/assets/201249ce-3741-4be5-9cb1-b32182672930
 
-https://github.com/user-attachments/assets/8041f5d4-dcfc-4926-9012-7e8fe92ed8d1
+https://github.com/user-attachments/assets/1d3fa2e8-3ade-47f4-ac2b-66b7bbb435f5
