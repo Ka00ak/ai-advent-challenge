@@ -421,6 +421,6 @@ docs/           спецификация, трассируемость, отчё
 
 ## Result
 
-https://github.com/user-attachments/assets/933457c8-354d-480c-aa51-8e15fe3f503f
+https://github.com/user-attachments/assets/2c09db7f-8780-4e97-a688-2a46a87343fb
 
 https://github.com/user-attachments/assets/1d3fa2e8-3ade-47f4-ac2b-66b7bbb435f5
