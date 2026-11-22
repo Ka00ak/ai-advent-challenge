@@ -6,8 +6,11 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app::state::Screen;
 use crate::domain::memory::MemoryLayer;
+use crate::experiment::personalization::{PersonalizationOptions, SAME_QUESTION};
 use crate::experiment::runner::{ExperimentMode, ExperimentOptions};
-use crate::tui::state::{AppState, ConfirmAction, FormStep, InputPurpose, LayerTarget, Modal};
+use crate::tui::state::{
+    ApiFocus, AppState, ConfirmAction, FormStep, InputPurpose, LayerTarget, Modal, VerifyMode,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiAction {
@@ -53,7 +56,12 @@ pub enum UiAction {
     },
     ImportFacts(PathBuf),
     Experiment(ExperimentOptions),
+    Personalization(PersonalizationOptions),
     SaveReport {
+        md: PathBuf,
+        json: PathBuf,
+    },
+    SavePersonalizationReport {
         md: PathBuf,
         json: PathBuf,
     },
@@ -91,6 +99,12 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
         }
         KeyCode::Char('q') => UiAction::Quit,
         KeyCode::Esc => {
+            if state.screen == Screen::ApiLog
+                && state.api_focus == crate::tui::state::ApiFocus::Body
+            {
+                state.api_focus = crate::tui::state::ApiFocus::List;
+                return UiAction::None;
+            }
             state.clear_banner();
             state.ltm_search = None;
             UiAction::None
@@ -112,8 +126,7 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
                 state.settings_selection =
                     (state.settings_selection + 1) % state.settings_rows().len();
             } else if state.screen == Screen::ApiLog {
-                state.api_body_tab = state.api_body_tab.toggle();
-                state.api_json_scroll = 0;
+                state.api_focus = state.api_focus.toggle();
             }
             UiAction::None
         }
@@ -124,8 +137,7 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
                 let len = state.settings_rows().len();
                 state.settings_selection = (state.settings_selection + len - 1) % len;
             } else if state.screen == Screen::ApiLog {
-                state.api_body_tab = state.api_body_tab.toggle();
-                state.api_json_scroll = 0;
+                state.api_focus = state.api_focus.toggle();
             }
             UiAction::None
         }
@@ -142,12 +154,18 @@ pub fn handle_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             if state.screen == Screen::Chat {
                 return handle_chat(state, key);
             }
+            if state.screen == Screen::ApiLog {
+                return handle_api(state, key);
+            }
             move_selection(state, -1);
             UiAction::None
         }
         KeyCode::Down => {
             if state.screen == Screen::Chat {
                 return handle_chat(state, key);
+            }
+            if state.screen == Screen::ApiLog {
+                return handle_api(state, key);
             }
             move_selection(state, 1);
             UiAction::None
@@ -329,6 +347,20 @@ fn submit_input(state: &mut AppState, purpose: InputPurpose, text: &str) -> UiAc
             let md = PathBuf::from(text.trim());
             let json = md.with_extension("json");
             UiAction::SaveReport { md, json }
+        }
+        InputPurpose::SavePersonalizationReport => {
+            let md = PathBuf::from(text.trim());
+            let json = md.with_extension("json");
+            UiAction::SavePersonalizationReport { md, json }
+        }
+        InputPurpose::PersonalizationQuestion => {
+            let question = text.trim();
+            state.personalization_question = if question.is_empty() {
+                SAME_QUESTION.to_string()
+            } else {
+                question.to_string()
+            };
+            UiAction::None
         }
         InputPurpose::ExportApi => UiAction::ExportApi(PathBuf::from(text.trim())),
         InputPurpose::Setting(index) => match state.apply_setting(index, text) {
@@ -781,6 +813,13 @@ fn handle_pending(state: &mut AppState, key: KeyEvent) -> UiAction {
 }
 
 fn handle_experiment(state: &mut AppState, key: KeyEvent) -> UiAction {
+    if key.code == KeyCode::Char('p') {
+        state.verify_mode = state.verify_mode.toggle();
+        return UiAction::None;
+    }
+    if state.verify_mode == VerifyMode::Profiles {
+        return handle_personalization(state, key);
+    }
     match key.code {
         KeyCode::Char(' ') => {
             state.experiment_cleanup = !state.experiment_cleanup;
@@ -857,6 +896,108 @@ fn handle_experiment(state: &mut AppState, key: KeyEvent) -> UiAction {
     }
 }
 
+fn handle_personalization(state: &mut AppState, key: KeyEvent) -> UiAction {
+    match key.code {
+        KeyCode::Char(' ') => {
+            state.personalization_chain = !state.personalization_chain;
+            UiAction::None
+        }
+        KeyCode::Char('r') => {
+            if state.busy.is_some() {
+                UiAction::Error("проверка профилей уже идёт".into())
+            } else {
+                UiAction::Personalization(PersonalizationOptions {
+                    question: Some(state.personalization_question()),
+                    profile_ids: Vec::new(),
+                    include_chain: state.personalization_chain,
+                })
+            }
+        }
+        KeyCode::Char('e') => {
+            state.open_input(
+                InputPurpose::PersonalizationQuestion,
+                "Первый вопрос цепочки (10 вопросов на профиль)",
+                state.personalization_question.clone(),
+            );
+            UiAction::None
+        }
+        KeyCode::Char('s') => {
+            if state.personalization.is_none() {
+                UiAction::Error("сначала запустите проверку профилей".into())
+            } else {
+                let (md, _json) = state.personalization_report_paths();
+                state.open_input(
+                    InputPurpose::SavePersonalizationReport,
+                    "Путь Markdown-отчёта персонализации",
+                    md.display().to_string(),
+                );
+                UiAction::None
+            }
+        }
+        KeyCode::Char('d') => {
+            if let Some(report) = &state.personalization {
+                let mut lines = Vec::new();
+                lines.push(format!(
+                    "Соблюдено ответов: {} из {}; профилей полностью: {} из {}",
+                    report.compliant_answers,
+                    report.total_answers,
+                    report.compliant_profiles,
+                    report.total_profiles
+                ));
+                lines.push(format!(
+                    "Цепочка: {} вопросов; первый: {}",
+                    report.questions.len(),
+                    report.first_question()
+                ));
+                for profile in &report.profiles {
+                    lines.push(String::new());
+                    lines.push(format!(
+                        "{} (`{}`) — {}/{}; первое нарушение: {}",
+                        profile.profile_title,
+                        profile.profile_id,
+                        profile.compliant_count,
+                        profile.total,
+                        profile
+                            .first_violation
+                            .map(|index| format!("ответ #{index}"))
+                            .unwrap_or_else(|| "нет".into())
+                    ));
+                    for step in &profile.steps {
+                        lines.push(format!(
+                            "  #{} [{}] {}",
+                            step.index,
+                            if step.compliant { "ok" } else { "FAIL" },
+                            step.question
+                        ));
+                        for check in step.checks.iter().filter(|check| !check.ok) {
+                            lines.push(format!(
+                                "      {}: ожидалось {}, наблюдалось {}",
+                                check.name, check.expected, check.observed
+                            ));
+                        }
+                    }
+                }
+                state.modal = Some(Modal::Details {
+                    title: "Детали проверки профилей".into(),
+                    lines,
+                });
+            } else {
+                state.set_banner("Сначала запустите проверку профилей");
+            }
+            UiAction::None
+        }
+        KeyCode::Char('i') => {
+            state.open_input(
+                InputPurpose::ImportFacts,
+                "Путь к facts Дня 10",
+                "fixtures/day10-facts.json",
+            );
+            UiAction::None
+        }
+        _ => UiAction::None,
+    }
+}
+
 fn handle_settings(state: &mut AppState, key: KeyEvent) -> UiAction {
     match key.code {
         KeyCode::Enter => {
@@ -874,16 +1015,7 @@ fn handle_api(state: &mut AppState, key: KeyEvent) -> UiAction {
             state.api_filter = state.api_filter.next();
             state.api_selection = 0;
             state.api_json_scroll = 0;
-            UiAction::None
-        }
-        KeyCode::Char('g') => {
-            state.api_selection = 0;
-            state.api_json_scroll = 0;
-            UiAction::None
-        }
-        KeyCode::Char('G') => {
-            state.api_selection = state.filtered_exchanges().len().saturating_sub(1);
-            state.api_json_scroll = 0;
+            state.api_focus = ApiFocus::List;
             UiAction::None
         }
         KeyCode::Char('e') => {
@@ -894,25 +1026,61 @@ fn handle_api(state: &mut AppState, key: KeyEvent) -> UiAction {
             );
             UiAction::None
         }
-        KeyCode::Tab | KeyCode::Right | KeyCode::BackTab | KeyCode::Left | KeyCode::Enter => {
-            state.api_body_tab = state.api_body_tab.toggle();
-            state.api_json_scroll = 0;
+        KeyCode::Up => {
+            match state.api_focus {
+                ApiFocus::List => move_selection(state, -1),
+                ApiFocus::Body => state.api_json_scroll = state.api_json_scroll.saturating_sub(1),
+            }
+            UiAction::None
+        }
+        KeyCode::Down => {
+            match state.api_focus {
+                ApiFocus::List => move_selection(state, 1),
+                ApiFocus::Body => state.api_json_scroll = state.api_json_scroll.saturating_add(1),
+            }
             UiAction::None
         }
         KeyCode::PageUp => {
-            state.api_json_scroll = state.api_json_scroll.saturating_sub(15);
+            match state.api_focus {
+                ApiFocus::List => move_selection(state, -10),
+                ApiFocus::Body => state.api_json_scroll = state.api_json_scroll.saturating_sub(15),
+            }
             UiAction::None
         }
         KeyCode::PageDown => {
-            state.api_json_scroll = state.api_json_scroll.saturating_add(15);
+            match state.api_focus {
+                ApiFocus::List => move_selection(state, 10),
+                ApiFocus::Body => state.api_json_scroll = state.api_json_scroll.saturating_add(15),
+            }
             UiAction::None
         }
-        KeyCode::Home => {
+        KeyCode::Char('g') | KeyCode::Home => {
+            match state.api_focus {
+                ApiFocus::List => {
+                    state.api_selection = 0;
+                    state.api_json_scroll = 0;
+                }
+                ApiFocus::Body => state.api_json_scroll = 0,
+            }
+            UiAction::None
+        }
+        KeyCode::Char('G') | KeyCode::End => {
+            match state.api_focus {
+                ApiFocus::List => {
+                    state.api_selection = state.filtered_exchanges().len().saturating_sub(1);
+                    state.api_json_scroll = 0;
+                }
+                ApiFocus::Body => state.api_json_scroll = u16::MAX,
+            }
+            UiAction::None
+        }
+        KeyCode::Tab | KeyCode::BackTab | KeyCode::Enter => {
+            state.api_focus = state.api_focus.toggle();
+            UiAction::None
+        }
+        KeyCode::Right | KeyCode::Left => {
+            state.api_body_tab = state.api_body_tab.toggle();
             state.api_json_scroll = 0;
-            UiAction::None
-        }
-        KeyCode::End => {
-            state.api_json_scroll = u16::MAX;
             UiAction::None
         }
         _ => UiAction::None,

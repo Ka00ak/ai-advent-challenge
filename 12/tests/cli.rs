@@ -212,11 +212,12 @@ fn personalize_fake_check_saves_markdown_and_json() {
         .arg(&json)
         .assert()
         .success()
-        .stdout(predicate::str::contains("Соблюдено профилей: 2 из 2"))
+        .stdout(predicate::str::contains("Соблюдено ответов: 30 из 30"))
+        .stdout(predicate::str::contains("профилей полностью: 3 из 3"))
         .stdout(predicate::str::contains("персонализация подтверждена"));
     assert!(md.exists());
     assert!(json.exists());
     let markdown = std::fs::read_to_string(md).unwrap();
-    assert!(markdown.contains("## Устойчивость"));
+    assert!(markdown.contains("## Цепочки вопросов"));
     assert!(markdown.contains("Первое нарушение"));
 }

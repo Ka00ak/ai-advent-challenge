@@ -10,6 +10,9 @@ use crate::domain::memory::{
 };
 use crate::domain::profile::ProfileState;
 use crate::domain::settings::{Approval, ExtractionMode, Settings};
+use crate::experiment::personalization::{
+    PersonalizationProgress, PersonalizationReport, SAME_QUESTION,
+};
 use crate::experiment::runner::{ExperimentProgress, ExperimentReport};
 use crate::memory::migration::MigrationReport;
 
@@ -26,6 +29,8 @@ pub enum InputPurpose {
     ExportHistory,
     ImportHistory,
     SaveReport,
+    SavePersonalizationReport,
+    PersonalizationQuestion,
     ExportApi,
     Setting(usize),
 }
@@ -162,6 +167,45 @@ impl ApiBodyTab {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApiFocus {
+    List,
+    Body,
+}
+
+impl ApiFocus {
+    pub fn toggle(self) -> Self {
+        match self {
+            ApiFocus::List => ApiFocus::Body,
+            ApiFocus::Body => ApiFocus::List,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VerifyMode {
+    /// Ablation памяти Дня 11 (7 конфигураций + очистка).
+    Ablation,
+    /// Проверка персонализации: 3 профиля и цепочка из 10 вопросов.
+    Profiles,
+}
+
+impl VerifyMode {
+    pub fn toggle(self) -> Self {
+        match self {
+            VerifyMode::Ablation => VerifyMode::Profiles,
+            VerifyMode::Profiles => VerifyMode::Ablation,
+        }
+    }
+
+    pub fn title(self) -> &'static str {
+        match self {
+            VerifyMode::Ablation => "Ablation памяти",
+            VerifyMode::Profiles => "Профили",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FormStep {
     Key,
     Value,
@@ -238,6 +282,15 @@ pub struct AppState {
     experiment_exchange_id: Option<String>,
     pub experiment_quick: bool,
     pub experiment_cleanup: bool,
+    /// Режим вкладки «Проверка»: ablation памяти или полярные профили.
+    pub verify_mode: VerifyMode,
+    /// Отчёт проверки профилей: цепочки по 10 вопросов для каждого профиля.
+    pub personalization: Option<PersonalizationReport>,
+    pub personalization_progress: Option<PersonalizationProgress>,
+    /// Первый вопрос цепочки; по умолчанию — SAME_QUESTION.
+    pub personalization_question: String,
+    /// Запускать цепочку из 10 вопросов для каждого профиля (30 запросов).
+    pub personalization_chain: bool,
     pub migration: Option<MigrationReport>,
     pub audit: Vec<MemoryWriteEvent>,
     pub busy: Option<&'static str>,
@@ -248,6 +301,7 @@ pub struct AppState {
     pub ltm_search: Option<String>,
     pub api_filter: ApiFilter,
     pub api_body_tab: ApiBodyTab,
+    pub api_focus: ApiFocus,
     pub api_json_scroll: u16,
     pub help_scroll: u16,
     /// Черновик сообщения на вкладке «1 Чат».
@@ -290,6 +344,11 @@ impl AppState {
             experiment_exchange_id: None,
             experiment_quick: false,
             experiment_cleanup: false,
+            verify_mode: VerifyMode::Ablation,
+            personalization: None,
+            personalization_progress: None,
+            personalization_question: SAME_QUESTION.to_string(),
+            personalization_chain: true,
             migration: None,
             audit: controller.audit.events.clone(),
             busy: None,
@@ -300,6 +359,7 @@ impl AppState {
             ltm_search: None,
             api_filter: ApiFilter::All,
             api_body_tab: ApiBodyTab::Request,
+            api_focus: ApiFocus::List,
             api_json_scroll: 0,
             help_scroll: 0,
             chat_input: InputState::new(InputPurpose::Chat, "Сообщение", ""),
@@ -931,5 +991,22 @@ impl AppState {
         let md = PathBuf::from(format!("docs/results/experiment-{date}.md"));
         let json = PathBuf::from(format!("docs/results/experiment-{date}.json"));
         (md, json)
+    }
+
+    pub fn personalization_report_paths(&self) -> (PathBuf, PathBuf) {
+        let date = chrono::Utc::now().format("%Y-%m-%d");
+        let md = PathBuf::from(format!("docs/results/personalization-{date}.md"));
+        let json = PathBuf::from(format!("docs/results/personalization-{date}.json"));
+        (md, json)
+    }
+
+    /// Вопрос для сравнения профилей: пустой ввод возвращает дефолтный.
+    pub fn personalization_question(&self) -> String {
+        let question = self.personalization_question.trim();
+        if question.is_empty() {
+            SAME_QUESTION.to_string()
+        } else {
+            question.to_string()
+        }
     }
 }

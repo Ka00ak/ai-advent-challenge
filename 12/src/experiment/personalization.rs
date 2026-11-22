@@ -1,5 +1,5 @@
-//! Проверка персонализации: один вопрос под полярными профилями и
-//! устойчивость предпочтений на 10 ответах подряд.
+//! Проверка персонализации: одна и та же цепочка из 10 вопросов задаётся
+//! каждому из 3 профилей с сохранением контекста (STM) внутри цепочки.
 //!
 //! Оценка детерминированная и не требует второй модели: проверяются
 //! наблюдаемые признаки (объём, код, тон, списки, таблицы, эмодзи).
@@ -21,7 +21,7 @@ use crate::storage::atomic::{SaveError, atomic_write_bytes, atomic_write_json};
 
 pub const SAME_QUESTION: &str = "Как в Rust безопасно прочитать JSON-файл и обработать ошибку?";
 
-pub const STABILITY_QUESTIONS: [&str; 10] = [
+pub const CHAIN_QUESTIONS: [&str; 10] = [
     "Как в Rust безопасно прочитать JSON-файл и обработать ошибку?",
     "Чем Result отличается от panic! в Rust?",
     "Как обработать ошибку serde_json при разборе JSON?",
@@ -43,19 +43,7 @@ pub struct PreferenceCheck {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProfileAnswer {
-    pub profile_id: String,
-    pub profile_title: String,
-    pub preferences: String,
-    pub answer: String,
-    pub prompt_tokens: usize,
-    pub completion_tokens: usize,
-    pub compliant: bool,
-    pub checks: Vec<PreferenceCheck>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StabilityStep {
+pub struct ProfileStep {
     pub index: usize,
     pub question: String,
     pub answer: String,
@@ -65,15 +53,24 @@ pub struct StabilityStep {
     pub checks: Vec<PreferenceCheck>,
 }
 
+/// Цепочка вопросов, заданная одному профилю. STM сохраняется между
+/// вопросами, поэтому каждый следующий ответ видит предыдущий контекст.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StabilityReport {
+pub struct ProfileRun {
     pub profile_id: String,
     pub profile_title: String,
-    pub steps: Vec<StabilityStep>,
+    pub preferences: String,
+    pub steps: Vec<ProfileStep>,
     /// Номер первого ответа (1-based), где предпочтение нарушено.
     pub first_violation: Option<usize>,
     pub compliant_count: usize,
     pub total: usize,
+}
+
+impl ProfileRun {
+    pub fn fully_compliant(&self) -> bool {
+        self.total > 0 && self.compliant_count == self.total
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,11 +90,14 @@ pub struct PersonalizationReport {
     pub source: String,
     #[serde(default)]
     pub data_dir: Option<String>,
-    pub question: String,
-    pub profiles: Vec<ProfileAnswer>,
+    /// Одна и та же цепочка вопросов для всех профилей.
+    pub questions: Vec<String>,
+    pub profiles: Vec<ProfileRun>,
     pub compliant_profiles: usize,
     pub total_profiles: usize,
-    pub stability: Option<StabilityReport>,
+    /// Сколько ответов во всех цепочках соблюли предпочтения.
+    pub compliant_answers: usize,
+    pub total_answers: usize,
     pub thresholds: Vec<PersonalizationThreshold>,
     pub total_requests: usize,
     pub errors: Vec<String>,
@@ -112,11 +112,7 @@ impl PersonalizationReport {
         let mut prompt = 0;
         let mut completion = 0;
         for profile in &self.profiles {
-            prompt += profile.prompt_tokens;
-            completion += profile.completion_tokens;
-        }
-        if let Some(stability) = &self.stability {
-            for step in &stability.steps {
+            for step in &profile.steps {
                 prompt += step.prompt_tokens;
                 completion += step.completion_tokens;
             }
@@ -126,15 +122,24 @@ impl PersonalizationReport {
             + (completion as f64 / 1_000_000.0) * output_cost;
         (prompt, completion, cost)
     }
+
+    pub fn first_question(&self) -> String {
+        self.questions
+            .first()
+            .cloned()
+            .unwrap_or_else(|| SAME_QUESTION.to_string())
+    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PersonalizationOptions {
+    /// Переопределяет первый вопрос цепочки; остальные 9 остаются прежними.
     pub question: Option<String>,
-    /// Пустой список — взять полярные профили `brief` и `detailed`.
+    /// Пустой список — взять 3 встроенных профиля: brief, detailed, default.
     pub profile_ids: Vec<String>,
-    pub stability_profile: Option<String>,
-    pub include_stability: bool,
+    /// true — цепочка из 10 вопросов на каждый профиль (30 запросов),
+    /// false — по одному вопросу на профиль (короткий режим).
+    pub include_chain: bool,
 }
 
 impl Default for PersonalizationOptions {
@@ -142,8 +147,7 @@ impl Default for PersonalizationOptions {
         Self {
             question: None,
             profile_ids: Vec::new(),
-            stability_profile: None,
-            include_stability: true,
+            include_chain: true,
         }
     }
 }
@@ -183,90 +187,59 @@ pub fn run_personalization(
     if profiles.len() < 2 {
         return Err(PersonalizationError::NotEnoughProfiles);
     }
-    let question = options
-        .question
-        .clone()
-        .unwrap_or_else(|| SAME_QUESTION.to_string());
-    let stability_profile =
-        select_stability_profile(state, options.stability_profile.as_deref(), &profiles, now);
-    let steps_total = if options.include_stability {
-        STABILITY_QUESTIONS.len()
+    let questions = if options.include_chain {
+        chain_questions(options.question.as_deref())
     } else {
-        0
+        let first = options
+            .question
+            .as_deref()
+            .map(str::trim)
+            .filter(|question| !question.is_empty())
+            .unwrap_or(SAME_QUESTION)
+            .to_string();
+        vec![first]
     };
-    let total = profiles.len() + steps_total;
+    let total = profiles.len() * questions.len();
     let mut done = 0;
     let mut errors = Vec::new();
-    let mut answers = Vec::new();
+    let mut runs = Vec::new();
 
     for profile in &profiles {
-        if cancel.load(Ordering::Relaxed) {
-            return Err(PersonalizationError::Cancelled);
-        }
-        let mut bundle = MemoryBundle::empty(now);
-        let result = ask(client, settings, profile, &mut bundle, &question)?;
-        let checks = evaluate_profile(profile, &result.answer);
-        let compliant = checks.iter().all(|check| check.ok);
-        if let Some(error) = &result.error {
-            errors.push(format!("{} / сравнение: {error}", profile.id));
-        }
-        done += 1;
-        progress(PersonalizationProgress {
-            phase: "compare".into(),
-            profile: profile.id.clone(),
-            step: done,
-            steps_total: profiles.len(),
-            done,
-            total,
-            last_ok: Some(compliant),
-        });
-        answers.push(ProfileAnswer {
-            profile_id: profile.id.clone(),
-            profile_title: profile.title.clone(),
-            preferences: profile.summary(),
-            answer: result.answer,
-            prompt_tokens: result.prompt_tokens,
-            completion_tokens: result.completion_tokens,
-            compliant,
-            checks,
-        });
-    }
-
-    let stability = if options.include_stability {
-        let profile = stability_profile.ok_or(PersonalizationError::NotEnoughProfiles)?;
+        // Свой контекст на каждый профиль: STM копится внутри цепочки,
+        // поэтому 10 вопросов идут как один диалог в чате.
         let mut bundle = MemoryBundle::empty(now);
         let mut steps = Vec::new();
         let mut first_violation = None;
-        for (index, question) in STABILITY_QUESTIONS.iter().enumerate() {
+        for (index, question) in questions.iter().enumerate() {
             if cancel.load(Ordering::Relaxed) {
                 return Err(PersonalizationError::Cancelled);
             }
-            let result = ask(client, settings, &profile, &mut bundle, question)?;
-            let checks = evaluate_profile(&profile, &result.answer);
+            let result = ask(client, settings, profile, &mut bundle, question)?;
+            let checks = evaluate_profile(profile, &result.answer);
             let compliant = checks.iter().all(|check| check.ok);
             if !compliant && first_violation.is_none() {
                 first_violation = Some(index + 1);
             }
             if let Some(error) = &result.error {
-                errors.push(format!(
-                    "{} / устойчивость #{}: {error}",
-                    profile.id,
-                    index + 1
-                ));
+                errors.push(format!("{} / вопрос #{}: {error}", profile.id, index + 1));
             }
             done += 1;
             progress(PersonalizationProgress {
-                phase: "stability".into(),
+                phase: if options.include_chain {
+                    "chain".into()
+                } else {
+                    "single".into()
+                },
                 profile: profile.id.clone(),
                 step: index + 1,
-                steps_total: STABILITY_QUESTIONS.len(),
+                steps_total: questions.len(),
                 done,
                 total,
                 last_ok: Some(compliant),
             });
-            steps.push(StabilityStep {
+            steps.push(ProfileStep {
                 index: index + 1,
-                question: (*question).to_string(),
+                question: question.clone(),
                 answer: result.answer,
                 prompt_tokens: result.prompt_tokens,
                 completion_tokens: result.completion_tokens,
@@ -275,19 +248,20 @@ pub fn run_personalization(
             });
         }
         let compliant_count = steps.iter().filter(|step| step.compliant).count();
-        Some(StabilityReport {
+        runs.push(ProfileRun {
             profile_id: profile.id.clone(),
             profile_title: profile.title.clone(),
+            preferences: profile.summary(),
             steps,
             first_violation,
             compliant_count,
-            total: STABILITY_QUESTIONS.len(),
-        })
-    } else {
-        None
-    };
+            total: questions.len(),
+        });
+    }
 
-    let compliant_profiles = answers.iter().filter(|answer| answer.compliant).count();
+    let compliant_profiles = runs.iter().filter(|run| run.fully_compliant()).count();
+    let compliant_answers: usize = runs.iter().map(|run| run.compliant_count).sum();
+    let total_answers: usize = runs.iter().map(|run| run.total).sum();
     let mut report = PersonalizationReport {
         started_at,
         finished_at: Utc::now(),
@@ -295,17 +269,32 @@ pub fn run_personalization(
         base_url: settings.base_url.clone(),
         source: "api".into(),
         data_dir: None,
-        question,
-        profiles: answers,
+        questions,
+        profiles: runs,
         compliant_profiles,
         total_profiles: profiles.len(),
-        stability,
+        compliant_answers,
+        total_answers,
         thresholds: Vec::new(),
         total_requests: done,
         errors,
     };
     report.thresholds = check_thresholds(&report);
     Ok(report)
+}
+
+fn chain_questions(override_first: Option<&str>) -> Vec<String> {
+    let mut questions: Vec<String> = CHAIN_QUESTIONS
+        .iter()
+        .map(|question| (*question).into())
+        .collect();
+    if let Some(first) = override_first
+        .map(str::trim)
+        .filter(|question| !question.is_empty())
+    {
+        questions[0] = first.to_string();
+    }
+    questions
 }
 
 struct AskResult {
@@ -393,17 +382,13 @@ fn select_profiles(state: &ProfileState, ids: &[String], now: DateTime<Utc>) -> 
             .collect();
     }
     let mut selected = Vec::new();
-    for id in ["brief", "detailed"] {
+    for id in ["brief", "detailed", "default"] {
         if let Some(profile) = state.find(id) {
             selected.push(profile.clone());
         }
     }
-    if selected.len() < 2 {
-        for profile in state
-            .profiles
-            .iter()
-            .filter(|profile| profile.id != "default")
-        {
+    if selected.len() < 3 {
+        for profile in &state.profiles {
             if selected.len() >= 3 {
                 break;
             }
@@ -413,7 +398,7 @@ fn select_profiles(state: &ProfileState, ids: &[String], now: DateTime<Utc>) -> 
         }
     }
     if selected.len() < 2 {
-        for id in ["brief", "detailed"] {
+        for id in ["brief", "detailed", "default"] {
             if !selected.iter().any(|item| item.id == id) {
                 if let Some(profile) = UserProfile::preset(id, now) {
                     selected.push(profile);
@@ -423,27 +408,6 @@ fn select_profiles(state: &ProfileState, ids: &[String], now: DateTime<Utc>) -> 
     }
     selected.truncate(3);
     selected
-}
-
-fn select_stability_profile(
-    state: &ProfileState,
-    requested: Option<&str>,
-    selected: &[UserProfile],
-    now: DateTime<Utc>,
-) -> Option<UserProfile> {
-    if let Some(profile) = requested.and_then(|id| state.find(id)) {
-        return Some(profile.clone());
-    }
-    if let Some(profile) = state.find("detailed") {
-        return Some(profile.clone());
-    }
-    if let Some(profile) = state.find("brief") {
-        return Some(profile.clone());
-    }
-    selected
-        .first()
-        .cloned()
-        .or_else(|| UserProfile::preset("detailed", now))
 }
 
 /// Детерминированная оценка: проверяются только наблюдаемые признаки.
@@ -703,29 +667,39 @@ fn check_thresholds(report: &PersonalizationReport) -> Vec<PersonalizationThresh
         ok: report.total_profiles >= 2,
         detail: format!("{}", report.total_profiles),
     });
+    let chain_ok = !report.profiles.is_empty()
+        && report
+            .profiles
+            .iter()
+            .all(|profile| profile.compliant_count * 10 >= profile.total * 8);
+    let chain_detail = report
+        .profiles
+        .iter()
+        .map(|profile| {
+            format!(
+                "{} {}/{}",
+                profile.profile_id, profile.compliant_count, profile.total
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
     thresholds.push(PersonalizationThreshold {
-        name: "предпочтения соблюдены".into(),
-        ok: report.compliant_profiles == report.total_profiles,
+        name: "устойчивость ≥ 8/10 в каждом профиле".into(),
+        ok: chain_ok,
+        detail: chain_detail,
+    });
+    thresholds.push(PersonalizationThreshold {
+        name: "полная цепочка (≥ 3 × 10)".into(),
+        ok: report.questions.len() == CHAIN_QUESTIONS.len()
+            && report.total_profiles >= 3
+            && report.total_requests == report.total_profiles * report.questions.len(),
         detail: format!(
-            "{}/{} профилей",
-            report.compliant_profiles, report.total_profiles
+            "{} запросов · {} профиля × {} вопросов",
+            report.total_requests,
+            report.total_profiles,
+            report.questions.len()
         ),
     });
-    if let Some(stability) = &report.stability {
-        thresholds.push(PersonalizationThreshold {
-            name: "устойчивость ≥ 8/10".into(),
-            ok: stability.compliant_count >= 8,
-            detail: format!(
-                "{}/{}; первое нарушение: {}",
-                stability.compliant_count,
-                stability.total,
-                stability
-                    .first_violation
-                    .map(|index| format!("#{index}"))
-                    .unwrap_or_else(|| "нет".into())
-            ),
-        });
-    }
     thresholds.push(PersonalizationThreshold {
         name: "без ошибок API".into(),
         ok: report.errors.is_empty(),
@@ -763,7 +737,16 @@ pub fn render_markdown(report: &PersonalizationReport) -> String {
         "| Data-dir | {} |\n",
         report.data_dir.as_deref().unwrap_or("—")
     ));
-    out.push_str(&format!("| Вопрос | {} |\n", escape(&report.question)));
+    out.push_str(&format!(
+        "| Вопросов в цепочке | {} |\n",
+        report.questions.len()
+    ));
+    out.push_str(&format!("| Профилей | {} |\n", report.total_profiles));
+    out.push_str(&format!("| Запросов | {} |\n", report.total_requests));
+    out.push_str(&format!(
+        "| Первый вопрос | {} |\n",
+        escape(&report.first_question())
+    ));
     out.push_str(&format!(
         "| Токены API | prompt {} · completion {} · всего {} |\n",
         format_tokens(prompt_tokens),
@@ -772,55 +755,42 @@ pub fn render_markdown(report: &PersonalizationReport) -> String {
     ));
     out.push_str(&format!("| Стоимость (оценка) | ${cost:.6} |\n\n"));
 
-    out.push_str("## Профили\n\n| Профиль | Предпочтения | Соблюдено |\n|---|---|---|\n");
+    out.push_str(
+        "## Профили\n\n| Профиль | Предпочтения | Соблюдено | Первое нарушение |\n|---|---|---|---|\n",
+    );
     for profile in &report.profiles {
         out.push_str(&format!(
-            "| {} (`{}`) | {} | {} |\n",
+            "| {} (`{}`) | {} | {}/{} | {} |\n",
             escape(&profile.profile_title),
             profile.profile_id,
             escape(&profile.preferences),
-            if profile.compliant { "да" } else { "нет" }
+            profile.compliant_count,
+            profile.total,
+            profile
+                .first_violation
+                .map(|index| format!("ответ #{index}"))
+                .unwrap_or_else(|| "нет".into())
         ));
     }
     out.push_str(&format!(
-        "\n**Соблюдено профилей: {} из {}.**\n\n",
-        report.compliant_profiles, report.total_profiles
+        "\n**Соблюдено ответов: {} из {}; профилей полностью: {} из {}.**\n\n",
+        report.compliant_answers,
+        report.total_answers,
+        report.compliant_profiles,
+        report.total_profiles
     ));
 
-    out.push_str("## Один вопрос — разные профили\n\n");
+    out.push_str("## Цепочки вопросов\n\n");
+    out.push_str(
+        "Одна и та же цепочка задаётся каждому профилю; STM сохраняется между вопросами внутри цепочки.\n\n",
+    );
     for profile in &report.profiles {
         out.push_str(&format!(
             "### {} (`{}`)\n\nПредпочтения: {}\n\n",
             profile.profile_title, profile.profile_id, profile.preferences
         ));
-        out.push_str(&format!(
-            "Ответ:\n\n> {}\n\n",
-            escape_multiline(&profile.answer)
-        ));
-        out.push_str("| Проверка | Ожидание | Наблюдение | Итог |\n|---|---|---|---|\n");
-        for check in &profile.checks {
-            out.push_str(&format!(
-                "| {} | {} | {} | {} |\n",
-                check.name,
-                escape(&check.expected),
-                escape(&check.observed),
-                if check.ok { "ok" } else { "FAIL" }
-            ));
-        }
-        out.push('\n');
-    }
-
-    if let Some(stability) = &report.stability {
-        out.push_str("## Устойчивость: 10 вопросов подряд\n\n");
-        out.push_str(&format!(
-            "Профиль: {} (`{}`). Соблюдено {}/{}.\n\n",
-            stability.profile_title,
-            stability.profile_id,
-            stability.compliant_count,
-            stability.total
-        ));
         out.push_str("| # | Вопрос | Слов | Соблюдено | Нарушения |\n|---:|---|---:|---|---|\n");
-        for step in &stability.steps {
+        for step in &profile.steps {
             let failed: Vec<String> = step
                 .checks
                 .iter()
@@ -841,8 +811,10 @@ pub fn render_markdown(report: &PersonalizationReport) -> String {
             ));
         }
         out.push_str(&format!(
-            "\nПервое нарушение: **{}**.\n\n",
-            stability
+            "\nСоблюдено {}/{}; первое нарушение: **{}**.\n\n",
+            profile.compliant_count,
+            profile.total,
+            profile
                 .first_violation
                 .map(|index| format!("ответ #{index}"))
                 .unwrap_or_else(|| "не зафиксировано".into())
@@ -862,29 +834,46 @@ pub fn render_markdown(report: &PersonalizationReport) -> String {
         "\nИтог: **{}**.\n\n",
         if report.passed() {
             "персонализация подтверждена"
-        } else {
+        } else if report.compliant_answers < report.total_answers {
             "есть нарушения предпочтений"
+        } else {
+            "предпочтения соблюдены, но порог полной цепочки не пройден"
         }
     ));
 
     out.push_str("## Выводы\n\n");
     out.push_str(&format!(
-        "1. Один и тот же вопрос задан {} профилям; предпочтения соблюдены в {} ответах.\n",
-        report.total_profiles, report.compliant_profiles
+        "1. Одна цепочка из {} вопросов задана {} профилям: {} запросов; контекст STM сохранялся внутри каждой цепочки.\n",
+        report.questions.len(),
+        report.total_profiles,
+        report.total_requests
     ));
-    if let Some(stability) = &report.stability {
-        out.push_str(&format!(
-            "2. В серии из {} вопросов соблюдено {}; первое нарушение — {}.\n",
-            stability.total,
-            stability.compliant_count,
-            stability
+    out.push_str(&format!(
+        "2. Предпочтения соблюдены в {} из {} ответов; полностью — {} из {} профилей.\n",
+        report.compliant_answers,
+        report.total_answers,
+        report.compliant_profiles,
+        report.total_profiles
+    ));
+    let violations: Vec<String> = report
+        .profiles
+        .iter()
+        .filter_map(|profile| {
+            profile
                 .first_violation
-                .map(|index| format!("ответ #{index}"))
-                .unwrap_or_else(|| "не зафиксировано".into())
-        ));
-    }
-    out.push_str("3. Профиль передаётся отдельным системным блоком перед блоками памяти; текущая реплика пользователя имеет приоритет.\n");
-    out.push_str("4. Профиль пополняется из диалога детерминированными правилами и хранит происхождение изменений.\n");
+                .map(|index| format!("{} — ответ #{}", profile.profile_id, index))
+        })
+        .collect();
+    out.push_str(&format!(
+        "3. Первое нарушение по профилям: {}.\n",
+        if violations.is_empty() {
+            "не зафиксировано".into()
+        } else {
+            violations.join("; ")
+        }
+    ));
+    out.push_str("4. Профиль передаётся отдельным системным блоком перед блоками памяти; текущая реплика пользователя имеет приоритет.\n");
+    out.push_str("5. Профиль пополняется из диалога детерминированными правилами и хранит происхождение изменений.\n");
     if !report.errors.is_empty() {
         out.push_str(&format!(
             "\nОшибки запросов: {} (см. JSON).\n",
@@ -900,10 +889,6 @@ pub fn render_markdown(report: &PersonalizationReport) -> String {
 
 fn escape(value: &str) -> String {
     value.replace('|', "\\|").replace('\n', " ")
-}
-
-fn escape_multiline(value: &str) -> String {
-    value.replace('|', "\\|").replace('\n', "\n> ")
 }
 
 pub fn save_personalization_report(
@@ -934,7 +919,7 @@ mod tests {
     }
 
     #[test]
-    fn fake_run_is_compliant_for_both_profiles_and_stable() {
+    fn fake_run_is_compliant_for_three_profiles_and_full_chain() {
         let cancel = AtomicBool::new(false);
         let report = run_personalization(
             &profiles(),
@@ -945,14 +930,98 @@ mod tests {
             &mut |_| {},
         )
         .unwrap();
-        assert_eq!(report.total_profiles, 2);
-        assert_eq!(report.compliant_profiles, 2);
-        assert_eq!(report.total_requests, 12);
-        let stability = report.stability.as_ref().unwrap();
-        assert_eq!(stability.compliant_count, 10);
-        assert_eq!(stability.first_violation, None);
+        assert_eq!(report.total_profiles, 3);
+        assert_eq!(report.questions.len(), 10);
+        assert_eq!(report.total_requests, 30);
+        assert_eq!(report.total_answers, 30);
+        assert_eq!(report.compliant_answers, 30);
+        assert_eq!(report.compliant_profiles, 3);
+        for profile in &report.profiles {
+            assert_eq!(profile.total, 10);
+            assert_eq!(profile.compliant_count, 10);
+            assert_eq!(profile.first_violation, None);
+        }
         assert!(report.passed(), "{:?}", report.thresholds);
         assert!(report.usage_totals().0 > 0);
+    }
+
+    #[test]
+    fn short_mode_runs_one_question_per_profile() {
+        let cancel = AtomicBool::new(false);
+        let report = run_personalization(
+            &profiles(),
+            &settings(),
+            &FakeChatClient,
+            &PersonalizationOptions {
+                include_chain: false,
+                ..PersonalizationOptions::default()
+            },
+            &cancel,
+            &mut |_| {},
+        )
+        .unwrap();
+        assert_eq!(report.total_profiles, 3);
+        assert_eq!(report.questions.len(), 1);
+        assert_eq!(report.total_requests, 3);
+        assert!(report.profiles.iter().all(|profile| profile.total == 1));
+    }
+
+    #[test]
+    fn each_profile_gets_the_same_chain_with_its_own_context() {
+        use std::sync::Mutex;
+
+        use crate::domain::memory::ChatRole;
+        use crate::llm::dto::{ChatRequest, ChatResponse, LlmError};
+
+        struct RecordingClient {
+            seen: Mutex<Vec<Vec<ChatMessage>>>,
+        }
+
+        impl ChatClient for RecordingClient {
+            fn complete(&self, request: &ChatRequest) -> Result<ChatResponse, LlmError> {
+                let mut seen = self.seen.lock().unwrap();
+                seen.push(request.messages.clone());
+                let answer = format!("ответ {}", seen.len());
+                Ok(ChatResponse {
+                    content: Some(answer),
+                    ..ChatResponse::default()
+                })
+            }
+        }
+
+        let client = RecordingClient {
+            seen: Mutex::new(Vec::new()),
+        };
+        let cancel = AtomicBool::new(false);
+        let report = run_personalization(
+            &profiles(),
+            &settings(),
+            &client,
+            &PersonalizationOptions::default(),
+            &cancel,
+            &mut |_| {},
+        )
+        .unwrap();
+        assert_eq!(report.total_requests, 30);
+
+        let seen = client.seen.lock().unwrap();
+        assert_eq!(seen.len(), 30);
+        for chain in 0..3 {
+            let start = chain * 10;
+            // Каждый профиль начинает свою цепочку с чистого контекста.
+            assert!(
+                !seen[start]
+                    .iter()
+                    .any(|message| message.role == ChatRole::Assistant)
+            );
+            // Внутри цепочки предыдущий ответ остаётся в сообщениях.
+            assert!(
+                seen[start + 1]
+                    .iter()
+                    .any(|message| message.role == ChatRole::Assistant)
+            );
+            assert!(seen[start + 1].len() > seen[start].len());
+        }
     }
 
     #[test]
@@ -982,11 +1051,11 @@ mod tests {
         let markdown = render_markdown(&report);
         for needle in [
             "## Профили",
-            "## Один вопрос — разные профили",
-            "## Устойчивость",
+            "## Цепочки вопросов",
             "## Пороги",
-            "Соблюдено профилей: 2 из 2",
+            "Соблюдено ответов: 30 из 30",
             "Первое нарушение",
+            "STM сохраняется",
         ] {
             assert!(markdown.contains(needle), "нет {needle}");
         }
@@ -996,9 +1065,9 @@ mod tests {
     }
 
     #[test]
-    fn selected_profiles_are_brief_and_detailed_by_default() {
+    fn selected_profiles_are_three_presets_by_default() {
         let selected = select_profiles(&profiles(), &[], Utc::now());
         let ids: Vec<&str> = selected.iter().map(|profile| profile.id.as_str()).collect();
-        assert_eq!(ids, vec!["brief", "detailed"]);
+        assert_eq!(ids, vec!["brief", "detailed", "default"]);
     }
 }

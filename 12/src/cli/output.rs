@@ -277,6 +277,11 @@ pub fn print_personalization(report: &PersonalizationReport) {
             &report.source
         }
     );
+    println!(
+        "Цепочка: {} вопросов × {} профилей",
+        report.questions.len(),
+        report.total_profiles
+    );
     let (prompt, completion, cost) = report.usage_totals();
     println!(
         "API: prompt {} · completion {} · всего {} · ${:.6}",
@@ -286,32 +291,26 @@ pub fn print_personalization(report: &PersonalizationReport) {
         cost
     );
     println!();
-    println!("Профиль        Предпочтения                                      Соблюдено");
+    println!("Профиль      Предпочтения                                      Соблюдено  Первое");
     for profile in &report.profiles {
         println!(
-            "{:<14} {:<48} {}",
+            "{:<12} {:<48} {:>7}    {}",
             profile.profile_id,
-            profile.preferences,
-            if profile.compliant { "да" } else { "нет" }
-        );
-    }
-    println!(
-        "Соблюдено профилей: {} из {}",
-        report.compliant_profiles, report.total_profiles
-    );
-    if let Some(stability) = &report.stability {
-        println!();
-        println!(
-            "Устойчивость ({}) · {}/{} · первое нарушение: {}",
-            stability.profile_id,
-            stability.compliant_count,
-            stability.total,
-            stability
+            clip(&profile.preferences, 48),
+            format!("{}/{}", profile.compliant_count, profile.total),
+            profile
                 .first_violation
                 .map(|index| format!("#{index}"))
                 .unwrap_or_else(|| "нет".into())
         );
     }
+    println!(
+        "Соблюдено ответов: {} из {}; профилей полностью: {} из {}",
+        report.compliant_answers,
+        report.total_answers,
+        report.compliant_profiles,
+        report.total_profiles
+    );
     for threshold in &report.thresholds {
         println!(
             "  [{}] {} — {}",
@@ -324,8 +323,18 @@ pub fn print_personalization(report: &PersonalizationReport) {
         "Итог: {}",
         if report.passed() {
             "персонализация подтверждена"
-        } else {
+        } else if report.compliant_answers < report.total_answers {
             "есть нарушения предпочтений"
+        } else {
+            "предпочтения соблюдены, но порог полной цепочки не пройден"
         }
     );
+}
+
+fn clip(value: &str, max: usize) -> String {
+    let mut result: String = value.chars().take(max).collect();
+    if value.chars().count() > max {
+        result.push('…');
+    }
+    result
 }

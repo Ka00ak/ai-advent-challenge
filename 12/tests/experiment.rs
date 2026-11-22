@@ -190,3 +190,39 @@ fn cancellation_has_no_report() {
     );
     assert!(result.is_err());
 }
+
+#[test]
+fn tui_personalization_job_emits_progress_report_and_api_entries() {
+    use lab12::experiment::personalization::PersonalizationOptions;
+    let dir = tempfile::tempdir().unwrap();
+    let runtime = common::runtime_at(dir.path());
+    let (tx, rx) = mpsc::channel();
+    let cancel = Arc::new(AtomicBool::new(false));
+    spawn_job(
+        runtime,
+        Job::Personalization(PersonalizationOptions::default()),
+        tx,
+        cancel,
+    );
+    let mut finished = None;
+    let mut progress_events = 0;
+    let mut api_entries = 0;
+    loop {
+        match rx.recv_timeout(Duration::from_secs(20)) {
+            Ok(AppEvent::PersonalizationProgress(_)) => progress_events += 1,
+            Ok(AppEvent::ApiLogged(entries)) => api_entries += entries.len(),
+            Ok(AppEvent::PersonalizationFinished(report)) => finished = Some(report),
+            Ok(AppEvent::JobFinished) => break,
+            Ok(_) => {}
+            Err(error) => panic!("job не завершился: {error}"),
+        }
+    }
+    let report = finished.expect("нет отчёта персонализации");
+    assert_eq!(report.total_profiles, 3);
+    assert_eq!(report.questions.len(), 10);
+    assert_eq!(report.total_requests, 30);
+    assert_eq!(report.total_answers, 30);
+    assert_eq!(report.compliant_answers, 30);
+    assert!(progress_events > 0);
+    assert_eq!(api_entries, report.total_requests);
+}

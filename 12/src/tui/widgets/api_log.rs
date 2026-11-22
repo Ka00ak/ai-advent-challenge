@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
 use crate::domain::chat::LlmExchange;
-use crate::tui::state::AppState;
+use crate::tui::state::{ApiFocus, AppState};
 use crate::tui::theme;
 use crate::tui::widgets::json;
 
@@ -79,7 +79,12 @@ fn draw_list(frame: &mut Frame, area: Rect, state: &AppState) {
     let paragraph = Paragraph::new(lines).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(" HTTP-запросы "),
+            .title(" HTTP-запросы ")
+            .border_style(if state.api_focus == ApiFocus::List {
+                theme::active_border()
+            } else {
+                Default::default()
+            }),
     );
     let inner_height = area.height.saturating_sub(2) as usize;
     let total_lines = 2 + exchanges.len();
@@ -146,7 +151,10 @@ fn draw_details(frame: &mut Frame, area: Rect, state: &mut AppState) {
         tabs.push(Span::styled(format!(" {} ", tab.title()), style));
         tabs.push(Span::raw(" "));
     }
-    tabs.push(Span::styled("Tab/←→ переключить", theme::muted()));
+    tabs.push(Span::styled(
+        "Tab — фокус · ←→ запрос/ответ",
+        theme::muted(),
+    ));
     frame.render_widget(Paragraph::new(Line::from(tabs)), right[1]);
 
     let body_paragraph = Paragraph::new(body).wrap(Wrap { trim: false });
@@ -158,15 +166,22 @@ fn draw_details(frame: &mut Frame, area: Rect, state: &mut AppState) {
     let body_paragraph = body_paragraph.block(
         Block::default()
             .borders(Borders::ALL)
-            .title(format!(" {} ", state.api_body_tab.title())),
+            .title(format!(" {} ", state.api_body_tab.title()))
+            .border_style(if state.api_focus == ApiFocus::Body {
+                theme::active_border()
+            } else {
+                Default::default()
+            }),
     );
     frame.render_widget(body_paragraph.scroll((scroll as u16, 0)), right[2]);
 
+    let hint = if state.api_focus == ApiFocus::Body {
+        "↑↓/PgUp/PgDn прокрутка JSON · Home/End · Tab/Esc к списку · ←→ запрос/ответ"
+    } else {
+        "↑↓ выбор запроса · Tab к телу · ←→ запрос/ответ · f фильтр · e экспорт"
+    };
     frame.render_widget(
-        Paragraph::new(Line::from(Span::styled(
-            "↑↓ выбор запроса · PgUp/PgDn прокрутка JSON · Tab/←→ запрос/ответ · f фильтр · e экспорт",
-            theme::muted(),
-        ))),
+        Paragraph::new(Line::from(Span::styled(hint, theme::muted()))),
         right[3],
     );
 }

@@ -108,6 +108,20 @@ fn run_job(runtime: AppRuntime, job: Job, tx: &Sender<AppEvent>, cancel: &Arc<At
                 }
             }
         }
+        Job::Personalization(options) => {
+            let result =
+                controller.run_personalization_cancellable(options, cancel, &mut |progress| {
+                    let _ = tx.send(AppEvent::PersonalizationProgress(progress));
+                });
+            match result {
+                Ok(report) => {
+                    let _ = tx.send(AppEvent::PersonalizationFinished(report));
+                }
+                Err(error) => {
+                    let _ = tx.send(AppEvent::Error(error.to_string()));
+                }
+            }
+        }
     }
     if cancel.load(Ordering::Relaxed) {
         let _ = tx.send(AppEvent::Error("job отменён".into()));
@@ -123,5 +137,6 @@ fn job_label(job: &Job) -> &'static str {
         Job::ClearLayer(_) => "clear",
         Job::ImportFacts(_) => "import",
         Job::Experiment(_) => "experiment",
+        Job::Personalization(_) => "personalization",
     }
 }

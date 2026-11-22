@@ -108,18 +108,15 @@ pub enum Command {
         #[command(subcommand)]
         command: ProfileCommand,
     },
-    /// Проверка персонализации: один вопрос под разными профилями и серия из 10
+    /// Проверка персонализации: цепочка из 10 вопросов для каждого из 3 профилей
     Personalize {
-        /// Вопрос для сравнения профилей
+        /// Переопределить первый вопрос цепочки (остальные 9 — стандартные)
         #[arg(long)]
         question: Option<String>,
-        /// ID профилей через запятую (по умолчанию brief и detailed)
+        /// ID профилей через запятую (по умолчанию brief,detailed,default)
         #[arg(long, value_delimiter = ',')]
         profiles: Vec<String>,
-        /// Профиль для проверки устойчивости (по умолчанию detailed)
-        #[arg(long)]
-        stability_profile: Option<String>,
-        /// Не запускать серию из 10 вопросов
+        /// Короткий режим: 1 вопрос на профиль вместо цепочки из 10
         #[arg(long)]
         no_stability: bool,
         #[arg(long)]
@@ -763,7 +760,6 @@ fn execute(cli: Cli) -> Result<i32, AppError> {
         Command::Personalize {
             question,
             profiles,
-            stability_profile,
             no_stability,
             out,
             json,
@@ -774,8 +770,7 @@ fn execute(cli: Cli) -> Result<i32, AppError> {
             let options = PersonalizationOptions {
                 question,
                 profile_ids: profiles,
-                stability_profile,
-                include_stability: !no_stability,
+                include_chain: !no_stability,
             };
             let result = controller.run_personalization(options, &mut |progress| {
                 eprintln!(

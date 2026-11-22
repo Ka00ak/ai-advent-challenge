@@ -1,0 +1,1340 @@
+{
+  "started_at": "2026-11-22T17:05:37.000975433Z",
+  "finished_at": "2026-11-22T17:07:08.002968435Z",
+  "model": "deepseek-chat",
+  "base_url": "https://api.deepseek.com",
+  "source": "api",
+  "data_dir": "./data",
+  "questions": [
+    "Как в Rust безопасно прочитать JSON-файл и обработать ошибку?",
+    "Чем Result отличается от panic! в Rust?",
+    "Как обработать ошибку serde_json при разборе JSON?",
+    "Как проверить, что файл существует, перед чтением?",
+    "Что делает оператор ? в Rust?",
+    "Как вернуть ошибку из функции в Rust?",
+    "Как ограничить размер файла при чтении?",
+    "Как протестировать чтение JSON без реального файла?",
+    "Что делать, если файл оказался в другой кодировке?",
+    "Как залогировать ошибку и не потерять исходную причину?"
+  ],
+  "profiles": [
+    {
+      "profile_id": "brief",
+      "profile_title": "Кратко, без кода, неформально",
+      "preferences": "кратко; неформальный, на «ты»; без кода; списки=нет; таблицы=нет; эмодзи=нет",
+      "steps": [
+        {
+          "index": 1,
+          "question": "Как в Rust безопасно прочитать JSON-файл и обработать ошибку?",
+          "answer": "Читаешь файл через std::fs::read_to_string, ошибку IO обрабатываешь через Result и match или `?`. Потом парсишь serde_json::from_str в нужную структуру, ошибку парсинга тоже возвращаешь через Result. Удобно сделать функцию, возвращающую Result<T, Box<dyn Error>>, и в main выводить ошибку через eprintln. Так и IO, и JSON-ошибки обрабатываются без паник.",
+          "prompt_tokens": 436,
+          "completion_tokens": 111,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≤ 80 слов",
+              "observed": "46 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "есть «ты/тебе/слушай»",
+              "observed": "читаешь, парсишь, обрабатываешь, возвращаешь",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "без кода",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "ограничение",
+              "expected": "без вступлений",
+              "observed": "без вступления",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "question": "Чем Result отличается от panic! в Rust?",
+          "answer": "Result — это значение, которое возвращается и которое вызывающий обязан обработать: ошибка часть нормального потока. panic! разворачивает стек и роняет поток, для багов и нарушенных инвариантов. Правило простое: ожидаемые ошибки (файл не найден, битый JSON) — Result, а невозможные состояния — panic.",
+          "prompt_tokens": 561,
+          "completion_tokens": 83,
+          "compliant": false,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≤ 80 слов",
+              "observed": "39 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "есть «ты/тебе/слушай»",
+              "observed": "нейтральный",
+              "ok": false
+            },
+            {
+              "name": "код",
+              "expected": "без кода",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "ограничение",
+              "expected": "без вступлений",
+              "observed": "без вступления",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "question": "Как обработать ошибку serde_json при разборе JSON?",
+          "answer": "serde_json возвращает Result, так что ошибку ловишь через match или `?`. Тип serde_json::Error покрывает и синтаксис, и несовпадение типов, у него есть методы вроде is_syntax и line/column для диагностики. В функции возвращай Result, а в main печатай ошибку через eprintln. Паниковать не нужно.",
+          "prompt_tokens": 663,
+          "completion_tokens": 86,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≤ 80 слов",
+              "observed": "42 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "есть «ты/тебе/слушай»",
+              "observed": "возвращай, ловишь",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "без кода",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "ограничение",
+              "expected": "без вступлений",
+              "observed": "без вступления",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "question": "Как проверить, что файл существует, перед чтением?",
+          "answer": "Просто попробуй прочитать и обработай ошибку — отдельная проверка через Path::exists гонка и лишний вызов. Если очень надо, exists или metadata, но надёжнее ловить NotFound из read_to_string.",
+          "prompt_tokens": 767,
+          "completion_tokens": 55,
+          "compliant": false,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≤ 80 слов",
+              "observed": "26 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "есть «ты/тебе/слушай»",
+              "observed": "нейтральный",
+              "ok": false
+            },
+            {
+              "name": "код",
+              "expected": "без кода",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "ограничение",
+              "expected": "без вступлений",
+              "observed": "без вступления",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "question": "Что делает оператор ? в Rust?",
+          "answer": "`?` разворачивает Result (или Option): при Ok отдаёт значение дальше, при Err делает ранний return этой ошибки из функции. Работает только в функциях, возвращающих совместимый тип, и умеет конвертить ошибку через From. Так что цепочки вызовов без match.",
+          "prompt_tokens": 834,
+          "completion_tokens": 75,
+          "compliant": false,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≤ 80 слов",
+              "observed": "37 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "есть «ты/тебе/слушай»",
+              "observed": "нейтральный",
+              "ok": false
+            },
+            {
+              "name": "код",
+              "expected": "без кода",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "ограничение",
+              "expected": "без вступлений",
+              "observed": "без вступления",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 6,
+          "question": "Как вернуть ошибку из функции в Rust?",
+          "answer": "Возвращай Result<T, E> и отдавай Err(e) явно или через `?`. Для разных типов ошибок удобно Box<dyn Error> или свой enum с impl From. В main можно вернуть Result<(), E> — тогда ошибка печатается автоматически.",
+          "prompt_tokens": 789,
+          "completion_tokens": 66,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≤ 80 слов",
+              "observed": "32 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "есть «ты/тебе/слушай»",
+              "observed": "возвращай",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "без кода",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "ограничение",
+              "expected": "без вступлений",
+              "observed": "без вступления",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 7,
+          "question": "Как ограничить размер файла при чтении?",
+          "answer": "Не читай целиком — открывай File и бери take(limit) из Read, потом читай в буфер. Либо сначала проверь metadata().len() и откажись, если больше лимита. Для текста удобно read_to_string на take.",
+          "prompt_tokens": 772,
+          "completion_tokens": 59,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≤ 80 слов",
+              "observed": "29 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "есть «ты/тебе/слушай»",
+              "observed": "читай, бери, проверь",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "без кода",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "ограничение",
+              "expected": "без вступлений",
+              "observed": "без вступления",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 8,
+          "question": "Как протестировать чтение JSON без реального файла?",
+          "answer": "Пиши функцию так, чтобы она принимала Read или &[u8], а не путь. В тестах подсовывай &b\"{...}\"[..] или Cursor. Так же можно мокать ошибки — дай ридер, который возвращает Err.",
+          "prompt_tokens": 744,
+          "completion_tokens": 61,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≤ 80 слов",
+              "observed": "28 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "есть «ты/тебе/слушай»",
+              "observed": "пиши",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "без кода",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "ограничение",
+              "expected": "без вступлений",
+              "observed": "без вступления",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 9,
+          "question": "Что делать, если файл оказался в другой кодировке?",
+          "answer": "Читай байты, а не строку, и декодируй через encoding_rs (например, WINDOWS_1251 или SHIFT_JIS). Если кодировка неизвестна — попробуй детект или явно требуй её в конфиге. Не полагайся на UTF-8 по умолчанию.",
+          "prompt_tokens": 751,
+          "completion_tokens": 77,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≤ 80 слов",
+              "observed": "30 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "есть «ты/тебе/слушай»",
+              "observed": "читай",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "без кода",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "ограничение",
+              "expected": "без вступлений",
+              "observed": "без вступления",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 10,
+          "question": "Как залогировать ошибку и не потерять исходную причину?",
+          "answer": "Оборачивай в свой тип с полем source и impl Error::source, либо используй anyhow/thiserror с контекстом. Логируй через `{:?}` или цепочку source, а не только Display — иначе причина теряется.",
+          "prompt_tokens": 761,
+          "completion_tokens": 58,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≤ 80 слов",
+              "observed": "27 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "есть «ты/тебе/слушай»",
+              "observed": "оборачивай, используй",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "без кода",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "ограничение",
+              "expected": "без вступлений",
+              "observed": "без вступления",
+              "ok": true
+            }
+          ]
+        }
+      ],
+      "first_violation": 2,
+      "compliant_count": 7,
+      "total": 10
+    },
+    {
+      "profile_id": "detailed",
+      "profile_title": "Подробно, с кодом, формально",
+      "preferences": "подробно; формальный, на «вы»; с примерами кода; списки=нет; таблицы=нет; эмодзи=нет",
+      "steps": [
+        {
+          "index": 1,
+          "question": "Как в Rust безопасно прочитать JSON-файл и обработать ошибку?",
+          "answer": "Для безопасного чтения JSON-файла в Rust используется комбинация стандартной библиотеки для работы с файлами и крейта `serde_json` для десериализации. Ключевой принцип — не использовать `unwrap()` и `expect()` в местах, где ошибка возможна, а возвращать `Result` и обрабатывать каждый источник ошибок явно. Ниже приведён структурированный разбор с примером кода.\n\nПервый шаг — определить тип данных, в который вы хотите десериализовать JSON. Для этого структура должна реализовывать трейты `serde::Deserialize` (и `Serialize`, если планируется обратная запись). Обычно используется `#[derive(Deserialize)]` с указанием `serde` в зависимостях `Cargo.toml`. Это даёт типобезопасность: если JSON не соответствует схеме, вы получите ошибку десериализации, а не панику.\n\nВторой шаг — чтение файла. Функция `std::fs::read_to_string` возвращает `Result<String, std::io::Error>`, что позволяет отличить ошибку ввода-вывода (файл не найден, нет прав доступа) от ошибки парсинга. Важно не смешивать эти категории в одном сообщении, чтобы диагностика была точной.\n\nТретий шаг — десериализация через `serde_json::from_str`, которая возвращает `Result<T, serde_json::Error>`. Обратите внимание: `serde_json::Error` содержит информацию о строке и столбце, где произошла ошибка, что полезно для отладки.\n\nЧетвёртый шаг — обработка ошибок. Рекомендуется определить собственный тип ошибки через `thiserror` или вручную реализовать `std::error::Error`, чтобы вызывающий код мог различать случаи. В примере ниже используется `thiserror` для краткости, но показан и вариант без внешних зависимостей через `Box<dyn Error>`.\n\n```rust\nuse serde::Deserialize;\nuse std::fs;\nuse std::path::Path;\nuse thiserror::Error;\n\n#[derive(Debug, Deserialize)]\nstruct Config {\n    name: String,\n    port: u16,\n}\n\n#[derive(Debug, Error)]\nenum ConfigError {\n    #[error(\"не удалось прочитать файл {path}: {source}\")]\n    Io {\n        path: String,\n        #[source]\n        source: std::io::Error,\n    },\n    #[error(\"некорректный JSON в файле {path}: {source}\")]\n    Parse {\n        path: String,\n        #[source]\n        source: serde_json::Error,\n    },\n}\n\nfn load_config(path: &Path) -> Result<Config, ConfigError> {\n    let raw = fs::read_to_string(path).map_err(|source| ConfigError::Io {\n        path: path.display().to_string(),\n        source,\n    })?;\n\n    let config = serde_json::from_str::<Config>(&raw).map_err(|source| ConfigError::Parse {\n        path: path.display().to",
+          "prompt_tokens": 435,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≥ 70 слов",
+              "observed": "256 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "без «ты/тебе/слушай»",
+              "observed": "формальный",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "есть код",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "question": "Чем Result отличается от panic! в Rust?",
+          "answer": "`Result` и `panic!` в Rust решают разные задачи и относятся к разным механизмам обработки ошибок. `Result<T, E>` — это тип, представляющий значение, которое может быть успешным (`Ok(T)`) или ошибочным (`Err(E)`). Ошибка здесь является частью сигнатуры функции и передаётся вызывающему коду явно, через тип возвращаемого значения. Компилятор не заставляет вас обрабатывать `Result`, но идиоматический код либо обрабатывает его через `match`, `if let`, `?`, либо явно игнорирует. `panic!` — это макрос, который немедленно прерывает выполнение текущего потока, разворачивая стек (по умолчанию) или аварийно завершая процесс (при `panic = \"abort\"`). Паника не является частью типа функции и не видна в сигнатуре.\n\nКлючевое различие — в контроле и предсказуемости. `Result` позволяет вызывающему коду принять решение: повторить операцию, вернуть значение по умолчанию, преобразовать ошибку в другой тип, залогировать и продолжить. `panic!` же означает, что программа оказалась в состоянии, из которого нет корректного выхода в рамках текущей абстракции: нарушен инвариант, произошло невосстановимое повреждение данных, или это ошибка программиста (например, выход за границы среза, деление на ноль в отладочной сборке, разыменование `None` через `unwrap`). Паника — это сигнал о баге, а не штатный путь обработки внешних условий.\n\nВторое различие — в производительности и размере кода. `Result` не имеет накладных расходов на разворачивание стека, но требует явной обработки и может увеличивать размер бинарника за счёт ветвлений. Паника дешевле в точке возникновения, но дороже при срабатывании: разворачивание стека, вызов деструкторов, возможная остановка потока. Встраиваемые системы часто собирают с `panic = \"abort\"`, чтобы избежать затрат на разворачивание.\n\nТретье различие — в композиции. `Result` хорошо комбинируется с оператором `?`, трейтом `From` для преобразования ошибок и крейтами вроде `thiserror` или `anyhow`. Паника не композируется: её нельзя «поймать» в типе, а `catch_unwind` — это инструмент для изоляции, а не для штатной обработки, и он не работает при `panic = \"abort\"`.\n\nПрактическое правило: используйте `Result` для ожидаемых ошибок (ввод-вывод, парсинг, сетевые сбои, валидация пользовательских данных), а `panic!` — для нарушения инвариантов и ошибок программиста. Библиотечный код должен предпочитать `Result`, чтобы не навязывать полити",
+          "prompt_tokens": 1149,
+          "completion_tokens": 700,
+          "compliant": false,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≥ 70 слов",
+              "observed": "306 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "без «ты/тебе/слушай»",
+              "observed": "формальный",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "есть код",
+              "observed": "нет",
+              "ok": false
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "question": "Как обработать ошибку serde_json при разборе JSON?",
+          "answer": "Разбор JSON через `serde_json` возвращает `Result`, и обработка ошибки сводится к работе с типом `serde_json::Error`. Этот тип реализует `std::error::Error`, содержит категорию ошибки (`io`, `syntax`, `data`, `eof`), позицию (строку и столбец) и сообщение. Ниже разобраны основные сценарии.\n\nПервый сценарий — немедленная обработка на месте через `match`. Это уместно, когда нужно различать категории ошибок и по-разному на них реагировать.\n\n```rust\nuse serde_json::{Value, Error};\n\nfn parse_config(input: &str) -> Result<Value, String> {\n    match serde_json::from_str::<Value>(input) {\n        Ok(value) => Ok(value),\n        Err(err) => {\n            let category = if err.is_syntax() {\n                \"синтаксис\"\n            } else if err.is_data() {\n                \"несоответствие типов\"\n            } else if err.is_eof() {\n                \"неожиданный конец ввода\"\n            } else {\n                \"ввод-вывод\"\n            };\n            Err(format!(\n                \"ошибка JSON ({category}) на строке {} столбце {}: {}\",\n                err.line(),\n                err.column(),\n                err\n            ))\n        }\n    }\n}\n```\n\nВторой сценарий — проброс через `?` с преобразованием в собственный тип ошибки. Это идиоматично для библиотек и приложений с единым типом ошибок. `serde_json::Error` автоматически конвертируется через `From`, если ваш тип реализует `std::error::Error` и вы используете `thiserror` или `anyhow`.\n\n```rust\nuse thiserror::Error;\n\n#[derive(Debug, Error)]\nenum AppError {\n    #[error(\"не удалось прочитать файл: {0}\")]\n    Io(#[from] std::io::Error),\n    #[error(\"некорректный JSON: {0}\")]\n    Json(#[from] serde_json::Error),\n}\n\nfn load(path: &str) -> Result<serde_json::Value, AppError> {\n    let text = std::fs::read_to_string(path)?;\n    let value = serde_json::from_str(&text)?;\n    Ok(value)\n}\n```\n\nТретий сценарий — различение «синтаксической» ошибки и «структурной». Если вы десериализуете в конкретный тип, `serde_json::Error` может возникнуть либо при разборе синтаксиса, либо при несоответствии данных ожидаемой схеме. Методы `is_syntax`, `is_data`, `is_eof`, `is_io` позволяют это различить, что полезно для формирования понятных сообщений пользователю.\n\n```rust\nfn parse_user(input: &str) -> Result<User, String> {\n    serde_json::from_str::<User>(input).map_err(|e| {\n        if e.is_data() {\n            format!(\"данные не соответствуют схеме: {e}\")\n        } else if e.is_s",
+          "prompt_tokens": 1145,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≥ 70 слов",
+              "observed": "221 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "без «ты/тебе/слушай»",
+              "observed": "формальный",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "есть код",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "question": "Как проверить, что файл существует, перед чтением?",
+          "answer": "Проверка существования файла перед чтением в Rust выполняется через `std::path::Path` и `std::fs`. Важно понимать, что между проверкой и последующим открытием файла существует гонка (TOCTOU — time-of-check to time-of-use), поэтому проверка существования не заменяет обработку ошибки открытия. Ниже разобраны подходы.\n\nПервый подход — метод `Path::exists()`. Он возвращает `bool` и удобен для простых случаев, но скрывает причину: файл может отсутствовать, а может быть недоступен из-за прав доступа, и `exists()` вернёт `false` в обоих случаях.\n\n```rust\nuse std::path::Path;\n\nfn check(path: &Path) -> bool {\n    if path.exists() {\n        true\n    } else {\n        eprintln!(\"файл не найден: {}\", path.display());\n        false\n    }\n}\n```\n\nВторой подход — метод `Path::try_exists()`, который возвращает `Result<bool, std::io::Error>` и позволяет отличить «файла нет» от «ошибки доступа к метаданным». Это предпочтительнее, когда важна точность диагностики.\n\n```rust\nuse std::path::Path;\n\nfn check(path: &Path) -> std::io::Result<bool> {\n    match path.try_exists() {\n        Ok(true) => Ok(true),\n        Ok(false) => {\n            eprintln!(\"файл отсутствует: {}\", path.display());\n            Ok(false)\n        }\n        Err(e) => {\n            eprintln!(\"не удалось проверить {}: {e}\", path.display());\n            Err(e)\n        }\n    }\n}\n```\n\nТретий подход — проверка через метаданные `std::fs::metadata`, которая даёт больше информации: является ли путь файлом или каталогом, размер, права. Это уместно, когда нужно убедиться не просто в существовании, а в том, что это именно файл, а не директория.\n\n```rust\nuse std::fs;\nuse std::path::Path;\n\nfn is_regular_file(path: &Path) -> std::io::Result<bool> {\n    match fs::metadata(path) {\n        Ok(meta) => Ok(meta.is_file()),\n        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),\n        Err(e) => Err(e),\n    }\n}\n```\n\nЧетвёртый, наиболее надёжный подход — не проверять существование отдельно, а сразу пытаться открыть файл и обрабатывать ошибку. Это устраняет гонку и является идиоматичным для Rust. Проверка существования нужна лишь тогда, когда требуется заранее сформировать сообщение или выбрать ветку логики.\n\n```rust\nuse std::fs::File;\nuse std::io::Read;\n\nfn read_file(path: &str) -> std::io::Result<String> {\n    let mut file = File::open(path)?;\n    let mut contents = String::new();\n    file.read_to_string(&mut contents)?;\n    Ok(contents)\n}\n```\n\nОграничения, которые следует учитывать. Проверка существования не гаран",
+          "prompt_tokens": 1149,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≥ 70 слов",
+              "observed": "256 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "без «ты/тебе/слушай»",
+              "observed": "формальный",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "есть код",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "question": "Что делает оператор ? в Rust?",
+          "answer": "Оператор `?` в Rust — это синтаксический сахар для раннего возврата ошибки. Он применяется к выражению типа `Result<T, E>` или `Option<T>` и делает следующее: если значение успешно (`Ok(v)` или `Some(v)`), оператор извлекает внутреннее значение `v` и продолжает выполнение; если значение ошибочно (`Err(e)` или `None`), оператор немедленно возвращает это значение из текущей функции. Таким образом, `?` позволяет писать цепочки операций без явных конструкций `match` на каждом шаге.\n\nКлючевое требование — тип ошибки в выражении должен быть совместим с типом ошибки, возвращаемым функцией. Для `Result` это означает, что тип `E` из `?` должен преобразовываться в тип ошибки функции через трейт `From`. Именно поэтому `?` работает с разными типами ошибок в одной функции, если для них реализованы преобразования, — например, `std::io::Error` автоматически конвертируется в `Box<dyn Error>`.\n\n```rust\nuse std::fs::File;\nuse std::io::{self, Read};\n\nfn read_config(path: &str) -> io::Result<String> {\n    let mut file = File::open(path)?;   // Err(io::Error) возвращается сразу\n    let mut contents = String::new();\n    file.read_to_string(&mut contents)?; // то же самое\n    Ok(contents)\n}\n```\n\nДля `Option` оператор ведёт себя аналогично: `None` приводит к немедленному возврату `None` из функции, а `Some(v)` даёт `v`. Это удобно при работе с поиском в коллекциях или парсингом, где отсутствие значения не является ошибкой в смысле `Result`.\n\n```rust\nfn first_word_len(text: &str) -> Option<usize> {\n    let word = text.split_whitespace().next()?; // None вернётся сразу\n    Some(word.len())\n}\n```\n\nОператор `?` можно применять и в функциях, возвращающих `Result` с пользовательским типом ошибки, если реализован `From` для конвертации. Это позволяет комбинировать вызовы, возвращающие разные ошибки, в одной функции.\n\n```rust\nuse std::num::ParseIntError;\n\n#[derive(Debug)]\nenum AppError {\n    Parse(ParseIntError),\n}\n\nimpl From<ParseIntError> for AppError {\n    fn from(e: ParseIntError) -> Self {\n        AppError::Parse(e)\n    }\n}\n\nfn parse_number(s: &str) -> Result<i32, AppError> {\n    let n: i32 = s.trim().parse()?; // ParseIntError -> AppError через From\n    Ok(n * 2)\n}\n```\n\nОграничения, которые важно учитывать. Оператор `?` нельзя использовать в функции, которая не возвращает `Result` или `Option` (либо тип, реализующий соответствующий трейт `Try`); в `main` это работает только если `main` возвращает `Result`. Оператор не",
+          "prompt_tokens": 1142,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≥ 70 слов",
+              "observed": "281 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "без «ты/тебе/слушай»",
+              "observed": "формальный",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "есть код",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 6,
+          "question": "Как вернуть ошибку из функции в Rust?",
+          "answer": "В Rust вернуть ошибку из функции можно несколькими способами, и выбор зависит от того, является ли ошибка ожидаемой частью контракта функции или аварийной ситуацией. Основной идиоматичный путь — вернуть `Result<T, E>`, где `E` описывает тип ошибки. Вызывающий код обязан обработать это значение, что делает ошибки явными в сигнатуре. Для аварийных, невосстановимых ситуаций используется `panic!` (и его обёртки вроде `unwrap`/`expect`), но это не «возврат» ошибки, а раскрутка стека, поэтому в библиотечном коде так делать не следует.\n\nПервый и самый простой вариант — вернуть `Result` с конкретным типом ошибки, например стандартным `std::io::Error` или собственным перечислением. Явный тип ошибки даёт вызывающему точную информацию и позволяет сопоставлять варианты через `match`. Это предпочтительный подход, когда набор ошибок известен и стабилен.\n\n```rust\nuse std::num::ParseIntError;\n\nfn parse_positive(s: &str) -> Result<u32, ParseIntError> {\n    let n: u32 = s.trim().parse()?;\n    Ok(n)\n}\n```\n\nВторой вариант — собственный тип ошибки в виде перечисления с реализацией `Display` и `std::error::Error`. Это позволяет объединять несколько источников ошибок в одном типе и сохранять структурированную информацию. Реализация `From` даёт возможность использовать оператор `?` для автоматической конвертации.\n\n```rust\nuse std::fmt;\nuse std::num::ParseIntError;\n\n#[derive(Debug)]\nenum AppError {\n    Empty,\n    Parse(ParseIntError),\n}\n\nimpl fmt::Display for AppError {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        match self {\n            AppError::Empty => write!(f, \"пустая строка\"),\n            AppError::Parse(e) => write!(f, \"ошибка разбора: {e}\"),\n        }\n    }\n}\n\nimpl std::error::Error for AppError {\n    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {\n        match self {\n            AppError::Parse(e) => Some(e),\n            AppError::Empty => None,\n        }\n    }\n}\n\nimpl From<ParseIntError> for AppError {\n    fn from(e: ParseIntError) -> Self {\n        AppError::Parse(e)\n    }\n}\n\nfn parse_non_empty(s: &str) -> Result<u32, AppError> {\n    if s.trim().is_empty() {\n        return Err(AppError::Empty);\n    }\n    let n: u32 = s.trim().parse()?;\n    Ok(n)\n}\n```\n\nТретий вариант — вернуть `Box<dyn std::error::Error>` (или `anyhow::Error` во внешних крейтах). Это удобно в прикладном коде, где не хочется заводить собственный тип ошибки, а нужно быстро объединить разнородные",
+          "prompt_tokens": 1138,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≥ 70 слов",
+              "observed": "257 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "без «ты/тебе/слушай»",
+              "observed": "формальный",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "есть код",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 7,
+          "question": "Как ограничить размер файла при чтении?",
+          "answer": "Ограничить размер файла при чтении в Rust можно несколькими способами, и выбор зависит от того, что именно требуется: прочитать не более N байт, отказаться от чтения слишком большого файла заранее или ограничить потоковое чтение. Важно понимать, что стандартная библиотека не предоставляет единого «лимита» на файл, поэтому ограничение реализуется через проверку метаданных, через `Read::take` или через буферизованное чтение с контролем накопленного объёма.\n\nПервый способ — проверить размер файла через метаданные до чтения и вернуть ошибку, если он превышает лимит. Это самый дешёвый вариант по памяти, поскольку вы не читаете лишние данные. Однако метаданные могут быть недостоверны (например, для специальных файлов или при гонках), поэтому для критичных сценариев этот способ стоит комбинировать с ограничением самого чтения.\n\n```rust\nuse std::fs::File;\nuse std::io::{self, Read};\n\nconst MAX_SIZE: u64 = 1024 * 1024; // 1 MiB\n\nfn read_limited(path: &str) -> io::Result<Vec<u8>> {\n    let file = File::open(path)?;\n    let len = file.metadata()?.len();\n    if len > MAX_SIZE {\n        return Err(io::Error::new(\n            io::ErrorKind::InvalidData,\n            format!(\"файл слишком большой: {len} байт, лимит {MAX_SIZE}\"),\n        ));\n    }\n    let mut buf = Vec::with_capacity(len as usize);\n    let mut reader = file.take(MAX_SIZE);\n    reader.read_to_end(&mut buf)?;\n    Ok(buf)\n}\n```\n\nВторой способ — использовать адаптер `Read::take`, который ограничивает число читаемых байт независимо от реального размера источника. Это надёжно для потоков и специальных файлов, где метаданные не отражают объём. Комбинация `take` с проверкой метаданных даёт и ранний отказ, и защиту от чтения сверх лимита.\n\nТретий способ — читать в буфер фиксированного размера и накапливать данные с проверкой на каждом шаге. Это полезно, когда нужно вернуть частичный результат или обработать данные потоково, не загружая всё в память. Здесь важно не забыть проверить, что после достижения лимита в источнике не осталось данных, если требуется именно отказ, а не усечение.\n\n```rust\nuse std::fs::File;\nuse std::io::{self, Read};\n\nconst MAX_SIZE: usize = 1024 * 1024;\n\nfn read_stream_limited(path: &str) -> io::Result<Vec<u8>> {\n    let mut file = File::open(path)?;\n    let mut buf = Vec::new();\n    let mut chunk = [0u8; 8192];\n    loop {\n        let n = file.read(&mut chunk)?;\n        if n == 0 {\n            break;\n        }\n       ",
+          "prompt_tokens": 1140,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≥ 70 слов",
+              "observed": "286 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "без «ты/тебе/слушай»",
+              "observed": "формальный",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "есть код",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 8,
+          "question": "Как протестировать чтение JSON без реального файла?",
+          "answer": "Тестирование чтения JSON без реального файла в Rust строится на двух подходах: подмена источника данных через обобщённый интерфейс `Read` и использование временных файлов там, где нужен именно путь. Первый подход предпочтителен, поскольку он быстрее, детерминирован и не требует прав доступа к файловой системе. Второй применяется, когда тестируемая функция принимает путь, а не поток, и его нельзя изменить без рефакторинга.\n\nПервый подход — сделать функцию чтения обобщённой по `Read`, тогда в продакшене вы передаёте `File`, а в тестах — `&[u8]` или `Cursor<Vec<u8>>`. Это стандартная практика в Rust и не требует внешних зависимостей. Важно, чтобы функция не вызывала `metadata()` напрямую, иначе обобщённый интерфейс не сработает; проверку размера в таком случае выносят на уровень вызывающего кода или в отдельную функцию.\n\n```rust\nuse std::io::{self, Read};\nuse serde::de::DeserializeOwned;\n\nfn read_json<R: Read, T: DeserializeOwned>(mut reader: R) -> io::Result<T> {\n    let mut buf = String::new();\n    reader.read_to_string(&mut buf)?;\n    serde_json::from_str(&buf)\n        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))\n}\n\n#[cfg(test)]\nmod tests {\n    use super::*;\n    use std::io::Cursor;\n\n    #[test]\n    fn parses_valid_json() {\n        let data = br#\"{\"name\":\"test\",\"value\":42}\"#;\n        let v: serde_json::Value = read_json(Cursor::new(data)).unwrap();\n        assert_eq!(v[\"name\"], \"test\");\n    }\n\n    #[test]\n    fn rejects_invalid_json() {\n        let data = b\"{not json}\";\n        let res: io::Result<serde_json::Value> = read_json(Cursor::new(data));\n        assert!(res.is_err());\n    }\n}\n```\n\nВторой подход — использовать крейт `tempfile`, который создаёт временный файл и удаляет его при выходе из области видимости. Это удобно, когда сигнатура функции принимает `&Path` и менять её нежелательно. Крейт `tempfile` добавляется в `[dev-dependencies]`, чтобы не попадать в продакшен-сборку. Такой тест медленнее и зависит от файловой системы, но проверяет реальный путь исполнения, включая обработку ошибок ввода-вывода.\n\n```rust\n#[cfg(test)]\nmod file_tests {\n    use super::*;\n    use std::io::Write;\n    use tempfile::NamedTempFile;\n\n    #[test]\n    fn reads_json_from_path() {\n        let mut f = NamedTempFile::new().unwrap();\n        write!(f, r#\"{{\"ok\":true}}\"#).unwrap();\n        let v: serde_json::Value = read_json_from_path(f.path()).unwrap();\n        assert",
+          "prompt_tokens": 1144,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≥ 70 слов",
+              "observed": "249 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "без «ты/тебе/слушай»",
+              "observed": "формальный",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "есть код",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 9,
+          "question": "Что делать, если файл оказался в другой кодировке?",
+          "answer": "Если JSON-файл приходит в кодировке, отличной от UTF-8, стандартный `serde_json::from_str` не подойдёт: он ожидает `&str`, то есть уже валидный UTF-8. По спецификации RFC 8259 JSON должен быть в UTF-8, но на практике встречаются файлы в UTF-16 (часто с BOM), в однобайтовых кодировках вроде Windows-1251 или Latin-1, а также в UTF-8 с BOM. Стратегия зависит от того, известна ли кодировка заранее или её нужно определять.\n\nПервый шаг — читать байты, а не строку. Функция должна принимать `Read` и возвращать `Vec<u8>`, после чего кодировка нормализуется до UTF-8 и только затем передаётся в парсер. Это отделяет транспортный слой от логики разбора и позволяет тестировать декодирование независимо от JSON. Для UTF-16 и UTF-8 с BOM достаточно проверить первые байты: `FF FE` — UTF-16LE, `FE FF` — UTF-16BE, `EF BB BF` — UTF-8 с BOM. BOM нужно отбросить, иначе парсер вернёт ошибку на первом символе.\n\n```rust\nuse std::io::{self, Read};\n\nfn decode_to_utf8(mut bytes: Vec<u8>) -> io::Result<String> {\n    if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {\n        bytes.drain(..3);\n        return String::from_utf8(bytes)\n            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e));\n    }\n    if bytes.starts_with(&[0xFF, 0xFE]) {\n        let (text, _, err) = encoding_rs::UTF_16LE.decode(&bytes[2..]);\n        if err { return Err(io::Error::new(io::ErrorKind::InvalidData, \"bad utf-16le\")); }\n        return Ok(text.into_owned());\n    }\n    if bytes.starts_with(&[0xFE, 0xFF]) {\n        let (text, _, err) = encoding_rs::UTF_16BE.decode(&bytes[2..]);\n        if err { return Err(io::Error::new(io::ErrorKind::InvalidData, \"bad utf-16be\")); }\n        return Ok(text.into_owned());\n    }\n    String::from_utf8(bytes)\n        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))\n}\n```\n\nДля однобайтовых кодировок без BOM автоматическое определение ненадёжно, поэтому кодировку лучше передавать явно как параметр конфигурации. Крейт `encoding_rs` покрывает Windows-1251, ISO-8859-1 и большинство практических случаев; он же используется в Firefox и хорошо протестирован. Если кодировка неизвестна и задана только эвристически, применяйте `",
+          "prompt_tokens": 1149,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≥ 70 слов",
+              "observed": "229 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "без «ты/тебе/слушай»",
+              "observed": "формальный",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "есть код",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 10,
+          "question": "Как залогировать ошибку и не потерять исходную причину?",
+          "answer": "Логирование ошибки с сохранением исходной причины — это вопрос дисциплины типов и цепочки источников. В Rust стандартный механизм — `std::error::Error::source`, который позволяет строить цепочку причин. Проблема возникает, когда ошибку «переупаковывают» в строку или новый тип без сохранения источника: тогда в логах остаётся только верхнеуровневое сообщение, а корневая причина теряется. Правильный подход — либо пробрасывать ошибку через `?` с конвертацией через `From`, либо явно оборачивать с сохранением `source`, а на границе приложения логировать всю цепочку.\n\nПервый принцип: не превращайте ошибку в `String` внутри библиотечного кода. `map_err(|e| e.to_string())` уничтожает структуру и цепочку. Если нужен собственный тип ошибки, используйте `thiserror`, который автоматически реализует `source` при наличии поля с `#[from]` или `#[source]`. Это сохраняет и типизацию, и цепочку, и позволяет вызывающему коду различать варианты через `match`.\n\n```rust\nuse thiserror::Error;\n\n#[derive(Debug, Error)]\nenum AppError {\n    #[error(\"не удалось прочитать конфигурацию\")]\n    ConfigRead(#[source] std::io::Error),\n\n    #[error(\"некорректный JSON в конфигурации\")]\n    ConfigParse(#[source] serde_json::Error),\n\n    #[error(\"не удалось декодировать файл из кодировки {encoding}\")]\n    Decode {\n        encoding: &'static str,\n        #[source]\n        source: std::io::Error,\n    },\n}\n\nfn load_config(path: &str) -> Result<Config, AppError> {\n    let bytes = std::fs::read(path).map_err(AppError::ConfigRead)?;\n    let text = decode_to_utf8(bytes).map_err(|e| AppError::Decode {\n        encoding: \"auto\",\n        source: e,\n    })?;\n    serde_json::from_str(&text).map_err(AppError::ConfigParse)\n}\n```\n\nВторой принцип: на границе приложения (в `main`, в обработчике запроса, в задаче) логируйте не только `Display`, но и всю цепочку `source`. `Display` у `thiserror` даёт верхнеуровневое сообщение, а корневая причина лежит глубже. Утилита `anyhow` предоставляет `{:?}` с полным контекстом и цепочкой, а `tracing` умеет логировать ошибку как поле структурированного события. Комбинируйте: `tracing::error!(error = ?err, \"операция провалилась\")` — тогда в логах будет и сообщение, и цепочка, и структурированные поля для последующего поиска.\n\n```rust\nfn main() {\n    tracing_subscriber::fmt().with_env_filter(\"info\").init();\n    if let Err(err) = run() {\n        // {:",
+          "prompt_tokens": 1151,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "объём",
+              "expected": "≥ 70 слов",
+              "observed": "244 слов",
+              "ok": true
+            },
+            {
+              "name": "тон",
+              "expected": "без «ты/тебе/слушай»",
+              "observed": "формальный",
+              "ok": true
+            },
+            {
+              "name": "код",
+              "expected": "есть код",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "списки",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        }
+      ],
+      "first_violation": 2,
+      "compliant_count": 9,
+      "total": 10
+    },
+    {
+      "profile_id": "default",
+      "profile_title": "Универсальный",
+      "preferences": "обычный объём; нейтральный; по ситуации; списки=да; таблицы=нет; эмодзи=нет",
+      "steps": [
+        {
+          "index": 1,
+          "question": "Как в Rust безопасно прочитать JSON-файл и обработать ошибку?",
+          "answer": "# Чтение JSON-файла в Rust с обработкой ошибок\n\nБазовый подход — использовать `serde` + `serde_json` и пробрасывать ошибки через `Result`. Ниже — от простого к более надёжному.\n\n## 1. Зависимости\n\n```toml\n[dependencies]\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\n```\n\n## 2. Минимальный вариант\n\n```rust\nuse serde::Deserialize;\nuse std::fs;\n\n#[derive(Deserialize)]\nstruct Config {\n    name: String,\n    port: u16,\n}\n\nfn load_config(path: &str) -> Result<Config, Box<dyn std::error::Error>> {\n    let data = fs::read_to_string(path)?;      // ошибка I/O\n    let config: Config = serde_json::from_str(&data)?; // ошибка парсинга\n    Ok(config)\n}\n\nfn main() {\n    match load_config(\"config.json\") {\n        Ok(cfg) => println!(\"{}:{}\", cfg.name, cfg.port),\n        Err(e) => eprintln!(\"Ошибка загрузки конфига: {e}\"),\n    }\n}\n```\n\n`?` автоматически конвертирует `std::io::Error` и `serde_json::Error` в `Box<dyn Error>`, поэтому обе ошибки обрабатываются в одном месте.\n\n## 3. Свой тип ошибки (когда нужно различать причины)\n\n```rust\nuse serde::Deserialize;\nuse std::fmt;\n\n#[derive(Debug)]\nenum LoadError {\n    Io(std::io::Error),\n    Parse(serde_json::Error),\n}\n\nimpl fmt::Display for LoadError {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        match self {\n            LoadError::Io(e) => write!(f, \"не удалось прочитать файл: {e}\"),\n            LoadError::Parse(e) => write!(f, \"некорректный JSON: {e}\"),\n        }\n    }\n}\n\nimpl std::error::Error for LoadError {}\n\nimpl From<std::io::Error> for LoadError {\n    fn from(e: std::io::Error) -> Self { LoadError::Io(e) }\n}\n\nimpl From<serde_json::Error> for LoadError {\n    fn from(e: serde_json::Error) -> Self { LoadError::Parse(e) }\n}\n\nfn load_config(path: &str) -> Result<Config, LoadError> {\n    let data = std::fs::read_to_string(path)?;\n    let config = serde_json::from_str(&data)?;\n    Ok(config)\n}\n```\n\nТеперь вызывающий код может различать «файла нет» и «файл битый».\n\n## 4. Чтение из `BufReader` (для больших файлов)\n\n```rust\nuse std::fs::File;\nuse std::io::BufReader;\n\nfn load_config(path: &str) -> Result<Config, LoadError> {\n    let file = File::open(path)?;\n    let reader = BufReader::new(file);\n    let config = serde_json::from_reader(",
+          "prompt_tokens": 390,
+          "completion_tokens": 700,
+          "compliant": false,
+          "checks": [
+            {
+              "name": "списки",
+              "expected": "есть",
+              "observed": "нет",
+              "ok": false
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "question": "Чем Result отличается от panic! в Rust?",
+          "answer": "# Result vs panic! в Rust\n\nЭто два принципиально разных механизма обработки ошибок: `Result` — для **ожидаемых** ошибок, `panic!` — для **неисправимых** ситуаций (багов).\n\n## Ключевое различие\n\n`Result<T, E>` — это обычное значение. Ошибка возвращается вызывающему коду, который обязан её как-то обработать (или явно проигнорировать). Программа продолжает работать.\n\n`panic!` — это раскрутка стека (unwind) или немедленный abort. Программа аварийно завершается (или поток завершается). Восстановиться в общем случае нельзя.\n\n## Сравнение по свойствам\n\n- **Тип ошибки**: у `Result` — типизированная (`E`), у `panic!` — нет, это просто строка/значение.\n- **Кто обрабатывает**: `Result` — вызывающий код, `panic!` — никто, это конец.\n- **Проверка компилятором**: `Result` помечен `#[must_use]`, забыть нельзя без предупреждения; `panic!` компилятор не отслеживает.\n- **Стоимость**: `Result` — почти бесплатно (обычно zero-cost); `panic!` — дорого (раскрутка стека).\n- **Восстановление**: после `Result` программа продолжается; после `panic!` — нет (кроме `catch_unwind`, что редко уместно).\n- **Где уместно**: `Result` — ошибки ввода-вывода, парсинга, сети, валидации; `panic!` — нарушение инвариантов, недостижимый код, баг в логике.\n\n## Когда что использовать\n\n`Result` — по умолчанию для всего, что может пойти не так по внешним причинам:\n\n```rust\nfn parse_port(s: &str) -> Result<u16, std::num::ParseIntError> {\n    s.parse()\n}\n```\n\n`panic!` — когда продолжать бессмысленно или это ошибка программиста:\n\n```rust\nfn get_item(v: &[i32], i: usize) -> i32 {\n    if i >= v.len() {\n        panic!(\"индекс {i} вне диапазона (длина {})\", v.len());\n    }\n    v[i]\n}\n```\n\n## Связанные инструменты\n\n- `unwrap()` / `expect()` — паникуют при `Err`. `expect` даёт сообщение. Годятся в прототипах и тестах, но не в библиотечном коде.\n- `?` — пробрасывает `Err` наверх, превращая ошибку в `Result`. Это «мягкий» аналог раннего выхода.\n- `assert!` / `assert_eq!` — паникуют при нарушении условия; для проверки инвариантов.\n- `unreachable!()` / `todo!()` / `unimplemented!()` — паникуют, помечая места, где логика не должна доходить.\n\n##",
+          "prompt_tokens": 1104,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "списки",
+              "expected": "есть",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "question": "Как обработать ошибку serde_json при разборе JSON?",
+          "answer": "# Обработка ошибок serde_json\n\n`serde_json::Error` — единый тип для всех ошибок парсинга и сериализации. У него есть методы, позволяющие понять, **что именно** пошло не так и **где**.\n\n## 1. Основные методы `serde_json::Error`\n\n- `is_io()` — ошибка ввода-вывода (при работе с `from_reader`).\n- `is_syntax()` — синтаксическая ошибка (невалидный JSON).\n- `is_data()` — данные не соответствуют ожидаемой структуре (нет поля, неверный тип).\n- `is_eof()` — неожиданный конец ввода.\n- `line()` / `column()` — позиция ошибки (1-based).\n- `classify()` — возвращает `Category` (`Io`, `Syntax`, `Data`, `Eof`).\n\n## 2. Различение причин\n\n```rust\nuse serde::Deserialize;\n\n#[derive(Deserialize)]\nstruct Config {\n    name: String,\n    port: u16,\n}\n\nfn parse_config(data: &str) -> Result<Config, String> {\n    match serde_json::from_str::<Config>(data) {\n        Ok(cfg) => Ok(cfg),\n        Err(e) if e.is_syntax() => Err(format!(\n            \"невалидный JSON на строке {}, колонке {}: {e}\",\n            e.line(),\n            e.column()\n        )),\n        Err(e) if e.is_data() => Err(format!(\n            \"структура не совпадает с ожидаемой (строка {}, колонка {}): {e}\",\n            e.line(),\n            e.column()\n        )),\n        Err(e) if e.is_eof() => Err(format!(\"неожиданный конец файла: {e}\")),\n        Err(e) => Err(format!(\"ошибка разбора: {e}\")),\n    }\n}\n```\n\n## 3. Полезные детали в сообщении\n\n`serde_json::Error` в `Display` уже содержит позицию и описание, например:\n\n```\nexpected `,` or `}` at line 3 column 5\nmissing field `port` at line 1 column 20\ninvalid type: string \"abc\", expected u16 at line 1 column 15\n```\n\nПоэтому часто достаточно просто вывести `{e}` — оно информативно.\n\n## 4. Разбор в `serde_json::Value` для диагностики\n\nЕсли структура не подошла, иногда полезно сначала разобрать в `Value` и посмотреть, что реально пришло:\n\n```rust\nfn diagnose(data: &str) {\n    match serde_json::from_str::<serde_json::Value>(data) {\n        Ok(v) => println!(\"JSON валиден, структура: {v:#}\"),\n        Err(e) => eprintln!(\"JSON невалиден: {e}\"),\n    }\n}\n```\n\nТак вы отделяете «битый JSON» от «валидный JSON, но не та схема».\n\n## 5. Обработка отсутствующих/необязательных полей\n\nЧасть «ошибок данных» лучше предотвратить на уровне",
+          "prompt_tokens": 1823,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "списки",
+              "expected": "есть",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "question": "Как проверить, что файл существует, перед чтением?",
+          "answer": "# Проверка существования файла перед чтением\n\nВ Rust есть несколько способов, и у каждого свои нюансы. Главное правило: **не проверяйте существование отдельно от чтения** — между проверкой и открытием файл может исчезнуть (TOCTOU-гонка). Правильнее — сразу пытаться открыть и обрабатывать ошибку.\n\n## 1. Идиоматичный способ: просто открыть и обработать ошибку\n\n```rust\nuse std::fs::File;\nuse std::io::ErrorKind;\n\nfn open_file(path: &str) -> std::io::Result<File> {\n    match File::open(path) {\n        Ok(f) => Ok(f),\n        Err(e) if e.kind() == ErrorKind::NotFound => {\n            eprintln!(\"файл не найден: {path}\");\n            Err(e)\n        }\n        Err(e) => {\n            eprintln!(\"не удалось открыть {path}: {e}\");\n            Err(e)\n        }\n    }\n}\n```\n\nЭто атомарно: одна системная операция, без окна гонки. `ErrorKind::NotFound` покрывает и «нет файла», и «нет такой директории».\n\n## 2. Если действительно нужна проверка: `Path::exists()`\n\n```rust\nuse std::path::Path;\n\nlet path = Path::new(\"config.json\");\nif path.exists() {\n    // ...\n}\n```\n\nВажные оговорки:\n\n- `exists()` возвращает `false` и когда файла нет, и когда **нет прав** на проверку (ошибка проглатывается). Для различения используйте `try_exists()`.\n- Не различает «файл» и «директорию» — для этого `is_file()`.\n- Подвержено TOCTOU: между `exists()` и `File::open()` состояние может измениться.\n\n## 3. `try_exists()` — когда важно отличить «нет» от «ошибки доступа»\n\n```rust\nuse std::path::Path;\n\nmatch Path::new(\"data.txt\").try_exists() {\n    Ok(true) => println!(\"существует\"),\n    Ok(false) => println!(\"не существует\"),\n    Err(e) => eprintln!(\"ошибка проверки: {e}\"),\n}\n```\n\nПоявился в Rust 1.63. Возвращает `io::Result<bool>`.\n\n## 4. Проверка «это файл, а не директория»\n\n```rust\nuse std::path::Path;\n\nlet p = Path::new(\"data.txt\");\nif p.is_file() {\n    // существует и является обычным файлом\n}\n```\n\n`is_file()` — тоже «мягкая» проверка, ошибки проглатываются.\n\n## 5. Метаданные, если нужны детали\n\n```rust\nuse std::fs;\n\nmatch fs::metadata(\"data.txt\") {\n    Ok(meta) => {\n        if meta.is_file() {\n            println!(\"файл, размер {} байт\", meta.len());\n        } else if meta.is_dir() {\n            println!(\"это директория\");\n        }\n    }\n    Err(e) => eprintln!(\"нет доступа или файла нет: {e}\"),\n}\n```\n\n`",
+          "prompt_tokens": 1818,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "списки",
+              "expected": "есть",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 5,
+          "question": "Что делает оператор ? в Rust?",
+          "answer": "# Оператор `?` в Rust\n\nОператор `?` — это синтаксический сахар для **раннего возврата ошибки** (или `None`). Он разворачивает `Result`/`Option` и либо достаёт значение, либо немедленно возвращает управление из функции.\n\n## 1. Базовый смысл\n\nВыражение `expr?`:\n\n- если `expr` — `Ok(v)` (или `Some(v)`), результатом будет `v`;\n- если `Err(e)` (или `None`), функция **сразу возвращает** `Err(e)` (или `None`).\n\n```rust\nuse std::fs;\n\nfn read_config(path: &str) -> Result<String, std::io::Error> {\n    let content = fs::read_to_string(path)?; // при ошибке — ранний return Err\n    Ok(content)\n}\n```\n\nЭквивалент без `?`:\n\n```rust\nfn read_config(path: &str) -> Result<String, std::io::Error> {\n    let content = match fs::read_to_string(path) {\n        Ok(c) => c,\n        Err(e) => return Err(e),\n    };\n    Ok(content)\n}\n```\n\n## 2. Требования к функции\n\nФункция, где используется `?`, должна возвращать тип, совместимый с ошибкой:\n\n- `Result<T, E>` — для `?` над `Result`;\n- `Option<T>` — для `?` над `Option`;\n- типы, реализующие `FromResidual` (в основном это `Result` и `Option`, плюс `ControlFlow`).\n\nНельзя использовать `?` в функции, возвращающей `()`, если ошибка не «поглощается» — компилятор выдаст ошибку.\n\n## 3. Автоматическое преобразование ошибок через `From`\n\nКлючевая сила `?`: если тип ошибки выражения не совпадает с типом ошибки функции, применяется `From::from`. Это позволяет смешивать разные ошибки:\n\n```rust\nuse std::fs;\nuse std::num::ParseIntError;\n\nfn load_number(path: &str) -> Result<i32, Box<dyn std::error::Error>> {\n    let text = fs::read_to_string(path)?;      // io::Error -> Box<dyn Error>\n    let n: i32 = text.trim().parse()?;         // ParseIntError -> Box<dyn Error>\n    Ok(n)\n}\n```\n\nЗдесь обе ошибки конвертируются в `Box<dyn Error>` благодаря `From`. То же работает с `thiserror`/`anyhow`:\n\n```rust\nuse anyhow::{Context, Result};\n\nfn load(path: &str) -> Result<i32> {\n    let text = std::fs::read_to_string(path)\n        .with_context(|| format!(\"не удалось прочитать {path}\"))?;\n    let n: i32 = text.trim().parse()\n        .context(\"не число\")?;\n    Ok(n)\n}\n```\n\n## 4. `?` над `Option`\n\n```rust\nfn first_word_len(s: &str) -> Option<usize> {\n    let word = s.split_",
+          "prompt_tokens": 1816,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "списки",
+              "expected": "есть",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 6,
+          "question": "Как вернуть ошибку из функции в Rust?",
+          "answer": "# Как вернуть ошибку из функции в Rust\n\nВ Rust нет исключений — ошибки возвращаются как значения. Есть несколько уровней: от ручного `Result` до готовых крейтов.\n\n## 1. Базовый способ: `Result<T, E>`\n\n```rust\nuse std::fs;\n\nfn read_config(path: &str) -> Result<String, std::io::Error> {\n    let content = fs::read_to_string(path)?;\n    Ok(content)\n}\n```\n\n- `Ok(value)` — успех;\n- `Err(error)` — ошибка.\n\nВызвать и обработать:\n\n```rust\nmatch read_config(\"config.toml\") {\n    Ok(s) => println!(\"{s}\"),\n    Err(e) => eprintln!(\"ошибка: {e}\"),\n}\n```\n\n## 2. Свой тип ошибки через `enum`\n\nКогда ошибок несколько видов, заведите перечисление:\n\n```rust\nuse std::fmt;\nuse std::num::ParseIntError;\n\n#[derive(Debug)]\nenum ConfigError {\n    Io(std::io::Error),\n    Parse(ParseIntError),\n    Invalid(String),\n}\n\nimpl fmt::Display for ConfigError {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        match self {\n            ConfigError::Io(e) => write!(f, \"ошибка ввода-вывода: {e}\"),\n            ConfigError::Parse(e) => write!(f, \"ошибка разбора: {e}\"),\n            ConfigError::Invalid(msg) => write!(f, \"некорректные данные: {msg}\"),\n        }\n    }\n}\n\nimpl std::error::Error for ConfigError {}\n\nimpl From<std::io::Error> for ConfigError {\n    fn from(e: std::io::Error) -> Self { ConfigError::Io(e) }\n}\n\nimpl From<ParseIntError> for ConfigError {\n    fn from(e: ParseIntError) -> Self { ConfigError::Parse(e) }\n}\n```\n\nТеперь `?` сам конвертирует ошибки через `From`:\n\n```rust\nfn load(path: &str) -> Result<i32, ConfigError> {\n    let text = std::fs::read_to_string(path)?; // io::Error -> ConfigError\n    let n: i32 = text.trim().parse()?;         // ParseIntError -> ConfigError\n    if n < 0 {\n        return Err(ConfigError::Invalid(\"отрицательное число\".into()));\n    }\n    Ok(n)\n}\n```\n\n## 3. Готовые крейты\n\n**`thiserror`** — для библиотек, где нужен конкретный тип ошибки:\n\n```rust\nuse thiserror::Error;\n\n#[derive(Debug, Error)]\nenum ConfigError {\n    #[error(\"ошибка ввода-вывода: {0}\")]\n    Io(#[from] std::io::Error),\n    #[error(\"ошибка разбора: {0}\")]\n    Parse(#[from] std::num::ParseIntError),\n    #[error(\"некорректные данные: {0}\")]\n    Invalid(String),\n}\n```\n\n`#[from]` автоматически генерирует `From`, `#[error(...)]` — `Display`.\n\n**`any",
+          "prompt_tokens": 1811,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "списки",
+              "expected": "есть",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 7,
+          "question": "Как ограничить размер файла при чтении?",
+          "answer": "# Как ограничить размер файла при чтении в Rust\n\nЕсть несколько подходов — от простой проверки метаданных до потокового чтения с жёстким лимитом. Выбор зависит от того, доверяете ли вы файлу и нужна ли защита от «файла-бомбы».\n\n## 1. Проверка метаданных (простой случай)\n\n```rust\nuse std::fs;\nuse std::io;\n\nconst MAX_SIZE: u64 = 10 * 1024 * 1024; // 10 МБ\n\nfn read_limited(path: &str) -> io::Result<String> {\n    let meta = fs::metadata(path)?;\n    if meta.len() > MAX_SIZE {\n        return Err(io::Error::new(\n            io::ErrorKind::InvalidData,\n            format!(\"файл слишком большой: {} байт\", meta.len()),\n        ));\n    }\n    fs::read_to_string(path)\n}\n```\n\nПлюс: просто. Минус: между `metadata` и `read_to_string` файл может измениться (TOCTOU), и `read_to_string` всё равно прочитает целиком.\n\n## 2. Потоковое чтение с жёстким лимитом (надёжно)\n\nЧитаем через `Read::take`, который ограничивает число байт:\n\n```rust\nuse std::fs::File;\nuse std::io::{self, Read};\n\nconst MAX_SIZE: u64 = 10 * 1024 * 1024;\n\nfn read_limited(path: &str) -> io::Result<Vec<u8>> {\n    let file = File::open(path)?;\n    let mut buf = Vec::new();\n    // читаем максимум MAX_SIZE + 1 байт, чтобы обнаружить превышение\n    let mut limited = file.take(MAX_SIZE + 1);\n    limited.read_to_end(&mut buf)?;\n\n    if buf.len() as u64 > MAX_SIZE {\n        return Err(io::Error::new(\n            io::ErrorKind::InvalidData,\n            \"файл превышает допустимый размер\",\n        ));\n    }\n    Ok(buf)\n}\n```\n\nКлючевой момент — `MAX_SIZE + 1`: если прочитали больше лимита, значит файл точно больше. Это защищает от «файла-бомбы» (например, `/dev/zero` или разреженного файла), где `metadata().len()` может врать или быть огромным.\n\nДля строки:\n\n```rust\nfn read_limited_string(path: &str) -> io::Result<String> {\n    let bytes = read_limited(path)?;\n    String::from_utf8(bytes)\n        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))\n}\n```\n\n## 3. Чтение с буфером фиксированного размера\n\nЕсли файл большой и не нужен целиком — читайте порциями:\n\n```rust\nuse std::fs::File;\nuse std::io::{self, Read};\n\nfn process_limited(path: &str, max: u64) -> io::Result<()> {\n    let file = File::open(path)?;\n    let mut reader",
+          "prompt_tokens": 1807,
+          "completion_tokens": 700,
+          "compliant": false,
+          "checks": [
+            {
+              "name": "списки",
+              "expected": "есть",
+              "observed": "нет",
+              "ok": false
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 8,
+          "question": "Как протестировать чтение JSON без реального файла?",
+          "answer": "# Как протестировать чтение JSON без реального файла\n\nЕсть несколько уровней: от подмены источника данных до временных файлов. Выбор зависит от того, что именно вы тестируете — логику разбора или работу с файловой системой.\n\n## 1. Разделите чтение и разбор (лучший подход)\n\nСамое надёжное — не тестировать файловый ввод-вывод вообще. Вынесите разбор в чистую функцию, принимающую `&str` или `&[u8]`:\n\n```rust\nuse serde::Deserialize;\n\n#[derive(Debug, Deserialize, PartialEq)]\nstruct Config {\n    name: String,\n    port: u16,\n}\n\n// Чистая функция — легко тестировать\nfn parse_config(text: &str) -> Result<Config, serde_json::Error> {\n    serde_json::from_str(text)\n}\n\n// Тонкая обёртка над файлом\nfn load_config(path: &str) -> Result<Config, Box<dyn std::error::Error>> {\n    let text = std::fs::read_to_string(path)?;\n    Ok(parse_config(&text)?)\n}\n```\n\nТест без файла:\n\n```rust\n#[cfg(test)]\nmod tests {\n    use super::*;\n\n    #[test]\n    fn parses_valid_config() {\n        let json = r#\"{\"name\": \"app\", \"port\": 8080}\"#;\n        let cfg = parse_config(json).unwrap();\n        assert_eq!(cfg, Config { name: \"app\".into(), port: 8080 });\n    }\n\n    #[test]\n    fn rejects_invalid_json() {\n        assert!(parse_config(\"{ not json }\").is_err());\n    }\n}\n```\n\n## 2. Обобщите источник через `Read`\n\nЕсли нужно тестировать именно «чтение + разбор», принимайте любой `Read`, а не путь:\n\n```rust\nuse std::io::Read;\n\nfn load_from_reader<R: Read>(mut r: R) -> Result<Config, Box<dyn std::error::Error>> {\n    let mut text = String::new();\n    r.read_to_string(&mut text)?;\n    Ok(serde_json::from_str(&text)?)\n}\n```\n\nВ тесте передаёте `&[u8]` (срез реализует `Read`):\n\n```rust\n#[test]\nfn loads_from_bytes() {\n    let data = br#\"{\"name\": \"app\", \"port\": 8080}\"#;\n    let cfg = load_from_reader(&data[..]).unwrap();\n    assert_eq!(cfg.port, 8080);\n}\n```\n\n## 3. Временный файл через `tempfile`\n\nКогда нужно проверить реальную работу с ФС (например, обработку отсутствующего файла, прав доступа):\n\n```rust\n// Cargo.toml: tempfile = \"3\"\nuse std::io::Write;\n\n#[test]\nfn loads_from_temp_file() {\n    let mut f = tempfile::NamedTempFile::new().unwrap();\n    write!(f, r#\"{{\"name\": \"app\", \"port\": 8080}}\"#).unwrap();\n\n    let cfg = load_config(f.path().to_str().unwrap()).",
+          "prompt_tokens": 1813,
+          "completion_tokens": 700,
+          "compliant": false,
+          "checks": [
+            {
+              "name": "списки",
+              "expected": "есть",
+              "observed": "нет",
+              "ok": false
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 9,
+          "question": "Что делать, если файл оказался в другой кодировке?",
+          "answer": "# Что делать, если файл в другой кодировке\n\n`std::fs::read_to_string` и `String::from_utf8` требуют валидный UTF-8. Если файл в другой кодировке (Windows-1251, Latin-1, Shift-JIS и т.п.), чтение упадёт с ошибкой. Варианты решения — от простого до полноценного.\n\n## 1. Сначала определите кодировку\n\nНе угадывайте вслепую. Два подхода:\n\n- **Знать заранее** — если формат/источник фиксирован (например, CSV из 1С всегда в Windows-1251), просто декодируйте явно.\n- **Определять автоматически** — крейт `encoding_rs` + `chardetng` (от Mozilla) для эвристики.\n\n```toml\n# Cargo.toml\nencoding_rs = \"0.8\"\nchardetng = \"0.1\"\n```\n\n## 2. Явное декодирование через `encoding_rs`\n\n`encoding_rs` — де-факто стандарт (используется в Firefox), поддерживает все распространённые кодировки.\n\n```rust\nuse encoding_rs::WINDOWS_1251;\n\nfn read_cp1251(path: &str) -> std::io::Result<String> {\n    let bytes = std::fs::read(path)?;\n    let (text, _, had_errors) = WINDOWS_1251.decode(&bytes);\n    if had_errors {\n        // были байты, которые не удалось декодировать\n        eprintln!(\"предупреждение: часть байт не декодирована\");\n    }\n    Ok(text.into_owned())\n}\n```\n\nОбратите внимание: `decode` возвращает кортеж `(Cow<str>, &Encoding, bool)`. Третий элемент — флаг ошибок декодирования (замена на `U+FFFD`).\n\n## 3. Автоопределение кодировки\n\n```rust\nuse chardetng::EncodingDetector;\n\nfn read_auto(path: &str) -> std::io::Result<String> {\n    let bytes = std::fs::read(path)?;\n\n    let mut det = EncodingDetector::new();\n    det.feed(&bytes, true); // true = последний фрагмент\n    let encoding = det.guess(None, true);\n\n    let (text, _, _) = encoding.decode(&bytes);\n    Ok(text.into_owned())\n}\n```\n\nВажно: автоопределение — эвристика и ошибается на коротких текстах и на кириллице (Windows-1251 vs KOI8-R vs UTF-8). Для критичных данных лучше знать кодировку заранее или давать пользователю выбор.\n\n## 4. Комбинированный подход: UTF-8 с фолбэком\n\nЧастый практичный сценарий — «в основном UTF-8, но иногда что-то другое»:\n\n```rust\nuse encoding_rs::WINDOWS_1251;\n\nfn read_flexible(path: &str) -> std::io::Result<String> {\n   ",
+          "prompt_tokens": 1818,
+          "completion_tokens": 700,
+          "compliant": true,
+          "checks": [
+            {
+              "name": "списки",
+              "expected": "есть",
+              "observed": "да",
+              "ok": true
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "index": 10,
+          "question": "Как залогировать ошибку и не потерять исходную причину?",
+          "answer": "# Как залогировать ошибку и не потерять исходную причину\n\nКлючевая идея: не превращайте ошибку в строку слишком рано. `format!(\"{}\", e)` или `.to_string()` теряют цепочку причин (`source()`), тип и контекст. Логируйте структурированно и сохраняйте цепочку.\n\n## 1. Не теряйте `source()` — используйте `{:#}` или обход цепочки\n\n`Display` показывает только верхний уровень. `{:#}` (alternate) у `anyhow`/`thiserror` печатает всю цепочку:\n\n```rust\n// anyhow: {:#} выводит \"верхний: причина: первопричина\"\nif let Err(e) = run() {\n    eprintln!(\"ошибка: {e:#}\");\n}\n```\n\nЕсли работаете с `std::error::Error` напрямую — пройдитесь по `source()`:\n\n```rust\nfn log_chain(err: &dyn std::error::Error) {\n    eprintln!(\"ошибка: {err}\");\n    let mut src = err.source();\n    while let Some(cause) = src {\n        eprintln!(\"  причина: {cause}\");\n        src = cause.source();\n    }\n}\n```\n\n## 2. Добавляйте контекст, а не заменяйте ошибку\n\nПлохо — исходная причина теряется:\n\n```rust\nlet text = std::fs::read_to_string(path)\n    .map_err(|_| \"не удалось прочитать файл\")?; // причина потеряна\n```\n\nХорошо — контекст + сохранённая причина (`anyhow::Context`):\n\n```rust\nuse anyhow::Context;\n\nlet text = std::fs::read_to_string(path)\n    .with_context(|| format!(\"чтение конфига {path}\"))?;\n```\n\nТеперь `{:#}` даст: `чтение конфига config.json: No such file or directory (os error 2)`.\n\n## 3. Типизированные ошибки через `thiserror`\n\nКогда нужны и структура, и цепочка:\n\n```rust\nuse thiserror::Error;\n\n#[derive(Debug, Error)]\nenum AppError {\n    #[error(\"не удалось прочитать {path}\")]\n    Read {\n        path: String,\n        #[source] // сохраняет исходную причину\n        source: std::io::Error,\n    },\n    #[error(\"некорректный JSON\")]\n    Parse(#[from] serde_json::Error), // #[from] тоже сохраняет source\n}\n```\n\n`#[source]` и `#[from]` критичны — без них `source()` вернёт `None`, и цепочка оборвётся.\n\n## 4. Структурированное логирование (`tracing`)\n\nДля продакшена строки в `stderr` мало. `tracing` позволяет логировать поля отдельно, а цепочку — через `error!` с `?err`:\n\n```rust\nuse tracing::{error, instrument};\n\n#[instrument(skip(path), fields(path = %path))]\nfn load(path: &str) -> anyhow::Result<String> {\n    let",
+          "prompt_tokens": 1824,
+          "completion_tokens": 700,
+          "compliant": false,
+          "checks": [
+            {
+              "name": "списки",
+              "expected": "есть",
+              "observed": "нет",
+              "ok": false
+            },
+            {
+              "name": "таблицы",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            },
+            {
+              "name": "эмодзи",
+              "expected": "нет",
+              "observed": "нет",
+              "ok": true
+            }
+          ]
+        }
+      ],
+      "first_violation": 1,
+      "compliant_count": 6,
+      "total": 10
+    }
+  ],
+  "compliant_profiles": 0,
+  "total_profiles": 3,
+  "compliant_answers": 22,
+  "total_answers": 30,
+  "thresholds": [
+    {
+      "name": "профилей ≥ 2",
+      "ok": true,
+      "detail": "3"
+    },
+    {
+      "name": "устойчивость ≥ 8/10 в каждом профиле",
+      "ok": false,
+      "detail": "brief 7/10; detailed 9/10; default 6/10"
+    },
+    {
+      "name": "полная цепочка (≥ 3 × 10)",
+      "ok": true,
+      "detail": "30 запросов · 3 профиля × 10 вопросов"
+    },
+    {
+      "name": "без ошибок API",
+      "ok": true,
+      "detail": "0 ошибок"
+    }
+  ],
+  "total_requests": 30,
+  "errors": []
+}

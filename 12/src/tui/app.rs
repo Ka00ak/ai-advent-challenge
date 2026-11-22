@@ -24,7 +24,7 @@ use crate::app::jobs::spawn_job;
 use crate::app::state::Screen;
 use crate::domain::memory::MemoryLayer;
 use crate::tui::keymap::{UiAction, handle_key};
-use crate::tui::state::{AppState, Modal};
+use crate::tui::state::{ApiFocus, AppState, Modal, VerifyMode};
 use crate::tui::theme;
 use crate::tui::widgets;
 
@@ -161,6 +161,17 @@ fn execute_action(
                 cancel.clone(),
             )
         }
+        UiAction::Personalization(options) => {
+            cancel.store(false, Ordering::Relaxed);
+            state.personalization = None;
+            state.personalization_progress = None;
+            spawn_job(
+                runtime.clone(),
+                Job::Personalization(options),
+                tx.clone(),
+                cancel.clone(),
+            )
+        }
         UiAction::ArchiveTask => {
             if let Err(error) = controller.archive_task() {
                 state.error_modal(error.to_string());
@@ -260,6 +271,26 @@ fn execute_action(
                     Ok(()) => {
                         state.set_banner(format!(
                             "Отчёт сохранён: {} и {}",
+                            md.display(),
+                            json.display()
+                        ));
+                    }
+                    Err(error) => state.error_modal(error.to_string()),
+                }
+            }
+        }
+        UiAction::SavePersonalizationReport { md, json } => {
+            if let Some(report) = state.personalization.clone() {
+                if let Some(parent) = md.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                if let Some(parent) = json.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                match controller.save_personalization_report(&report, &md, &json) {
+                    Ok(()) => {
+                        state.set_banner(format!(
+                            "Отчёт персонализации сохранён: {} и {}",
                             md.display(),
                             json.display()
                         ));
@@ -377,6 +408,32 @@ fn handle_app_event(
                 "Эксперимент: пороги не пройдены".into()
             };
         }
+        AppEvent::PersonalizationProgress(progress) => {
+            state.personalization_progress = Some(progress.clone());
+            state.status = format!(
+                "профили · {} · {} · {}/{}",
+                progress.phase, progress.profile, progress.done, progress.total
+            );
+        }
+        AppEvent::PersonalizationFinished(report) => {
+            state.personalization_progress = None;
+            let passed = report.passed();
+            state.status = if passed {
+                format!(
+                    "Профили: {}/{} ответов, {}/{} профилей",
+                    report.compliant_answers,
+                    report.total_answers,
+                    report.compliant_profiles,
+                    report.total_profiles
+                )
+            } else {
+                format!(
+                    "Профили: {}/{} ответов, порог не пройден",
+                    report.compliant_answers, report.total_answers
+                )
+            };
+            state.personalization = Some(report);
+        }
         AppEvent::MigrationFinished(report) => {
             state.migration = Some(report.clone());
             state.status = format!(
@@ -388,6 +445,7 @@ fn handle_app_event(
             state.busy = None;
             state.chat_pending = None;
             state.fail_experiment_progress();
+            state.personalization_progress = None;
             state.error_modal(message);
         }
         AppEvent::JobFinished => {
@@ -526,13 +584,19 @@ fn footer_lines(state: &AppState) -> Vec<Line<'static>> {
         }
         Screen::Memory => "Tab фокус · a/e/d/p/m · c очистка · Enter карточка · / поиск",
         Screen::Pending => "y принять · n отклонить · e изменить · l сменить слой · g/G",
-        Screen::Experiment => {
-            "r запустить · m режим · Space очистка · s отчёт · d детали · i импорт"
-        }
+        Screen::Experiment => match state.verify_mode {
+            VerifyMode::Ablation => {
+                "r запустить · m режим · Space очистка · s отчёт · d детали · i импорт · p профили"
+            }
+            VerifyMode::Profiles => {
+                "r запустить · p ablation · Space цепочка 10 · e вопрос · s отчёт · d детали"
+            }
+        },
         Screen::Settings => "Enter изменить · s сохранить · Tab поле",
-        Screen::ApiLog => {
-            "f фильтр · ↑↓ выбор · Tab/←→ запрос/ответ · PgUp/PgDn прокрутка · e экспорт"
+        Screen::ApiLog if state.api_focus == ApiFocus::Body => {
+            "↑↓/PgUp/PgDn прокрутка JSON · Home/End · Tab/Esc к списку · ←→ запрос/ответ"
         }
+        Screen::ApiLog => "f фильтр · ↑↓ выбор · Tab к телу · ←→ запрос/ответ · e экспорт",
         Screen::Profile => "↑↓ выбор · Enter/u активировать · g/G",
     };
     let second = if let Some(busy) = state.busy {

@@ -4,8 +4,11 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use lab12::app::state::Screen;
 use lab12::domain::memory::{MemoryBreakdown, MemoryLayer};
 use lab12::experiment::ExperimentProgress;
+use lab12::experiment::personalization::{
+    PersonalizationOptions, SAME_QUESTION, run_personalization,
+};
 use lab12::tui::keymap::{UiAction, handle_key};
-use lab12::tui::state::{AppState, Modal};
+use lab12::tui::state::{AppState, InputPurpose, Modal, VerifyMode};
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 
@@ -186,7 +189,14 @@ fn api_screen_shows_details_and_highlighted_request_without_modal() {
         "{\n  \"messages\": [\n    {\"role\": \"user\", \"content\": \"привет API\"}\n  ]\n}"
             .into(),
     );
-    first.response_body = Some("{\n  \"content\": \"ответ API\"\n}".into());
+    first.response_body = Some({
+        let mut body = String::from("{\n  \"content\": \"ответ API\",\n  \"data\": [\n");
+        for index in 0..60 {
+            body.push_str(&format!("    {index},\n"));
+        }
+        body.push_str("  ]\n}");
+        body
+    });
     first.memory = Some(MemoryBreakdown {
         system_tokens: 100,
         profile_tokens: 20,
@@ -229,7 +239,7 @@ fn api_screen_shows_details_and_highlighted_request_without_modal() {
     assert!(text.contains("tools 7"));
     assert!(state.modal.is_none(), "детали показываются без модалки");
 
-    handle_key(&mut state, key(KeyCode::Tab));
+    handle_key(&mut state, key(KeyCode::Right));
     terminal
         .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
         .unwrap();
@@ -242,6 +252,23 @@ fn api_screen_shows_details_and_highlighted_request_without_modal() {
         .collect();
     assert!(text.contains("ответ API"));
 
+    handle_key(&mut state, key(KeyCode::Tab));
+    assert_eq!(
+        state.api_focus,
+        lab12::tui::state::ApiFocus::Body,
+        "Tab переводит фокус в тело"
+    );
+    handle_key(&mut state, key(KeyCode::PageDown));
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    assert!(
+        state.api_json_scroll > 0,
+        "JSON прокручивается стрелками/PageDown"
+    );
+
+    handle_key(&mut state, key(KeyCode::Esc));
+    assert_eq!(state.api_focus, lab12::tui::state::ApiFocus::List);
     handle_key(&mut state, key(KeyCode::Down));
     terminal
         .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
@@ -543,4 +570,105 @@ fn first_frame_and_key_reaction_are_fast() {
     let start = std::time::Instant::now();
     handle_key(&mut state, key(KeyCode::Tab));
     assert!(start.elapsed() < std::time::Duration::from_millis(100));
+}
+
+#[test]
+fn experiment_tab_switches_to_profile_verification_mode() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::Experiment;
+    assert_eq!(state.verify_mode, VerifyMode::Ablation);
+
+    let action = handle_key(&mut state, key(KeyCode::Char('p')));
+    assert_eq!(action, UiAction::None);
+    assert_eq!(state.verify_mode, VerifyMode::Profiles);
+
+    let action = handle_key(&mut state, key(KeyCode::Char('r')));
+    assert_eq!(
+        action,
+        UiAction::Personalization(PersonalizationOptions {
+            question: Some(SAME_QUESTION.into()),
+            profile_ids: Vec::new(),
+            include_chain: true,
+        })
+    );
+
+    handle_key(&mut state, key(KeyCode::Char(' ')));
+    assert!(!state.personalization_chain);
+    let action = handle_key(&mut state, key(KeyCode::Char('r')));
+    assert!(matches!(
+        action,
+        UiAction::Personalization(PersonalizationOptions {
+            include_chain: false,
+            ..
+        })
+    ));
+
+    handle_key(&mut state, key(KeyCode::Char('e')));
+    assert_eq!(
+        state.input.as_ref().unwrap().purpose,
+        InputPurpose::PersonalizationQuestion
+    );
+    let input = state.input.as_mut().unwrap();
+    input.buffer = "Как устроен Result?".into();
+    input.cursor = input.buffer.chars().count();
+    handle_key(&mut state, key(KeyCode::Enter));
+    assert!(state.input.is_none());
+    assert_eq!(state.personalization_question(), "Как устроен Result?");
+
+    let action = handle_key(&mut state, key(KeyCode::Char('p')));
+    assert_eq!(action, UiAction::None);
+    assert_eq!(state.verify_mode, VerifyMode::Ablation);
+}
+
+#[test]
+fn profile_verification_renders_scenario_and_results() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::Experiment;
+    state.verify_mode = VerifyMode::Profiles;
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let text: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(text.contains("Проверка профилей"));
+    assert!(text.contains("brief"));
+    assert!(text.contains("detailed"));
+    assert!(text.contains("default"));
+    assert!(text.contains("Цепочка:"));
+
+    let cancel = std::sync::atomic::AtomicBool::new(false);
+    let report = run_personalization(
+        &lab12::domain::profile::ProfileState::with_presets(chrono::Utc::now()),
+        &common::test_settings(),
+        &lab12::llm::client::FakeChatClient,
+        &PersonalizationOptions::default(),
+        &cancel,
+        &mut |_| {},
+    )
+    .unwrap();
+    state.personalization = Some(report);
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal
+        .draw(|frame| lab12::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let text: String = terminal
+        .backend()
+        .buffer()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+    assert!(text.contains("Соблюдено ответов: 30 из 30"));
+    assert!(text.contains("профилей полностью: 3 из 3"));
+    assert!(text.contains("первое:"));
 }

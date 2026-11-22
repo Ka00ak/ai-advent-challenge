@@ -1,11 +1,12 @@
-//! Экран «Проверка»: настройки прогона, прогресс и таблицы.
+//! Экран «Проверка»: ablation памяти и режим проверки профилей.
 
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Gauge, Paragraph, Wrap};
 
-use crate::tui::state::AppState;
+use crate::experiment::personalization::CHAIN_QUESTIONS;
+use crate::tui::state::{AppState, VerifyMode};
 use crate::tui::theme;
 
 pub fn draw(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -18,20 +19,33 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &AppState) {
         ])
         .split(area);
 
+    match state.verify_mode {
+        VerifyMode::Ablation => draw_ablation(frame, chunks[0], chunks[1], chunks[2], state),
+        VerifyMode::Profiles => draw_profiles(frame, chunks[0], chunks[1], chunks[2], state),
+    }
+}
+
+fn draw_ablation(
+    frame: &mut Frame,
+    header: Rect,
+    gauge_area: Rect,
+    results_area: Rect,
+    state: &AppState,
+) {
     let mut options = vec![
         Line::from(format!(
-            "Режим: {}   Окно STM: {}   Cleanup: {}",
+            "Режим: Ablation памяти [p → профили] · {} · cleanup {} · STM {}",
             if state.experiment_quick {
                 "quick (9 вопросов)"
             } else {
                 "full (18 вопросов)"
             },
-            state.settings.memory.stm.window,
             if state.experiment_cleanup {
-                "включён (3 прогона)"
+                "вкл"
             } else {
-                "выключен"
-            }
+                "выкл"
+            },
+            state.settings.memory.stm.window
         )),
         Line::from(Span::styled(
             "Конфигурации: none · stm · wm · ltm · stm+wm · stm+wm+ltm · full",
@@ -48,7 +62,7 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &AppState) {
         )),
         Line::from(""),
         Line::from(
-            "[r] запустить · [m] режим · [Space] очистка · [s] сохранить · [d] детали · [i] импорт facts",
+            "[r] запустить · [m] режим · [Space] очистка · [s] отчёт · [d] детали · [i] импорт",
         ),
     ];
     if let Some(progress) = &state.experiment_progress {
@@ -84,7 +98,7 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &AppState) {
                 .title(" Контрольный диалог "),
         )
         .wrap(Wrap { trim: true });
-    frame.render_widget(options_block, chunks[0]);
+    frame.render_widget(options_block, header);
 
     let ratio = state
         .experiment_progress
@@ -106,7 +120,7 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &AppState) {
         })
         .ratio(ratio.clamp(0.0, 1.0))
         .label(format!("{:.0}%", ratio * 100.0));
-    frame.render_widget(gauge, chunks[1]);
+    frame.render_widget(gauge, gauge_area);
 
     let mut lines = Vec::new();
     if let Some(report) = &state.experiment {
@@ -212,5 +226,175 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &AppState) {
                 .title(" Ablation / очистка "),
         )
         .wrap(Wrap { trim: true });
-    frame.render_widget(results, chunks[2]);
+    frame.render_widget(results, results_area);
+}
+
+fn draw_profiles(
+    frame: &mut Frame,
+    header: Rect,
+    gauge_area: Rect,
+    results_area: Rect,
+    state: &AppState,
+) {
+    let mut options = vec![
+        Line::from("Режим: Профили [p → ablation] · цепочка 10 вопросов на каждый профиль"),
+        Line::from(Span::styled(
+            "Профили: brief · detailed · default (3 профиля, у каждого свой контекст)",
+            theme::muted(),
+        )),
+        Line::from(format!(
+            "Первый вопрос: {}",
+            clip(&state.personalization_question(), 61)
+        )),
+        Line::from(if state.personalization_chain {
+            format!(
+                "Цепочка: вкл · {} вопросов × 3 профиля = {} запросов",
+                CHAIN_QUESTIONS.len(),
+                CHAIN_QUESTIONS.len() * 3
+            )
+        } else {
+            "Цепочка: выкл · 1 вопрос × 3 профиля = 3 запроса".to_string()
+        }),
+    ];
+    if let Some(progress) = &state.personalization_progress {
+        let phase = if progress.phase == "chain" {
+            "цепочка"
+        } else {
+            "один вопрос"
+        };
+        let mark = match progress.last_ok {
+            Some(true) => " ✓",
+            Some(false) => " ✗",
+            None => "",
+        };
+        options.push(Line::from(format!(
+            "Прогресс: {phase} · {} · {}/{} · {}/{}{}",
+            progress.profile,
+            progress.step,
+            progress.steps_total,
+            progress.done,
+            progress.total,
+            mark
+        )));
+    } else {
+        options.push(Line::from(""));
+    }
+    options.push(Line::from(
+        "[r] запустить · [Space] цепочка · [e] первый вопрос",
+    ));
+    options.push(Line::from("[s] отчёт · [d] детали · [i] импорт"));
+    let options_block = Paragraph::new(options)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Проверка профилей "),
+        )
+        .wrap(Wrap { trim: true });
+    frame.render_widget(options_block, header);
+
+    let ratio = state
+        .personalization_progress
+        .as_ref()
+        .map(|progress| {
+            if progress.total == 0 {
+                0.0
+            } else {
+                progress.done as f64 / progress.total as f64
+            }
+        })
+        .unwrap_or(0.0);
+    let gauge = Gauge::default()
+        .block(Block::default().borders(Borders::ALL).title(" Прогресс "))
+        .gauge_style(if state.busy.is_some() {
+            theme::accent()
+        } else {
+            theme::muted()
+        })
+        .ratio(ratio.clamp(0.0, 1.0))
+        .label(format!("{:.0}%", ratio * 100.0));
+    frame.render_widget(gauge, gauge_area);
+
+    let mut lines = Vec::new();
+    if let Some(report) = &state.personalization {
+        lines.push(Line::from(Span::styled(
+            format!(
+                "Соблюдено ответов: {} из {} · профилей полностью: {} из {}",
+                report.compliant_answers,
+                report.total_answers,
+                report.compliant_profiles,
+                report.total_profiles
+            ),
+            if report.compliant_profiles == report.total_profiles {
+                theme::ok()
+            } else {
+                theme::warn()
+            },
+        )));
+        for profile in &report.profiles {
+            lines.push(Line::from(format!(
+                "{:<10} {:>2}/{:<2}  {:<28} первое: {}",
+                profile.profile_id,
+                profile.compliant_count,
+                profile.total,
+                clip(&profile.preferences, 28),
+                profile
+                    .first_violation
+                    .map(|index| format!("#{index}"))
+                    .unwrap_or_else(|| "нет".into())
+            )));
+        }
+        let failed: Vec<&str> = report
+            .thresholds
+            .iter()
+            .filter(|threshold| !threshold.ok)
+            .map(|threshold| threshold.name.as_str())
+            .collect();
+        if failed.is_empty() {
+            lines.push(Line::from(Span::styled(
+                "Пороги пройдены: персонализация подтверждена",
+                theme::ok(),
+            )));
+        } else {
+            lines.push(Line::from(Span::styled(
+                format!(
+                    "Пороги не пройдены: {} · [d] подробности",
+                    failed.join(", ")
+                ),
+                theme::warn(),
+            )));
+        }
+    } else {
+        lines.push(Line::from(
+            "Нажмите r: 10 вопросов подряд будут заданы каждому из 3 профилей",
+        ));
+        lines.push(Line::from(
+            "STM сохраняется внутри цепочки — как один диалог в чате",
+        ));
+        lines.push(Line::from(Span::styled(
+            "Считается число соблюдённых ответов и первый ответ с нарушением",
+            theme::muted(),
+        )));
+        if let Some(progress) = &state.personalization_progress {
+            lines.push(Line::from(format!(
+                "{} · {} · {}/{}",
+                progress.phase, progress.profile, progress.done, progress.total
+            )));
+        }
+    }
+    let results = Paragraph::new(lines)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Результаты профилей "),
+        )
+        .wrap(Wrap { trim: true });
+    frame.render_widget(results, results_area);
+}
+
+fn clip(value: &str, max: usize) -> String {
+    let mut result: String = value.chars().take(max).collect();
+    if value.chars().count() > max {
+        result.push('…');
+    }
+    result
 }
