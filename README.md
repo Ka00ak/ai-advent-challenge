@@ -13,3 +13,4 @@
 | [09](./09) | 12.11.2026 | Vite, Vue, TypeScript | `npm run dev -w 09` |
 | [10](./10) | 13.11.2026 | Vite, Vue, TypeScript | `npm run dev -w 10` |
 | [11](./11) | 17.11.2026 | Rust, ratatui | `cd 11 && cargo run -- --data-dir ./data tui` |
+| [15](./15) | 23.11.2026 | Rust, ratatui | `cd 15 && cargo run -- --data-dir ./data tui` |

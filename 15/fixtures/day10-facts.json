@@ -1,0 +1,20 @@
+{
+  "version": "lab10.facts.v1",
+  "facts": [
+    { "key": "project.name", "value": "«Атлас»", "category": "имя", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "customer", "value": "Марина Ковалёва", "category": "имя", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "team.lead", "value": "Артём Соколов", "category": "имя", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "user.name", "value": "Алексей", "category": "имя", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "goal", "value": "Запускаем проект «Атлас»", "category": "цель", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "project.deadline", "value": "15 декабря 2026", "category": "срок", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "milestone.prototype", "value": "3 ноября 2026", "category": "срок", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "milestone.release", "value": "20 декабря 2026", "category": "срок", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "budget.total", "value": "480 000 рублей", "category": "бюджет", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "budget.marketing", "value": "120 000 рублей", "category": "бюджет", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "constraint.infra", "value": "Только российские ЦОД, зарубежные облака запрещены", "category": "ограничение", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "team.size", "value": "4 разработчика", "category": "ограничение", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "decision.database", "value": "PostgreSQL, MongoDB не используем", "category": "решение", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "decision.api", "value": "REST, GraphQL не берём", "category": "решение", "updatedAt": "2026-11-13T10:00:00Z" },
+    { "key": "preference.style", "value": "Отвечать коротко, без вступлений", "category": "предпочтение", "updatedAt": "2026-11-13T10:00:00Z" }
+  ]
+}

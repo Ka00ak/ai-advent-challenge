@@ -1,0 +1,11 @@
+{
+  "version": "lab10.facts.v1",
+  "facts": [
+    { "key": "project.deadline", "value": "15 декабря 2026", "category": "срок" },
+    { "key": "project.version", "value": "1.0", "category": "другое" },
+    { "key": "project.status", "value": "в работе", "category": "другое" },
+    { "key": "requirement.current", "value": "обязательный аудит", "category": "ограничение" },
+    { "key": "decision.approach", "value": "подход A — ручной отчёт", "category": "решение" },
+    { "key": "decisions.accepted", "value": "выбрали PostgreSQL", "category": "решение" }
+  ]
+}
