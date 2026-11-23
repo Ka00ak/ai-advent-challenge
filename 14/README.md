@@ -263,3 +263,7 @@ CLI, TUI 80×24/120×36 и controller с fake-LLM. Тесты не ходят в
 
 Подробности: [`docs/14-invariants.md`](docs/14-invariants.md) и
 [`docs/14-traceability.md`](docs/14-traceability.md).
+
+## Result
+
+https://github.com/user-attachments/assets/6bfc64a8-5b51-4eaf-ba48-028fdbe3d199
