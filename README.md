@@ -12,5 +12,8 @@
 | [08](./08) | 11.11.2026 | Vite, Vue, TypeScript | `npm run dev -w 08` |
 | [09](./09) | 12.11.2026 | Vite, Vue, TypeScript | `npm run dev -w 09` |
 | [10](./10) | 13.11.2026 | Vite, Vue, TypeScript | `npm run dev -w 10` |
-| [11](./11) | 17.11.2026 | Rust, ratatui | `cd 11 && cargo run -- --data-dir ./data tui` |
-| [15](./15) | 23.11.2026 | Rust, ratatui | `cd 15 && cargo run -- --data-dir ./data tui` |
+| [11](./11) | 16.11.2026 | Rust, ratatui | `cd 11 && cargo run -- --data-dir ./data tui` |
+| [12](./12) | 17.11.2026 | Rust, ratatui | `cd 12 && cargo run -- --data-dir ./data tui` |
+| [13](./13) | 18.11.2026 | Rust, ratatui | `cd 13 && cargo run -- --data-dir ./data tui` |
+| [14](./14) | 19.11.2026 | Rust, ratatui | `cd 14 && cargo run -- --data-dir ./data tui` |
+| [15](./15) | 20.11.2026 | Rust, ratatui | `cd 15 && cargo run -- --data-dir ./data tui` |
