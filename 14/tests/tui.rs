@@ -11,7 +11,7 @@ use lab14::experiment::personalization::{
 use lab14::tui::keymap::{UiAction, handle_key};
 use lab14::tui::state::{AppState, InputPurpose, Modal, VerifyMode};
 use ratatui::Terminal;
-use ratatui::backend::TestBackend;
+use ratatui::backend::{Backend, TestBackend};
 
 fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
@@ -827,4 +827,41 @@ fn profile_verification_renders_scenario_and_results() {
     assert!(text.contains("Соблюдено ответов: 30 из 30"));
     assert!(text.contains("профилей полностью: 3 из 3"));
     assert!(text.contains("первое:"));
+}
+
+#[test]
+fn long_invariant_input_wraps_and_cursor_is_visible() {
+    let (_dir, mut state) = state();
+    state.screen = Screen::Invariants;
+    let long = "Production-код только на Rust 2024. Запрещены Python, JavaScript, TypeScript, Go, Java, PHP, Ruby и Node.js. Изменение должно быть явной командой с причиной и записью было-стало. КОНЕЦ_ДЛИННОГО_ТЕКСТА";
+    state.open_input(
+        InputPurpose::InvariantRule,
+        "Новое правило инварианта",
+        long,
+    );
+    // Поставим курсор в конец: вьюпорт должен прокрутиться, а курсор — остаться видимым.
+    if let Some(input) = state.input.as_mut() {
+        input.cursor = input.buffer.chars().count();
+    }
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal
+        .draw(|frame| lab14::tui::render_for_test(frame, &mut state))
+        .unwrap();
+    let buffer = terminal.backend().buffer();
+    let text: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
+    assert!(text.contains("Ввод"));
+    assert!(text.contains("КОНЕЦ_ДЛИННОГО_ТЕКСТА"));
+    assert!(text.contains("текст переносится"));
+    // Координата терминального курсора установлена внутри окна ввода.
+    let cursor = terminal.backend_mut().get_cursor_position().unwrap();
+    assert!(
+        cursor.y >= 1 && cursor.y < 23,
+        "курсор вне окна: {cursor:?}"
+    );
+    assert!(
+        cursor.x >= 1 && cursor.x < 79,
+        "курсор вне окна: {cursor:?}"
+    );
 }
