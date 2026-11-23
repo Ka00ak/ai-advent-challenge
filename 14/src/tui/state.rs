@@ -36,7 +36,9 @@ pub enum InputPurpose {
     ExportApi,
     TaskGoal,
     Setting(usize),
+    InvariantTitle,
     InvariantRule,
+    InvariantForbidden,
     InvariantReason,
 }
 
@@ -232,8 +234,9 @@ pub struct FormDraft {
 #[derive(Debug, Clone)]
 pub struct InvariantDraft {
     pub id: String,
-    pub old_rule: String,
+    pub new_title: String,
     pub new_rule: String,
+    pub new_forbidden: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1078,13 +1081,14 @@ impl AppState {
         if let Some(invariant) = self.selected_invariant().cloned() {
             self.invariant_draft = Some(InvariantDraft {
                 id: invariant.id.clone(),
-                old_rule: invariant.rule.clone(),
+                new_title: invariant.title.clone(),
                 new_rule: invariant.rule.clone(),
+                new_forbidden: invariant.forbidden_phrases.join("; "),
             });
             self.open_input(
-                InputPurpose::InvariantRule,
-                "Новое правило инварианта",
-                invariant.rule,
+                InputPurpose::InvariantTitle,
+                "Заголовок инварианта",
+                invariant.title,
             );
         }
     }

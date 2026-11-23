@@ -69,10 +69,31 @@ fn invariants_screen_lists_and_requires_explicit_edit_command() {
     handle_key(&mut state, key(KeyCode::Char('c')));
     assert!(matches!(
         state.input.as_ref().map(|input| input.purpose),
+        Some(InputPurpose::InvariantTitle)
+    ));
+    if let Some(input) = state.input.as_mut() {
+        input.buffer = "Только Rust".into();
+        input.cursor = input.buffer.chars().count();
+    }
+    let action = handle_key(&mut state, key(KeyCode::Enter));
+    assert_eq!(action, UiAction::None);
+    assert!(matches!(
+        state.input.as_ref().map(|input| input.purpose),
         Some(InputPurpose::InvariantRule)
     ));
     if let Some(input) = state.input.as_mut() {
         input.buffer = "Только Rust; Python запрещён.".into();
+        input.cursor = input.buffer.chars().count();
+    }
+    let action = handle_key(&mut state, key(KeyCode::Enter));
+    assert_eq!(action, UiAction::None);
+    assert!(matches!(
+        state.input.as_ref().map(|input| input.purpose),
+        Some(InputPurpose::InvariantForbidden)
+    ));
+    // Старые признаки не должны оставаться: заменяем их вместе с правилом.
+    if let Some(input) = state.input.as_mut() {
+        input.buffer = "python; golang".into();
         input.cursor = input.buffer.chars().count();
     }
     let action = handle_key(&mut state, key(KeyCode::Enter));
@@ -87,8 +108,16 @@ fn invariants_screen_lists_and_requires_explicit_edit_command() {
     }
     let action = handle_key(&mut state, key(KeyCode::Enter));
     match action {
-        UiAction::ChangeInvariant { id, reason, .. } => {
+        UiAction::ChangeInvariant {
+            id,
+            title,
+            forbidden,
+            reason,
+            ..
+        } => {
             assert_eq!(id, "stack.rust-only");
+            assert_eq!(title, "Только Rust");
+            assert_eq!(forbidden, vec!["python".to_string(), "golang".to_string()]);
             assert_eq!(reason, "решение команды");
         }
         other => panic!("ожидали ChangeInvariant, получили {other:?}"),

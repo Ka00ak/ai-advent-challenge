@@ -381,26 +381,37 @@ fn execute_action(
             }
             Err(error) => state.error_modal(error.to_string()),
         },
-        UiAction::ChangeInvariant { id, rule, reason } => {
-            match controller.change_invariant(&id, None, Some(rule), None, &reason, "tui") {
-                Ok(change) => {
-                    state.refresh(controller);
-                    state.set_banner(format!(
-                        "инвариант {} изменён (ревизия {}): {} → {}; причина: {}",
-                        change.invariant_id,
-                        controller
-                            .invariants()
-                            .find(&change.invariant_id)
-                            .map(|invariant| invariant.revision)
-                            .unwrap_or(0),
-                        change.old_rule.chars().take(40).collect::<String>(),
-                        change.new_rule.chars().take(40).collect::<String>(),
-                        change.reason
-                    ));
-                }
-                Err(error) => state.error_modal(error.to_string()),
+        UiAction::ChangeInvariant {
+            id,
+            title,
+            rule,
+            forbidden,
+            reason,
+        } => match controller.change_invariant(
+            &id,
+            Some(title),
+            Some(rule),
+            Some(forbidden),
+            &reason,
+            "tui",
+        ) {
+            Ok(change) => {
+                state.refresh(controller);
+                state.set_banner(format!(
+                    "инвариант {} изменён (ревизия {}): {} → {}; причина: {}",
+                    change.invariant_id,
+                    controller
+                        .invariants()
+                        .find(&change.invariant_id)
+                        .map(|invariant| invariant.revision)
+                        .unwrap_or(0),
+                    change.old_rule.chars().take(40).collect::<String>(),
+                    change.new_rule.chars().take(40).collect::<String>(),
+                    change.reason
+                ));
             }
-        }
+            Err(error) => state.error_modal(error.to_string()),
+        },
         UiAction::ProbeInvariants => {
             let (blocked, total) = controller.run_invariant_probe();
             state.refresh(controller);

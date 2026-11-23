@@ -267,6 +267,42 @@ fn violating_task_stage_output_is_blocked_before_done() {
 }
 
 #[test]
+fn changed_invariant_is_used_by_next_chat_prompt() {
+    let dir = tempfile::tempdir().unwrap();
+    let first_client = Arc::new(Scripted::new(Vec::new()));
+    let mut first = controller(dir.path(), first_client);
+    first
+        .change_invariant(
+            "stack.rust-only",
+            Some("Только Rust".into()),
+            Some("Только Rust, никаких других языков.".into()),
+            Some(vec!["запрещенный_язык".into()]),
+            "явная команда TUI",
+            "tui",
+        )
+        .unwrap();
+    drop(first);
+
+    let scripted = Arc::new(Scripted::new(Vec::new()));
+    let mut controller = controller(dir.path(), scripted.clone());
+    let outcome = controller
+        .send_user_message("Какой у нас стек?", &mut |_| {})
+        .unwrap();
+    assert!(!outcome.invariant_blocked);
+    let requests = scripted.requests.lock().unwrap();
+    let prompt = requests[0]
+        .messages
+        .iter()
+        .map(|message| message.text())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(prompt.contains("Только Rust, никаких других языков."));
+    assert!(prompt.contains("Признаки нарушения: запрещенный_язык"));
+    assert!(!prompt.contains("напиши на python"));
+    assert!(!prompt.contains("Production-код только на Rust 2024"));
+}
+
+#[test]
 fn invariants_survive_controller_reload() {
     let dir = tempfile::tempdir().unwrap();
     let scripted = Arc::new(Scripted::new(Vec::new()));

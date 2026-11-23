@@ -11,6 +11,8 @@
 | Конфликт в задаче | проверка цели и каждого этапа в `run_task` | `task_goal_conflict_fails_without_llm_request`, `violating_task_stage_output_is_blocked_before_done` |
 | Изменение только явной командой | `InvariantState::change` из CLI/TUI, причина обязательна | `domain::invariant::tests::change_requires_reason_and_records_old_new`, `tests/invariants.rs::dialogue_cannot_change_invariant_but_explicit_command_can`, `tests/cli.rs::invariants_set_requires_reason` |
 | Изменение фиксирует «было → стало» | `InvariantChange.old_* / new_* / reason / source` | `tests/cli.rs::invariants_list_set_history_and_probe_work_without_key` |
+| TUI меняет заголовок, правило и признаки вместе | шаги `InvariantTitle → InvariantRule → InvariantForbidden → InvariantReason` | `tests/tui.rs::invariants_screen_lists_and_requires_explicit_edit_command` |
+| После изменения чат использует новые данные, а не старые | `change_invariant` → `save_invariants` → новый `AppController::load` | `tests/invariants.rs::changed_invariant_is_used_by_next_chat_prompt` |
 | 5–10 попыток обхода | 10 формулировок, `invariants probe`, вкладка `9` `p` | `invariants::engine::tests::ten_bypass_formulations_are_all_blocked`, `tests/invariants.rs::ten_bypass_attempts_through_chat_are_all_blocked_and_counted` |
 | Подсчёт попыток | `InvariantAuditState`, `attempt_count/blocked_count/probe_count` | `invariants::engine` и `tests/cli.rs` |
 | Объяснение отказа | ID, правило, совпадение, запрет обхода, команда изменения | `invariants::engine::tests::direct_conflict_is_blocked_by_code` |
@@ -28,4 +30,4 @@ cargo test
 ```
 
 Фактический прогон: `cargo fmt` чистый, clippy без предупреждений,
-`cargo test` — **329 тестов**, 0 падений.
+`cargo test` — **330 тестов**, 0 падений.

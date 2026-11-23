@@ -74,7 +74,9 @@ pub enum UiAction {
     UseProfile(String),
     ChangeInvariant {
         id: String,
+        title: String,
         rule: String,
+        forbidden: Vec<String>,
         reason: String,
     },
     ProbeInvariants,
@@ -256,7 +258,10 @@ fn handle_input_key(state: &mut AppState, key: KeyEvent) -> UiAction {
             }
             if matches!(
                 purpose,
-                InputPurpose::InvariantRule | InputPurpose::InvariantReason
+                InputPurpose::InvariantTitle
+                    | InputPurpose::InvariantRule
+                    | InputPurpose::InvariantForbidden
+                    | InputPurpose::InvariantReason
             ) {
                 state.invariant_draft = None;
             }
@@ -422,6 +427,24 @@ fn submit_input(state: &mut AppState, purpose: InputPurpose, text: &str) -> UiAc
             }
             Err(error) => UiAction::Error(error),
         },
+        InputPurpose::InvariantTitle => {
+            let title = text.trim().to_string();
+            if title.is_empty() {
+                state.invariant_draft = None;
+                return UiAction::Error("заголовок инварианта не может быть пустым".into());
+            }
+            let Some(draft) = state.invariant_draft.as_mut() else {
+                return UiAction::Error("черновик инварианта потерян".into());
+            };
+            draft.new_title = title;
+            let rule = draft.new_rule.clone();
+            state.open_input(
+                InputPurpose::InvariantRule,
+                "Новое правило инварианта",
+                rule,
+            );
+            UiAction::None
+        }
         InputPurpose::InvariantRule => {
             let rule = text.trim().to_string();
             if rule.is_empty() {
@@ -432,6 +455,19 @@ fn submit_input(state: &mut AppState, purpose: InputPurpose, text: &str) -> UiAc
                 return UiAction::Error("черновик инварианта потерян".into());
             };
             draft.new_rule = rule;
+            let forbidden = draft.new_forbidden.clone();
+            state.open_input(
+                InputPurpose::InvariantForbidden,
+                "Признаки нарушения через ; (пусто — очистить)",
+                forbidden,
+            );
+            UiAction::None
+        }
+        InputPurpose::InvariantForbidden => {
+            let Some(draft) = state.invariant_draft.as_mut() else {
+                return UiAction::Error("черновик инварианта потерян".into());
+            };
+            draft.new_forbidden = text.trim().to_string();
             state.open_input(InputPurpose::InvariantReason, "Причина изменения", "");
             UiAction::None
         }
@@ -445,11 +481,22 @@ fn submit_input(state: &mut AppState, purpose: InputPurpose, text: &str) -> UiAc
             };
             UiAction::ChangeInvariant {
                 id: draft.id,
+                title: draft.new_title,
                 rule: draft.new_rule,
+                forbidden: parse_forbidden(&draft.new_forbidden),
                 reason,
             }
         }
     }
+}
+
+fn parse_forbidden(value: &str) -> Vec<String> {
+    value
+        .split([';', '\n', ','])
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 fn handle_modal_key(state: &mut AppState, key: KeyEvent) -> UiAction {
