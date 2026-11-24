@@ -176,3 +176,9 @@ cargo test --test live_github -- --ignored --nocapture
 - MCP-вызов синхронно мостится в tokio-runtime; он выполняется в worker-потоке
   TUI, поэтому интерфейс не блокируется.
 - История чата живёт в памяти процесса; постоянного хранилища в Дне 16 нет.
+
+## Result
+
+https://github.com/user-attachments/assets/5f9700f1-f220-4e87-b544-3eb6fb5dbaed
+
+https://github.com/user-attachments/assets/2d32ad05-db0c-4924-9665-d62e6bc9392e
