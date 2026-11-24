@@ -17,3 +17,4 @@
 | [13](./13) | 18.11.2026 | Rust, ratatui | `cd 13 && cargo run -- --data-dir ./data tui` |
 | [14](./14) | 19.11.2026 | Rust, ratatui | `cd 14 && cargo run -- --data-dir ./data tui` |
 | [15](./15) | 20.11.2026 | Rust, ratatui | `cd 15 && cargo run -- --data-dir ./data tui` |
+| [16](./16) | 24.11.2026 | Rust, ratatui | `cd 16 && cargo run -- tui` |

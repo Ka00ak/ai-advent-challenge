@@ -1,0 +1,23 @@
+[package]
+name = "lab16"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "День 16 — MCP-клиент, GitHub MCP и агент с локальными и внешними инструментами (Rust TUI)"
+
+[dependencies]
+ratatui = { version = "0.29", features = ["unstable-rendered-line-info"] }
+crossterm = "0.28"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
+uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+thiserror = "2"
+rmcp = { version = "3.11", features = ["client", "transport-child-process"] }
+tokio = { version = "1", features = ["rt-multi-thread", "time", "process", "macros"] }
+
+[dev-dependencies]
+tempfile = "3"

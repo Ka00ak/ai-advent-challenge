@@ -1,0 +1,42 @@
+ lab16 · deepseek-chat · MCP github · github-mcp-server · 26 инстр. · ответ · 3 шаг(ов) · 17082 токенов
+ 1 Чат   2 API    · только две вкладки
+┌ Диалог ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│Вы                                                                                                                                        │
+│Use GitHub MCP search_repositories for repo:rust-lang/rust, take total_count, then use local calculate to multiply it by 3. Answer        │
+│briefly.                                                                                                                                  │
+│                                                                                                                                          │
+│Ассистент                                                                                                                                 │
+│  → search_repositories({"query": "repo:rust-lang/rust"})                                                                                 │
+│                                                                                                                                          │
+│← search_repositories · результат                                                                                                         │
+│  {"incomplete_results":false,"items":[{"clone_url":"https://github.com/rust-lang/rust.git","created_at":"2010-06-16T20:39:03Z","default_b│
+│ranch":"main","description":"Empowering everyone to build reliable and efficient                                                          │
+│software.","fork":false,"full_name":"rust-lang/rust","git_url":"git://github.com/rust-lang/rust.git","html_url":"https://github.com/rust-l│
+│ang/rust","id":724712,"name":"rust","node_id":"MDEwOlJlcG9zaXRvcnk3MjQ3MTI=","owner":{"avatar_url":"https://avatars.githubusercontent.com/│
+│u/5430905?v=4","html_url":"https://github.com/rust-lang","id":5430905,"login":"rust-lang","node_id":"MDEyOk9yZ2FuaXphdGlvbjU0MzA5MDU=","ty│
+│pe":"Organization","url":"https://api.github.com/users/rust-lang"},"private":false,"pushed_at":"2026-11-24T02:58:56Z","ssh_url":"git@githu│
+│b.com:rust-lang/rust.git","updated_at":"2026-11-23T23:50:52Z","url":"https://api.github.com/repos/rust-lang/rust"}],"total_count":1       │
+│  … (полный ответ инструмента в контексте модели)                                                                                         │
+│                                                                                                                                          │
+│Ассистент                                                                                                                                 │
+│  → calculate({"expression": "1 * 3"})                                                                                                    │
+│                                                                                                                                          │
+│← calculate · результат                                                                                                                   │
+│  {"expression":"1 * 3","result":3.0}                                                                                                     │
+│                                                                                                                                          │
+│Ассистент                                                                                                                                 │
+│total_count = 1 (единственный результат — сам rust-lang/rust), умноженный на 3 даёт **3**.                                                │
+│                                                                                                                                          │
+│                                                                                                                                          │
+│                                                                                                                                          │
+│                                                                                                                                          │
+│                                                                                                                                          │
+│                                                                                                                                          │
+│                                                                                                                                          │
+│                                                                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌ Сообщение · i или Enter ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│> нажмите i или Enter, чтобы написать модели                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+ i/Enter ввод · ↑↓/PgUp/PgDn прокрутка · End низ · c очистить · Tab API
+ q выход · 1 Чат · 2 API
